@@ -12,13 +12,60 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> {
+class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBindingObserver {
   final PageController _pageController = PageController();
   int _currentPage = 0;
   bool _hasReadPage3 = false; // Track if user has read page 3 completely
 
   // Define accent color - muted blue
   static const Color accentColor = Color(0xFF4A6FA5);
+
+  @override
+  void initState() {
+    super.initState();
+    // Add observer to listen to app lifecycle changes
+    WidgetsBinding.instance.addObserver(this);
+  }
+
+  @override
+  void dispose() {
+    // Remove observer when widget is disposed
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Check permissions when app resumes from background
+    if (state == AppLifecycleState.resumed && _currentPage == 2) {
+      _checkPermissionsAfterResume();
+    }
+  }
+
+  void _checkPermissionsAfterResume() async {
+    // Wait a bit for the system to update permission status
+    await Future.delayed(const Duration(milliseconds: 500));
+    
+    bool allPermissionsGranted = await PermissionService.areAllPermissionsGranted();
+    if (allPermissionsGranted && mounted) {
+      // Show success message and navigate to home
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Semua izin berhasil diaktifkan!'),
+          backgroundColor: Colors.green,
+          duration: Duration(seconds: 2),
+        ),
+      );
+      
+      // Navigate to home after a short delay
+      Future.delayed(const Duration(seconds: 2), () {
+        if (mounted) {
+          _navigateToHome();
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -173,61 +220,16 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       return;
     }
 
-    // Show permission dialog
-    if (mounted) {
-      await _showPermissionDialog();
-    }
-  }
+    // Check individual permissions and show appropriate dialog
+    bool accessibilityEnabled = await PermissionService.isAccessibilityServiceEnabled();
+    bool usageStatsGranted = await PermissionService.isUsageStatsPermissionGranted();
 
-  Future<void> _showPermissionDialog() async {
-    return showDialog<void>(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Izin Diperlukan'),
-          content: const SingleChildScrollView(
-            child: ListBody(
-              children: <Widget>[
-                Text('Aplikasi memerlukan izin berikut untuk berfungsi:'),
-                SizedBox(height: 12),
-                Text('1. Layanan Aksesibilitas'),
-                Text('   - Untuk mendeteksi aplikasi yang sedang aktif'),
-                SizedBox(height: 8),
-                Text('2. Akses Statistik Penggunaan'),
-                Text('   - Untuk memantau penggunaan aplikasi'),
-                SizedBox(height: 12),
-                Text('Aplikasi akan membuka pengaturan sistem. Mohon aktifkan kedua izin tersebut.'),
-              ],
-            ),
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: const Text('Batal'),
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-            ),
-            ElevatedButton(
-              child: const Text('Buka Pengaturan'),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _openPermissionSettings();
-              },
-            ),
-          ],
-        );
-      },
-    );
-  }
-
-  Future<void> _openPermissionSettings() async {
-    // First, open accessibility settings
-    await PermissionService.openAccessibilitySettings();
-    
-    // Show instructions for accessibility service
-    if (mounted) {
+    if (!accessibilityEnabled) {
+      // Show accessibility instructions if not enabled
       await _showAccessibilityInstructions();
+    } else if (!usageStatsGranted) {
+      // Skip accessibility and go directly to usage stats if accessibility is already enabled
+      await _showUsageStatsInstructions();
     }
   }
 
@@ -247,16 +249,18 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
                 Text('3. Aktifkan toggle "Gunakan TodoList"'),
                 Text('4. Tap "OK" pada dialog konfirmasi'),
                 SizedBox(height: 12),
-                Text('Setelah selesai, kembali ke aplikasi dan tap tombol "Lanjutkan".'),
+                Text('Setelah selesai, kembali ke aplikasi.'),
               ],
             ),
           ),
           actions: <Widget>[
             ElevatedButton(
-              child: const Text('Mengerti'),
-              onPressed: () {
+              child: const Text('Buka Pengaturan'),
+              onPressed: () async {
                 Navigator.of(context).pop();
-                _showUsageStatsInstructions();
+                // Open accessibility settings
+                await PermissionService.openAccessibilitySettings();
+                _checkPermissionsAndNavigate();
               },
             ),
           ],
@@ -266,9 +270,6 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   Future<void> _showUsageStatsInstructions() async {
-    // Open usage stats settings
-    await PermissionService.openUsageStatsSettings();
-    
     if (mounted) {
       await showDialog<void>(
         context: context,
@@ -290,9 +291,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             ),
             actions: <Widget>[
               ElevatedButton(
-                child: const Text('Selesai'),
-                onPressed: () {
+                child: const Text('Buka Pengaturan'),
+                onPressed: () async {
                   Navigator.of(context).pop();
+                  // Open usage stats settings
+                  await PermissionService.openUsageStatsSettings();
                   _checkPermissionsAndNavigate();
                 },
               ),
