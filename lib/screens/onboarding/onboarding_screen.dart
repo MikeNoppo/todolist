@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../home_screen.dart';
 import 'pages/onboarding_page_1.dart';
 import 'pages/onboarding_page_2.dart';
 import 'pages/onboarding_page_3.dart';
@@ -162,12 +163,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
   }
 
   void _requestPermission() {
-    // TODO: Implement permission request logic
-    // For now, just show a placeholder
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('Meminta izin akses penggunaan...'),
-      ),
+    // Navigate to home screen after permission request
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (context) => const HomeScreen()),
     );
   }
 }
