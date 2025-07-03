@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../home_screen.dart';
+import '../../services/permission_service.dart';
 import 'pages/onboarding_page_1.dart';
 import 'pages/onboarding_page_2.dart';
 import 'pages/onboarding_page_3.dart';
@@ -162,8 +163,191 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
     );
   }
 
-  void _requestPermission() {
-    // Navigate to home screen after permission request
+  void _requestPermission() async {
+    // Check if all permissions are already granted
+    bool allPermissionsGranted = await PermissionService.areAllPermissionsGranted();
+    
+    if (allPermissionsGranted) {
+      // If all permissions are granted, go to home screen
+      _navigateToHome();
+      return;
+    }
+
+    // Show permission dialog
+    if (mounted) {
+      await _showPermissionDialog();
+    }
+  }
+
+  Future<void> _showPermissionDialog() async {
+    return showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Izin Diperlukan'),
+          content: const SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Aplikasi memerlukan izin berikut untuk berfungsi:'),
+                SizedBox(height: 12),
+                Text('1. Layanan Aksesibilitas'),
+                Text('   - Untuk mendeteksi aplikasi yang sedang aktif'),
+                SizedBox(height: 8),
+                Text('2. Akses Statistik Penggunaan'),
+                Text('   - Untuk memantau penggunaan aplikasi'),
+                SizedBox(height: 12),
+                Text('Aplikasi akan membuka pengaturan sistem. Mohon aktifkan kedua izin tersebut.'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Batal'),
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+            ),
+            ElevatedButton(
+              child: const Text('Buka Pengaturan'),
+              onPressed: () async {
+                Navigator.of(context).pop();
+                await _openPermissionSettings();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _openPermissionSettings() async {
+    // First, open accessibility settings
+    await PermissionService.openAccessibilitySettings();
+    
+    // Show instructions for accessibility service
+    if (mounted) {
+      await _showAccessibilityInstructions();
+    }
+  }
+
+  Future<void> _showAccessibilityInstructions() async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Aktifkan Layanan Aksesibilitas'),
+          content: const SingleChildScrollView(
+            child: ListBody(
+              children: <Widget>[
+                Text('Langkah-langkah:'),
+                SizedBox(height: 8),
+                Text('1. Cari "TodoList" dalam daftar layanan'),
+                Text('2. Tap pada "TodoList"'),
+                Text('3. Aktifkan toggle "Gunakan TodoList"'),
+                Text('4. Tap "OK" pada dialog konfirmasi'),
+                SizedBox(height: 12),
+                Text('Setelah selesai, kembali ke aplikasi dan tap tombol "Lanjutkan".'),
+              ],
+            ),
+          ),
+          actions: <Widget>[
+            ElevatedButton(
+              child: const Text('Mengerti'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _showUsageStatsInstructions();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  Future<void> _showUsageStatsInstructions() async {
+    // Open usage stats settings
+    await PermissionService.openUsageStatsSettings();
+    
+    if (mounted) {
+      await showDialog<void>(
+        context: context,
+        builder: (BuildContext context) {
+          return AlertDialog(
+            title: const Text('Aktifkan Akses Statistik Penggunaan'),
+            content: const SingleChildScrollView(
+              child: ListBody(
+                children: <Widget>[
+                  Text('Langkah-langkah:'),
+                  SizedBox(height: 8),
+                  Text('1. Cari "TodoList" dalam daftar aplikasi'),
+                  Text('2. Tap pada "TodoList"'),
+                  Text('3. Aktifkan toggle "Izinkan akses statistik penggunaan"'),
+                  SizedBox(height: 12),
+                  Text('Setelah kedua izin aktif, kembali ke aplikasi.'),
+                ],
+              ),
+            ),
+            actions: <Widget>[
+              ElevatedButton(
+                child: const Text('Selesai'),
+                onPressed: () {
+                  Navigator.of(context).pop();
+                  _checkPermissionsAndNavigate();
+                },
+              ),
+            ],
+          );
+        },
+      );
+    }
+  }
+
+  Future<void> _checkPermissionsAndNavigate() async {
+    bool allPermissionsGranted = await PermissionService.areAllPermissionsGranted();
+    
+    if (allPermissionsGranted) {
+      _navigateToHome();
+    } else {
+      // Show a dialog asking user to complete the permission setup
+      if (mounted) {
+        await _showIncompletePermissionDialog();
+      }
+    }
+  }
+
+  Future<void> _showIncompletePermissionDialog() async {
+    return showDialog<void>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          title: const Text('Izin Belum Lengkap'),
+          content: const Text(
+            'Beberapa izin belum diaktifkan. Aplikasi mungkin tidak berfungsi dengan optimal.\n\n'
+            'Anda dapat mengaktifkan izin nanti melalui pengaturan aplikasi.'
+          ),
+          actions: <Widget>[
+            TextButton(
+              child: const Text('Coba Lagi'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _requestPermission();
+              },
+            ),
+            ElevatedButton(
+              child: const Text('Lanjutkan'),
+              onPressed: () {
+                Navigator.of(context).pop();
+                _navigateToHome();
+              },
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  void _navigateToHome() {
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const HomeScreen()),
