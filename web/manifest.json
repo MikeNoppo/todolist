@@ -1,6 +1,6 @@
 {
-    "name": "todolist",
-    "short_name": "todolist",
+    "name": "myTask",
+    "short_name": "myTask",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
