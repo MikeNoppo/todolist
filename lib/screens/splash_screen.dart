@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'onboarding/onboarding_screen.dart';
-import 'home_screen.dart';
+import 'Home/home_screen.dart';
 import '../repositories/todo_repository.dart';
 
 class SplashScreen extends StatefulWidget {

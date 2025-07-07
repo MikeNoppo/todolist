@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import '../models/todo_model.dart';
-import '../repositories/todo_repository.dart';
-import 'add_edit_task_screen.dart';
+import '../../models/todo_model.dart';
+import '../../repositories/todo_repository.dart';
+import '../add_edit_task_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
