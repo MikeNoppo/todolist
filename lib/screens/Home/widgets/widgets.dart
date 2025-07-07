@@ -22,3 +22,7 @@ export 'tasks/todo_checkbox.dart';
 export 'tasks/deadline_badge.dart';
 export 'tasks/todo_card.dart';
 export 'tasks/todo_list.dart';
+export 'tasks/task_context_menu.dart';
+export 'tasks/bulk_selection_manager.dart';
+export 'tasks/bulk_actions_bottom_sheet.dart';
+export 'tasks/selection_mode_app_bar.dart';

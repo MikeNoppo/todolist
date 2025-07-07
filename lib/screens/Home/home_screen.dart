@@ -13,6 +13,7 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TodoRepository _todoRepository = TodoRepository();
+  final BulkSelectionManager _selectionManager = BulkSelectionManager();
   List<TodoModel> _todos = [];
   String _userName = 'Pengguna';
   bool _isLoading = true;
@@ -21,6 +22,15 @@ class _HomeScreenState extends State<HomeScreen> {
   void initState() {
     super.initState();
     _loadData();
+    _selectionManager.addListener(() {
+      setState(() {});
+    });
+  }
+
+  @override
+  void dispose() {
+    _selectionManager.dispose();
+    super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -41,10 +51,93 @@ class _HomeScreenState extends State<HomeScreen> {
     await _loadData();
   }
 
+  Future<void> _duplicateTodo(TodoModel todo) async {
+    final newTodo = TodoModel(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      title: '${todo.title} (Copy)',
+      description: todo.description,
+      priority: todo.priority,
+      deadline: todo.deadline,
+      isCompleted: false,
+      createdAt: DateTime.now(),
+    );
+    
+    await _todoRepository.addTodo(newTodo);
+    await _loadData();
+    
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Task duplicated successfully'),
+          backgroundColor: Color(0xFF4A6FA5),
+        ),
+      );
+    }
+  }
+
+  void _showBulkActions() {
+    final selectedTodos = _selectionManager.getSelectedTodos(_todos);
+    
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: Colors.transparent,
+      isScrollControlled: true,
+      builder: (context) => BulkActionsBottomSheet(
+        selectedCount: _selectionManager.selectedCount,
+        selectedTodos: selectedTodos,
+        onMarkAllCompleted: () async {
+          for (final todo in selectedTodos) {
+            if (!todo.isCompleted) {
+              await _todoRepository.toggleTodoComplete(todo.id);
+            }
+          }
+          _selectionManager.exitSelectionMode();
+          await _loadData();
+        },
+        onMarkAllIncomplete: () async {
+          for (final todo in selectedTodos) {
+            if (todo.isCompleted) {
+              await _todoRepository.toggleTodoComplete(todo.id);
+            }
+          }
+          _selectionManager.exitSelectionMode();
+          await _loadData();
+        },
+        onDeleteAll: () async {
+          for (final todo in selectedTodos) {
+            await _todoRepository.deleteTodo(todo.id);
+          }
+          _selectionManager.exitSelectionMode();
+          await _loadData();
+          
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('${selectedTodos.length} task${selectedTodos.length > 1 ? 's' : ''} deleted'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
+        },
+        onCancel: () {
+          _selectionManager.exitSelectionMode();
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
+      appBar: _selectionManager.isSelectionMode 
+        ? SelectionModeAppBar(
+            selectedCount: _selectionManager.selectedCount,
+            onCancel: () => _selectionManager.exitSelectionMode(),
+            onSelectAll: () => _selectionManager.selectAll(_todos),
+            onBulkActions: _showBulkActions,
+          )
+        : null,
       body: _isLoading
           ? const LoadingSkeleton()
           : RefreshIndicator(
@@ -53,12 +146,17 @@ class _HomeScreenState extends State<HomeScreen> {
               backgroundColor: Colors.white,
               child: CustomScrollView(
                 slivers: [
-                  ModernAppBar(userName: _userName),
+                  if (!_selectionManager.isSelectionMode)
+                    ModernAppBar(userName: _userName),
                   SliverToBoxAdapter(
                     child: Column(
                       children: [
-                        DashboardOverviewCard(todos: _todos),
-                        const SizedBox(height: 8),
+                        if (!_selectionManager.isSelectionMode) ...[
+                          DashboardOverviewCard(todos: _todos),
+                          const SizedBox(height: 8),
+                        ] else ...[
+                          const SizedBox(height: 20),
+                        ],
                       ],
                     ),
                   ),
@@ -68,24 +166,28 @@ class _HomeScreenState extends State<HomeScreen> {
                         todos: _todos,
                         onToggleComplete: _toggleTodoComplete,
                         onDeleted: _loadData,
+                        selectionManager: _selectionManager,
+                        onDuplicate: _duplicateTodo,
                       ),
                 ],
               ),
             ),
-      floatingActionButton: AnimatedFab(
-        onPressed: () async {
-          final result = await Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => const AddEditTaskScreen(),
-            ),
-          );
-          
-          if (result == true) {
-            await _loadData();
-          }
-        },
-      ),
+      floatingActionButton: !_selectionManager.isSelectionMode
+        ? AnimatedFab(
+            onPressed: () async {
+              final result = await Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const AddEditTaskScreen(),
+                ),
+              );
+              
+              if (result == true) {
+                await _loadData();
+              }
+            },
+          )
+        : null,
     );
   }
 }
