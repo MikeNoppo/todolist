@@ -10,73 +10,89 @@ class OnboardingPage2 extends StatelessWidget {
     
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: responsive.horizontalPadding),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Hero icon - Shield protection
-          Container(
-            width: responsive.iconSizePage2,
-            height: responsive.iconSizePage2,
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.shield_outlined,
-              size: responsive.iconSizePage2 * 0.5,
-              color: const Color(0xFF4A6FA5),
-            ),
+      child: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: responsive.availableHeight,
           ),
-          SizedBox(height: responsive.mediumSpacing),
-          // Title
-          Text(
-            'Lindungi Waktu\nProduktifmu',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: responsive.titleFontSize,
-              fontWeight: FontWeight.w300,
-              color: Colors.black87,
-              height: 1.2,
-            ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              // Add some top padding to center content better
+              SizedBox(height: responsive.spacing(0.05)),
+              
+              // Hero icon - Shield protection
+              Container(
+                width: responsive.iconSizePage2,
+                height: responsive.iconSizePage2,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.shield_outlined,
+                  size: responsive.iconSizePage2 * 0.5,
+                  color: const Color(0xFF4A6FA5),
+                ),
+              ),
+              SizedBox(height: responsive.mediumSpacing),
+              
+              // Title
+              Text(
+                'Lindungi Waktu\nProduktifmu',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: responsive.titleFontSize,
+                  fontWeight: FontWeight.w300,
+                  color: Colors.black87,
+                  height: 1.2,
+                ),
+              ),
+              SizedBox(height: responsive.smallSpacing),
+              
+              // Subtitle
+              Text(
+                'Sistem yang bisa mendeteksi dan mencegah akses ke aplikasi yang mengganggu produktivitas.',
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  fontSize: responsive.subtitleFontSize,
+                  fontWeight: FontWeight.w400,
+                  color: Colors.black54,
+                  height: 1.3,
+                ),
+              ),
+              SizedBox(height: responsive.largeSpacing),
+              
+              // Workflow steps
+              _buildWorkflowStep(
+                1,
+                Icons.assignment_outlined,
+                'Buat Daftar Tugas',
+                'Tambahkan tugas dengan prioritas dan deadline',
+                responsive,
+              ),
+              SizedBox(height: responsive.mediumSpacing),
+              _buildWorkflowStep(
+                2,
+                Icons.block_outlined,
+                'Aktifkan Perlindungan',
+                'Sistem akan memblokir aplikasi pengganggu',
+                responsive,
+              ),
+              SizedBox(height: responsive.mediumSpacing),
+              _buildWorkflowStep(
+                3,
+                Icons.trending_up_outlined,
+                'Tingkatkan Produktivitas',
+                'Fokus pada tugas tanpa gangguan',
+                responsive,
+              ),
+              
+              // Add bottom padding to ensure content doesn't get cut off
+              SizedBox(height: responsive.spacing(0.1)),
+            ],
           ),
-          SizedBox(height: responsive.smallSpacing),
-          // Subtitle
-          Text(
-            'Sistem yang bisa mendeteksi dan mencegah akses ke aplikasi yang mengganggu produktivitas.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: responsive.subtitleFontSize,
-              fontWeight: FontWeight.w400,
-              color: Colors.black54,
-              height: 1.3,
-            ),
-          ),
-          SizedBox(height: responsive.extraLargeSpacing),
-          // Workflow steps
-          _buildWorkflowStep(
-            1,
-            Icons.assignment_outlined,
-            'Buat Daftar Tugas',
-            'Tambahkan tugas dengan prioritas dan deadline',
-            responsive,
-          ),
-          SizedBox(height: responsive.mediumSpacing),
-          _buildWorkflowStep(
-            2,
-            Icons.block_outlined,
-            'Aktifkan Perlindungan',
-            'Sistem akan memblokir aplikasi pengganggu',
-            responsive,
-          ),
-          SizedBox(height: responsive.mediumSpacing),
-          _buildWorkflowStep(
-            3,
-            Icons.trending_up_outlined,
-            'Tingkatkan Produktivitas',
-            'Fokus pada tugas tanpa gangguan',
-            responsive,
-          ),
-        ],
+        ),
       ),
     );
   }

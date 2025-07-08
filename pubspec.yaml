@@ -1,4 +1,4 @@
-name: myTask
+name: mytask
 description: "myTask - Focus & To-Do List"
 publish_to: 'none'
 version: 0.1.0
