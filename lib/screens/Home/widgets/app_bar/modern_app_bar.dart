@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../settings/settings_screen.dart';
 
 class ModernAppBar extends StatelessWidget {
   final String userName;
@@ -98,7 +99,14 @@ class ModernAppBar extends StatelessWidget {
                           borderRadius: BorderRadius.circular(12),
                         ),
                         child: IconButton(
-                          onPressed: () {},
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const SettingsScreen(),
+                              ),
+                            );
+                          },
                           icon: Icon(
                             Icons.settings_outlined,
                             color: Colors.grey[600],
