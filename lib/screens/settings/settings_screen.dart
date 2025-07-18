@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../repositories/todo_repository.dart';
 import 'app_blocker_settings_screen.dart';
 import 'profile_screen.dart';
+import '../intervention/intervention_demo_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -115,6 +116,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       context,
                       MaterialPageRoute(
                         builder: (context) => const AppBlockerSettingsScreen(),
+                      ),
+                    );
+                  },
+                ),
+                _buildDivider(),
+                _buildSettingItem(
+                  icon: Icons.security_outlined,
+                  title: 'Test Layar Intervensi',
+                  subtitle: 'Lihat preview layar blocking',
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const InterventionDemoScreen(),
                       ),
                     );
                   },
