@@ -144,52 +144,6 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
                   height: 1.3,
                 ),
               ),
-              SizedBox(height: responsive.spacingPage3(0.015)),
-              // Additional privacy information to ensure scroll
-              Container(
-                padding: EdgeInsets.all(responsive.spacingPage3(0.015)),
-                decoration: BoxDecoration(
-                  color: Colors.blue[50],
-                  borderRadius: BorderRadius.circular(12),
-                  border: Border.all(color: const Color(0xFF4A6FA5).withOpacity(0.3)),
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Icon(
-                          Icons.info_outline,
-                          size: responsive.spacingPage3(0.02),
-                          color: const Color(0xFF4A6FA5),
-                        ),
-                        SizedBox(width: responsive.spacingPage3(0.008)),
-                        Text(
-                          'Informasi Tambahan',
-                          style: TextStyle(
-                            fontSize: responsive.infoTitleFontSize,
-                            fontWeight: FontWeight.w600,
-                            color: const Color(0xFF4A6FA5),
-                          ),
-                        ),
-                      ],
-                    ),
-                    SizedBox(height: responsive.spacingPage3(0.01)),
-                    Text(
-                      '• Aplikasi ini menggunakan accessibility service untuk mendeteksi aplikasi yang sedang aktif\n\n'
-                      '• Data penggunaan aplikasi disimpan secara lokal dan tidak dikirim ke server\n\n'
-                      '• Anda dapat mengatur daftar aplikasi yang akan diblokir melalui pengaturan\n\n'
-                      '• Fitur ini dapat dinonaktifkan kapan saja melalui pengaturan sistem Android',
-                      style: TextStyle(
-                        fontSize: responsive.infoContentFontSize,
-                        fontWeight: FontWeight.w400,
-                        color: Colors.black87,
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
               SizedBox(height: responsive.spacingPage3(0.04)), // Extra space to ensure scroll
             ],
           ),
