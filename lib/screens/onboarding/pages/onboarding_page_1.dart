@@ -10,63 +10,75 @@ class OnboardingPage1 extends StatelessWidget {
     
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: responsive.horizontalPadding),
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          // Hero icon - Focus target
-          Container(
-            width: responsive.iconSize,
-            height: responsive.iconSize,
-            decoration: BoxDecoration(
-              color: Colors.grey[50],
-              shape: BoxShape.circle,
-            ),
-            child: Icon(
-              Icons.center_focus_strong_outlined,
-              size: responsive.iconSize * 0.5,
-              color: const Color(0xFF4A6FA5),
-            ),
+      child: SingleChildScrollView(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            minHeight: responsive.availableHeight,
           ),
-          SizedBox(height: responsive.largeSpacing),
-          // Title
-          Text(
-            'Tetap Fokus,\nRaih Tujuan',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: responsive.titleFontSize,
-              fontWeight: FontWeight.w300,
-              color: Colors.black87,
-              height: 1.2,
-            ),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            children: [
+              // Hero icon - Focus target
+              Container(
+                width: responsive.iconSize,
+                height: responsive.iconSize,
+                decoration: BoxDecoration(
+                  color: Colors.grey[50],
+                  shape: BoxShape.circle,
+                ),
+                child: Icon(
+                  Icons.center_focus_strong_outlined,
+                  size: responsive.iconSize * 0.5,
+                  color: const Color(0xFF4A6FA5),
+                ),
+              ),
+              // Title and subtitle section
+              Column(
+                children: [
+                  Text(
+                    'Tetap Fokus,\nRaih Tujuan',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: responsive.titleFontSize,
+                      fontWeight: FontWeight.w300,
+                      color: Colors.black87,
+                      height: 1.2,
+                    ),
+                  ),
+                  SizedBox(height: responsive.spacing(0.02)),
+                  Text(
+                    'Bantu kamu fokus dengan memblokir distraksi dan mengingatkan tugas penting.',
+                    textAlign: TextAlign.center,
+                    style: TextStyle(
+                      fontSize: responsive.subtitleFontSize,
+                      fontWeight: FontWeight.w400,
+                      color: Colors.black54,
+                      height: 1.4,
+                    ),
+                  ),
+                ],
+              ),
+              // Feature highlights with icons
+              Column(
+                children: [
+                  _buildFeatureItem(
+                    Icons.block_outlined,
+                    'Blokir Aplikasi Pengganggu',
+                    'Hindari distraksi dari media sosial',
+                    responsive,
+                  ),
+                  SizedBox(height: responsive.mediumSpacing),
+                  _buildFeatureItem(
+                    Icons.schedule_outlined,
+                    'Kelola Waktu Dengan Baik',
+                    'Atur prioritas dan deadline tugas',
+                    responsive,
+                  ),
+                ],
+              ),
+            ],
           ),
-          SizedBox(height: responsive.spacing(0.025)),
-          // Subtitle
-          Text(
-            'Bantu kamu fokus dengan memblokir distraksi dan mengingatkan tugas penting.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: responsive.subtitleFontSize,
-              fontWeight: FontWeight.w400,
-              color: Colors.black54,
-              height: 1.4,
-            ),
-          ),
-          SizedBox(height: responsive.hugeSpacing),
-          // Feature highlights with icons
-          _buildFeatureItem(
-            Icons.block_outlined,
-            'Blokir Aplikasi Pengganggu',
-            'Hindari distraksi dari media sosial',
-            responsive,
-          ),
-          SizedBox(height: responsive.largeSpacing),
-          _buildFeatureItem(
-            Icons.schedule_outlined,
-            'Kelola Waktu Dengan Baik',
-            'Atur prioritas dan deadline tugas',
-            responsive,
-          ),
-        ],
+        ),
       ),
     );
   }

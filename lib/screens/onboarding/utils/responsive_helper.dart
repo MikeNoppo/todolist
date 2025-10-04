@@ -17,8 +17,8 @@ class ResponsiveHelper {
     double diagonal = math.sqrt(math.pow(screenWidth, 2) + math.pow(screenHeight, 2));
     
     // Normalize diagonal to a scale factor
-    // Assuming 600dp diagonal as baseline (typical phone)
-    double scaleFactor = diagonal / 600.0;
+    // Assuming 780dp diagonal as baseline (typical modern phone)
+    double scaleFactor = diagonal / 780.0;
     
     // Clamp the scale factor to prevent extreme sizes
     return math.max(0.8, math.min(1.4, scaleFactor));
@@ -36,8 +36,8 @@ class ResponsiveHelper {
     return calculated;
   }
   
-  // Available height for content (65% of screen for page 1 & 2, 75% for page 3)
-  double get availableHeight => screenHeight * 0.65;
+  // Available height for content (55% of screen for page 1 & 2, 75% for page 3)
+  double get availableHeight => screenHeight * 0.55;
   double get availableHeightPage3 => screenHeight * 0.75;
   
   // Horizontal padding
