@@ -1,5 +1,8 @@
-import 'package:flutter/material.dart';
 import 'dart:math' as math;
+
+import 'package:flutter/material.dart';
+
+import '../../../services/app_logger.dart';
 import 'device_type_helper.dart';
 
 class ResponsiveHelper {
@@ -82,9 +85,12 @@ class ResponsiveHelper {
   
   // Debug method to check current values
   void debugPrintSizes() {
-    print('Screen: ${screenWidth}x$screenHeight, DPR: $devicePixelRatio');
-    print('Text Scale Factor: $textScaleFactor');
-    print('Title Font Size: $titleFontSize');
-    print('Subtitle Font Size: $subtitleFontSize');
+    AppLogger.debug(
+      'ResponsiveHelper',
+      'Screen: ${screenWidth}x$screenHeight, DPR: $devicePixelRatio',
+    );
+    AppLogger.debug('ResponsiveHelper', 'Text Scale Factor: $textScaleFactor');
+    AppLogger.debug('ResponsiveHelper', 'Title Font Size: $titleFontSize');
+    AppLogger.debug('ResponsiveHelper', 'Subtitle Font Size: $subtitleFontSize');
   }
 }
