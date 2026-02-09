@@ -5,10 +5,7 @@ import 'stat_card.dart';
 class DashboardOverviewCard extends StatelessWidget {
   final List<TodoModel> todos;
 
-  const DashboardOverviewCard({
-    super.key,
-    required this.todos,
-  });
+  const DashboardOverviewCard({super.key, required this.todos});
 
   @override
   Widget build(BuildContext context) {
@@ -17,7 +14,11 @@ class DashboardOverviewCard extends StatelessWidget {
     final todayTasks = todos.where((todo) {
       final now = DateTime.now();
       final today = DateTime(now.year, now.month, now.day);
-      final deadline = DateTime(todo.deadline.year, todo.deadline.month, todo.deadline.day);
+      final deadline = DateTime(
+        todo.deadline.year,
+        todo.deadline.month,
+        todo.deadline.day,
+      );
       return deadline.isAtSameMomentAs(today);
     }).length;
 

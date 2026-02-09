@@ -4,10 +4,7 @@ import '../../../../models/todo_model.dart';
 class PriorityIndicator extends StatelessWidget {
   final TodoPriority priority;
 
-  const PriorityIndicator({
-    super.key,
-    required this.priority,
-  });
+  const PriorityIndicator({super.key, required this.priority});
 
   Color _getPriorityColor(TodoPriority priority) {
     switch (priority) {

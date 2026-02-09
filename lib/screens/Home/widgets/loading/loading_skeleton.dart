@@ -33,7 +33,11 @@ class LoadingSkeleton extends StatelessWidget {
                     children: [
                       Row(
                         children: [
-                          ShimmerContainer(width: 48, height: 48, isCircle: true),
+                          ShimmerContainer(
+                            width: 48,
+                            height: 48,
+                            isCircle: true,
+                          ),
                           SizedBox(width: 12),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
