@@ -14,6 +14,8 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen>
     with TickerProviderStateMixin {
+  static const String _tag = 'SplashScreen';
+
   late AnimationController _iconController;
   late AnimationController _textController;
   late AnimationController _progressController;
@@ -52,39 +54,25 @@ class _SplashScreenState extends State<SplashScreen>
     );
 
     // Icon animations
-    _iconScaleAnimation = Tween<double>(
-      begin: 0.3,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _iconController,
-      curve: Curves.elasticOut,
-    ));
+    _iconScaleAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _iconController, curve: Curves.elasticOut),
+    );
 
     // Text animations
     _textSlideAnimation = Tween<double>(
       begin: 50.0,
       end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _textController,
-      curve: Curves.easeOut,
-    ));
+    ).animate(CurvedAnimation(parent: _textController, curve: Curves.easeOut));
 
     _textFadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _textController,
-      curve: Curves.easeIn,
-    ));
+    ).animate(CurvedAnimation(parent: _textController, curve: Curves.easeIn));
 
     // Progress animation
-    _progressAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _progressController,
-      curve: Curves.easeInOut,
-    ));
+    _progressAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _progressController, curve: Curves.easeInOut),
+    );
   }
 
   Future<void> _startSplashSequence() async {
@@ -114,7 +102,7 @@ class _SplashScreenState extends State<SplashScreen>
       final hasCompletedOnboarding = userName != null && userName.isNotEmpty;
 
       AppLogger.info(
-        'SplashScreen',
+        _tag,
         hasCompletedOnboarding
             ? 'Onboarding complete, navigating to home.'
             : 'Onboarding incomplete, navigating to onboarding.',
@@ -129,7 +117,7 @@ class _SplashScreenState extends State<SplashScreen>
       }
     } catch (e, stackTrace) {
       AppLogger.error(
-        'SplashScreen',
+        _tag,
         'Failed to check first launch state; falling back to onboarding.',
         error: e,
         stackTrace: stackTrace,
@@ -153,9 +141,10 @@ class _SplashScreenState extends State<SplashScreen>
           const end = Offset.zero;
           const curve = Curves.easeInOut;
 
-          var tween = Tween(begin: begin, end: end).chain(
-            CurveTween(curve: curve),
-          );
+          var tween = Tween(
+            begin: begin,
+            end: end,
+          ).chain(CurveTween(curve: curve));
 
           return SlideTransition(
             position: animation.drive(tween),
@@ -178,9 +167,10 @@ class _SplashScreenState extends State<SplashScreen>
           const end = Offset.zero;
           const curve = Curves.easeInOut;
 
-          var tween = Tween(begin: begin, end: end).chain(
-            CurveTween(curve: curve),
-          );
+          var tween = Tween(
+            begin: begin,
+            end: end,
+          ).chain(CurveTween(curve: curve));
 
           return SlideTransition(
             position: animation.drive(tween),
@@ -228,7 +218,9 @@ class _SplashScreenState extends State<SplashScreen>
                             borderRadius: BorderRadius.circular(20),
                             boxShadow: [
                               BoxShadow(
-                                color: const Color(0xFF4A6FA5).withValues(alpha: 0.2),
+                                color: const Color(
+                                  0xFF4A6FA5,
+                                ).withValues(alpha: 0.2),
                                 blurRadius: 20,
                                 spreadRadius: 5,
                                 offset: const Offset(0, 10),
