@@ -3,11 +3,8 @@ import '../utils/responsive_helper.dart';
 
 class OnboardingPage3 extends StatefulWidget {
   final VoidCallback onReadComplete;
-  
-  const OnboardingPage3({
-    super.key,
-    required this.onReadComplete,
-  });
+
+  const OnboardingPage3({super.key, required this.onReadComplete});
 
   @override
   State<OnboardingPage3> createState() => _OnboardingPage3State();
@@ -35,7 +32,7 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
       final maxScroll = _scrollController.position.maxScrollExtent;
       final currentScroll = _scrollController.position.pixels;
       final threshold = maxScroll * 0.95; // 95% of the way down
-      
+
       if (currentScroll >= threshold) {
         setState(() {
           _hasReachedBottom = true;
@@ -48,7 +45,7 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
   @override
   Widget build(BuildContext context) {
     final responsive = ResponsiveHelper(context);
-    
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: responsive.horizontalPadding),
       child: SingleChildScrollView(
@@ -144,7 +141,9 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
                   height: 1.3,
                 ),
               ),
-              SizedBox(height: responsive.spacingPage3(0.04)), // Extra space to ensure scroll
+              SizedBox(
+                height: responsive.spacingPage3(0.04),
+              ), // Extra space to ensure scroll
             ],
           ),
         ),
@@ -153,8 +152,8 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
   }
 
   Widget _buildPermissionItem(
-    IconData icon, 
-    String title, 
+    IconData icon,
+    String title,
     String subtitle,
     ResponsiveHelper responsive,
   ) {

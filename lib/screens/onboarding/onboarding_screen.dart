@@ -13,7 +13,10 @@ class OnboardingScreen extends StatefulWidget {
   State<OnboardingScreen> createState() => _OnboardingScreenState();
 }
 
-class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBindingObserver {
+class _OnboardingScreenState extends State<OnboardingScreen>
+    with WidgetsBindingObserver {
+  static const String _tag = 'OnboardingScreen';
+
   final PageController _pageController = PageController();
   int _currentPage = 0;
   bool _hasReadPage3 = false; // Track if user has read page 3 completely
@@ -47,16 +50,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
   void _checkPermissionsAfterResume() async {
     // Wait a bit for the system to update permission status
     await Future.delayed(const Duration(milliseconds: 500));
-    
-    bool allPermissionsGranted = await PermissionService.areAllPermissionsGranted();
+
+    bool allPermissionsGranted =
+        await PermissionService.areAllPermissionsGranted();
 
     if (!mounted) return;
 
     if (allPermissionsGranted) {
-      AppLogger.info(
-        'OnboardingScreen',
-        'All permissions granted after app resume.',
-      );
+      AppLogger.info(_tag, 'All permissions granted after app resume.');
 
       // Show success message and navigate to home
       ScaffoldMessenger.of(context).showSnackBar(
@@ -66,7 +67,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
           duration: Duration(seconds: 2),
         ),
       );
-      
+
       // Navigate to home after a short delay
       Future.delayed(const Duration(seconds: 2), () {
         if (mounted) {
@@ -74,10 +75,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
         }
       });
     } else {
-      AppLogger.debug(
-        'OnboardingScreen',
-        'Permissions still incomplete after app resume.',
-      );
+      AppLogger.debug(_tag, 'Permissions still incomplete after app resume.');
     }
   }
 
@@ -138,7 +136,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
               });
             },
           ),
-        ],  
+        ],
       ),
     );
   }
@@ -166,9 +164,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
           width: _currentPage == index ? 24 : 8,
           height: 8,
           decoration: BoxDecoration(
-            color: _currentPage == index
-                ? accentColor
-                : Colors.grey[300],
+            color: _currentPage == index ? accentColor : Colors.grey[300],
             borderRadius: BorderRadius.circular(4),
           ),
         ),
@@ -181,12 +177,12 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _currentPage < 2 
-            ? _nextPage 
+        onPressed: _currentPage < 2
+            ? _nextPage
             : (_hasReadPage3 ? _requestPermission : null),
         style: ElevatedButton.styleFrom(
-          backgroundColor: (_currentPage == 2 && !_hasReadPage3) 
-              ? Colors.grey[400] 
+          backgroundColor: (_currentPage == 2 && !_hasReadPage3)
+              ? Colors.grey[400]
               : accentColor,
           foregroundColor: Colors.white,
           elevation: 0,
@@ -195,15 +191,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
           ),
         ),
         child: Text(
-          _currentPage < 2 
-              ? 'Lanjutkan' 
-              : (_hasReadPage3 
-                  ? 'Berikan Izin Akses' 
-                  : 'Baca Hingga Selesai'),
-          style: const TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w500,
-          ),
+          _currentPage < 2
+              ? 'Lanjutkan'
+              : (_hasReadPage3 ? 'Berikan Izin Akses' : 'Baca Hingga Selesai'),
+          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
         ),
       ),
     );
@@ -226,13 +217,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
 
   void _requestPermission() async {
     // Check if all permissions are already granted
-    bool allPermissionsGranted = await PermissionService.areAllPermissionsGranted();
+    bool allPermissionsGranted =
+        await PermissionService.areAllPermissionsGranted();
 
     if (!mounted) return;
-    
+
     if (allPermissionsGranted) {
       AppLogger.info(
-        'OnboardingScreen',
+        _tag,
         'All required permissions already granted. Navigating to home.',
       );
 
@@ -242,24 +234,26 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
     }
 
     // Check individual permissions and show appropriate dialog
-    bool accessibilityEnabled = await PermissionService.isAccessibilityServiceEnabled();
-    bool usageStatsGranted = await PermissionService.isUsageStatsPermissionGranted();
+    bool accessibilityEnabled =
+        await PermissionService.isAccessibilityServiceEnabled();
+    bool usageStatsGranted =
+        await PermissionService.isUsageStatsPermissionGranted();
 
     if (!mounted) return;
 
     if (!accessibilityEnabled) {
-      AppLogger.warn('OnboardingScreen', 'Accessibility permission is not enabled.');
+      AppLogger.warn(_tag, 'Accessibility permission is not enabled.');
 
       // Show accessibility instructions if not enabled
       await _showAccessibilityInstructions();
     } else if (!usageStatsGranted) {
-      AppLogger.warn('OnboardingScreen', 'Usage stats permission is not granted.');
+      AppLogger.warn(_tag, 'Usage stats permission is not granted.');
 
       // Skip accessibility and go directly to usage stats if accessibility is already enabled
       await _showUsageStatsInstructions();
     } else {
       AppLogger.info(
-        'OnboardingScreen',
+        _tag,
         'Individual permission checks passed. Navigating to home.',
       );
       _navigateToHome();
@@ -291,7 +285,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
               child: const Text('Buka Pengaturan'),
               onPressed: () async {
                 Navigator.of(context).pop();
-                AppLogger.info('OnboardingScreen', 'Opening accessibility settings.');
+                AppLogger.info(_tag, 'Opening accessibility settings.');
                 // Open accessibility settings
                 await PermissionService.openAccessibilitySettings();
                 _checkPermissionsAndNavigate();
@@ -317,7 +311,9 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
                   SizedBox(height: 8),
                   Text('1. Cari "TodoList" dalam daftar aplikasi'),
                   Text('2. Tap pada "TodoList"'),
-                  Text('3. Aktifkan toggle "Izinkan akses statistik penggunaan"'),
+                  Text(
+                    '3. Aktifkan toggle "Izinkan akses statistik penggunaan"',
+                  ),
                   SizedBox(height: 12),
                   Text('Setelah kedua izin aktif, kembali ke aplikasi.'),
                 ],
@@ -328,7 +324,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
                 child: const Text('Buka Pengaturan'),
                 onPressed: () async {
                   Navigator.of(context).pop();
-                  AppLogger.info('OnboardingScreen', 'Opening usage stats settings.');
+                  AppLogger.info(_tag, 'Opening usage stats settings.');
                   // Open usage stats settings
                   await PermissionService.openUsageStatsSettings();
                   _checkPermissionsAndNavigate();
@@ -342,19 +338,20 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
   }
 
   Future<void> _checkPermissionsAndNavigate() async {
-    bool allPermissionsGranted = await PermissionService.areAllPermissionsGranted();
+    bool allPermissionsGranted =
+        await PermissionService.areAllPermissionsGranted();
 
     if (!mounted) return;
-    
+
     if (allPermissionsGranted) {
       AppLogger.info(
-        'OnboardingScreen',
+        _tag,
         'All required permissions granted after returning from settings.',
       );
       _navigateToHome();
     } else {
       AppLogger.warn(
-        'OnboardingScreen',
+        _tag,
         'Permissions still incomplete after returning from settings.',
       );
 
@@ -364,7 +361,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
   }
 
   Future<void> _showIncompletePermissionDialog() async {
-    AppLogger.warn('OnboardingScreen', 'Showing incomplete permission dialog.');
+    AppLogger.warn(_tag, 'Showing incomplete permission dialog.');
 
     return showDialog<void>(
       context: context,
@@ -373,7 +370,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
           title: const Text('Izin Belum Lengkap'),
           content: const Text(
             'Beberapa izin belum diaktifkan. Aplikasi mungkin tidak berfungsi dengan optimal.\n\n'
-            'Anda dapat mengaktifkan izin nanti melalui pengaturan aplikasi.'
+            'Anda dapat mengaktifkan izin nanti melalui pengaturan aplikasi.',
           ),
           actions: <Widget>[
             TextButton(

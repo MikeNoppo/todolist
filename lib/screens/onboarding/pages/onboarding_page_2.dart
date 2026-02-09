@@ -7,14 +7,12 @@ class OnboardingPage2 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final responsive = ResponsiveHelper(context);
-    
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: responsive.horizontalPadding),
       child: SingleChildScrollView(
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: responsive.availableHeight,
-          ),
+          constraints: BoxConstraints(minHeight: responsive.availableHeight),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -32,7 +30,7 @@ class OnboardingPage2 extends StatelessWidget {
                   color: const Color(0xFF4A6FA5),
                 ),
               ),
-              
+
               // Title and subtitle section
               Column(
                 children: [
@@ -59,7 +57,7 @@ class OnboardingPage2 extends StatelessWidget {
                   ),
                 ],
               ),
-              
+
               // Workflow steps
               Column(
                 children: [
@@ -96,15 +94,15 @@ class OnboardingPage2 extends StatelessWidget {
   }
 
   Widget _buildWorkflowStep(
-    int step, 
-    IconData icon, 
-    String title, 
+    int step,
+    IconData icon,
+    String title,
     String subtitle,
     ResponsiveHelper responsive,
   ) {
     final stepFontSize = responsive.stepCircleSize * 0.4;
     final iconSize = responsive.stepIconContainerSize * 0.45;
-    
+
     return Row(
       children: [
         // Step number
@@ -135,11 +133,7 @@ class OnboardingPage2 extends StatelessWidget {
             color: Colors.grey[100],
             borderRadius: BorderRadius.circular(8),
           ),
-          child: Icon(
-            icon,
-            size: iconSize,
-            color: Colors.black54,
-          ),
+          child: Icon(icon, size: iconSize, color: Colors.black54),
         ),
         SizedBox(width: responsive.smallSpacing),
         // Content

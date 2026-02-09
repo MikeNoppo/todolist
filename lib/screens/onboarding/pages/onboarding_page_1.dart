@@ -7,14 +7,12 @@ class OnboardingPage1 extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final responsive = ResponsiveHelper(context);
-    
+
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: responsive.horizontalPadding),
       child: SingleChildScrollView(
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: responsive.availableHeight,
-          ),
+          constraints: BoxConstraints(minHeight: responsive.availableHeight),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
@@ -84,13 +82,13 @@ class OnboardingPage1 extends StatelessWidget {
   }
 
   Widget _buildFeatureItem(
-    IconData icon, 
-    String title, 
-    String subtitle, 
+    IconData icon,
+    String title,
+    String subtitle,
     ResponsiveHelper responsive,
   ) {
     final iconSize = responsive.featureIconContainerSize * 0.5;
-    
+
     return Row(
       children: [
         Container(
@@ -100,11 +98,7 @@ class OnboardingPage1 extends StatelessWidget {
             color: Colors.grey[100],
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(
-            icon,
-            size: iconSize,
-            color: Colors.black54,
-          ),
+          child: Icon(icon, size: iconSize, color: Colors.black54),
         ),
         SizedBox(width: responsive.smallSpacing),
         Expanded(
