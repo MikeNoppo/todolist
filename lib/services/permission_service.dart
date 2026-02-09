@@ -3,16 +3,22 @@ import 'package:flutter/services.dart';
 import 'app_logger.dart';
 
 class PermissionService {
-  static const MethodChannel _channel = MethodChannel('app_blocker/permissions');
+  static const String _tag = 'PermissionService';
+
+  static const MethodChannel _channel = MethodChannel(
+    'app_blocker/permissions',
+  );
 
   /// Check if accessibility service is enabled
   static Future<bool> isAccessibilityServiceEnabled() async {
     try {
-      final bool isEnabled = await _channel.invokeMethod('isAccessibilityServiceEnabled');
+      final bool isEnabled = await _channel.invokeMethod(
+        'isAccessibilityServiceEnabled',
+      );
       return isEnabled;
     } on PlatformException catch (e, stackTrace) {
       AppLogger.error(
-        'PermissionService',
+        _tag,
         'Failed to check accessibility service.',
         error: e.message ?? e,
         stackTrace: stackTrace,
@@ -27,7 +33,7 @@ class PermissionService {
       await _channel.invokeMethod('openAccessibilitySettings');
     } on PlatformException catch (e, stackTrace) {
       AppLogger.error(
-        'PermissionService',
+        _tag,
         'Failed to open accessibility settings.',
         error: e.message ?? e,
         stackTrace: stackTrace,
@@ -38,11 +44,13 @@ class PermissionService {
   /// Check if usage stats permission is granted using native method
   static Future<bool> isUsageStatsPermissionGranted() async {
     try {
-      final bool isGranted = await _channel.invokeMethod('isUsageStatsPermissionGranted');
+      final bool isGranted = await _channel.invokeMethod(
+        'isUsageStatsPermissionGranted',
+      );
       return isGranted;
     } on PlatformException catch (e, stackTrace) {
       AppLogger.error(
-        'PermissionService',
+        _tag,
         'Failed to check usage stats permission.',
         error: e.message ?? e,
         stackTrace: stackTrace,
@@ -57,7 +65,7 @@ class PermissionService {
       await _channel.invokeMethod('openUsageStatsSettings');
     } on PlatformException catch (e, stackTrace) {
       AppLogger.error(
-        'PermissionService',
+        _tag,
         'Failed to open usage stats settings.',
         error: e.message ?? e,
         stackTrace: stackTrace,
