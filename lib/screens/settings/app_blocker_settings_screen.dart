@@ -159,10 +159,10 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                 margin: const EdgeInsets.all(20),
                 padding: const EdgeInsets.all(20),
                 decoration: BoxDecoration(
-                  color: const Color(0xFF4A6FA5).withOpacity(0.05),
+                  color: const Color(0xFF4A6FA5).withValues(alpha: 0.05),
                   borderRadius: BorderRadius.circular(16),
                   border: Border.all(
-                    color: const Color(0xFF4A6FA5).withOpacity(0.1),
+                    color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
                   ),
                 ),
                 child: Column(
@@ -171,7 +171,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                       width: 48,
                       height: 48,
                       decoration: BoxDecoration(
-                        color: const Color(0xFF4A6FA5).withOpacity(0.1),
+                        color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(12),
                       ),
                       child: const Icon(
@@ -219,7 +219,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                         borderRadius: BorderRadius.circular(16),
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
+                            color: Colors.black.withValues(alpha: 0.04),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -239,7 +239,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                                   width: 48,
                                   height: 48,
                                   decoration: BoxDecoration(
-                                    color: _getAppIconColor(app.packageName).withOpacity(0.1),
+                                    color: _getAppIconColor(app.packageName).withValues(alpha: 0.1),
                                     borderRadius: BorderRadius.circular(12),
                                   ),
                                   child: Icon(
@@ -286,7 +286,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                                   value: isBlocked,
                                   onChanged: (value) => _toggleAppBlock(app.packageName, value),
                                   activeColor: const Color(0xFF4A6FA5),
-                                  activeTrackColor: const Color(0xFF4A6FA5).withOpacity(0.3),
+                                  activeTrackColor: const Color(0xFF4A6FA5).withValues(alpha: 0.3),
                                 ),
                               ],
                             ),
@@ -306,7 +306,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                   color: Colors.white,
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.05),
+                      color: Colors.black.withValues(alpha: 0.05),
                       blurRadius: 10,
                       offset: const Offset(0, -2),
                     ),

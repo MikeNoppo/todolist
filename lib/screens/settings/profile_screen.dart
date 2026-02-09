@@ -168,7 +168,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   width: 120,
                   height: 120,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4A6FA5).withOpacity(0.1),
+                    color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: Icon(
@@ -193,7 +193,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -236,7 +236,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   borderRadius: BorderRadius.circular(16),
                   boxShadow: [
                     BoxShadow(
-                      color: Colors.black.withOpacity(0.04),
+                      color: Colors.black.withValues(alpha: 0.04),
                       blurRadius: 10,
                       offset: const Offset(0, 2),
                     ),
@@ -265,7 +265,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       child: Container(
                         decoration: BoxDecoration(
                           color: isSelected 
-                            ? const Color(0xFF4A6FA5).withOpacity(0.1)
+                            ? const Color(0xFF4A6FA5).withValues(alpha: 0.1)
                             : Colors.grey[50],
                           borderRadius: BorderRadius.circular(12),
                           border: isSelected

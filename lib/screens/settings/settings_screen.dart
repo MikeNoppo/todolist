@@ -149,7 +149,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     value: _notificationsEnabled,
                     onChanged: _updateNotificationSetting,
                     activeColor: const Color(0xFF4A6FA5),
-                    activeTrackColor: const Color(0xFF4A6FA5).withOpacity(0.3),
+                    activeTrackColor: const Color(0xFF4A6FA5).withValues(alpha: 0.3),
                   ),
                 ),
               ]),
@@ -199,7 +199,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),
@@ -229,7 +229,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   width: 60,
                   height: 60,
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4A6FA5).withOpacity(0.1),
+                    color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
                   child: const Icon(
@@ -282,7 +282,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         borderRadius: BorderRadius.circular(16),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withOpacity(0.04),
+            color: Colors.black.withValues(alpha: 0.04),
             blurRadius: 10,
             offset: const Offset(0, 2),
           ),

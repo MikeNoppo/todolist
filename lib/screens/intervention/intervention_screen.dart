@@ -159,10 +159,10 @@ class _InterventionScreenState extends State<InterventionScreen>
                         width: 120,
                         height: 120,
                         decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.05),
+                          color: Colors.white.withValues(alpha: 0.05),
                           shape: BoxShape.circle,
                           border: Border.all(
-                            color: Colors.white.withOpacity(0.1),
+                            color: Colors.white.withValues(alpha: 0.1),
                             width: 2,
                           ),
                         ),
@@ -207,7 +207,7 @@ class _InterventionScreenState extends State<InterventionScreen>
                             style: TextStyle(
                               fontSize: 16,
                               fontWeight: FontWeight.w300,
-                              color: Colors.white.withOpacity(0.7),
+                              color: Colors.white.withValues(alpha: 0.7),
                               fontStyle: FontStyle.italic,
                             ),
                           ),
@@ -232,10 +232,10 @@ class _InterventionScreenState extends State<InterventionScreen>
                             vertical: 16,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4A6FA5).withOpacity(0.2),
+                            color: const Color(0xFF4A6FA5).withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: const Color(0xFF4A6FA5).withOpacity(0.3),
+                              color: const Color(0xFF4A6FA5).withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -246,7 +246,7 @@ class _InterventionScreenState extends State<InterventionScreen>
                                 style: TextStyle(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w400,
-                                  color: Colors.white.withOpacity(0.8),
+                                  color: Colors.white.withValues(alpha: 0.8),
                                 ),
                               ),
                               const SizedBox(height: 8),
@@ -311,7 +311,7 @@ class _InterventionScreenState extends State<InterventionScreen>
                         style: TextStyle(
                           fontSize: 14,
                           fontWeight: FontWeight.w300,
-                          color: Colors.white.withOpacity(0.5),
+                          color: Colors.white.withValues(alpha: 0.5),
                         ),
                       ),
                     );

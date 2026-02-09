@@ -165,14 +165,14 @@ class _TodoCardState extends State<TodoCard> {
         duration: const Duration(milliseconds: 300),
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF4A6FA5).withOpacity(0.1) : Colors.white,
+          color: isSelected ? const Color(0xFF4A6FA5).withValues(alpha: 0.1) : Colors.white,
           borderRadius: BorderRadius.circular(16),
           border: isSelected 
             ? Border.all(color: const Color(0xFF4A6FA5), width: 2)
             : null,
           boxShadow: [
             BoxShadow(
-              color: Colors.black.withOpacity(0.04),
+              color: Colors.black.withValues(alpha: 0.04),
               blurRadius: 12,
               offset: const Offset(0, 2),
             ),
