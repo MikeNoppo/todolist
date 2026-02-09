@@ -8,10 +8,13 @@ class AppBlockerSettingsScreen extends StatefulWidget {
   const AppBlockerSettingsScreen({super.key});
 
   @override
-  State<AppBlockerSettingsScreen> createState() => _AppBlockerSettingsScreenState();
+  State<AppBlockerSettingsScreen> createState() =>
+      _AppBlockerSettingsScreenState();
 }
 
 class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
+  static const String _tag = 'AppBlockerSettingsScreen';
+
   Map<String, bool> _blockedApps = {};
   bool _isLoading = true;
 
@@ -79,27 +82,29 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final Map<String, bool> blockedApps = {};
-      
+
       for (final app in _installedApps) {
         final isBlocked = prefs.getBool('block_${app.packageName}') ?? false;
         blockedApps[app.packageName] = isBlocked;
       }
 
-      final blockedCount = blockedApps.values.where((isBlocked) => isBlocked).length;
+      final blockedCount = blockedApps.values
+          .where((isBlocked) => isBlocked)
+          .length;
       AppLogger.info(
-        'AppBlockerSettingsScreen',
+        _tag,
         'Loaded blocked apps: $blockedCount/${blockedApps.length}',
       );
 
       if (!mounted) return;
-      
+
       setState(() {
         _blockedApps = blockedApps;
         _isLoading = false;
       });
     } catch (e, stackTrace) {
       AppLogger.error(
-        'AppBlockerSettingsScreen',
+        _tag,
         'Failed to load blocked apps.',
         error: e,
         stackTrace: stackTrace,
@@ -118,19 +123,21 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
       await prefs.setBool('block_$packageName', value);
 
       if (!mounted) return;
-      
+
       setState(() {
         _blockedApps[packageName] = value;
       });
 
       AppLogger.info(
-        'AppBlockerSettingsScreen',
+        _tag,
         'Updated app block status: package=$packageName blocked=$value',
       );
-      
+
       HapticFeedback.lightImpact();
-      
-      final appName = _installedApps.firstWhere((app) => app.packageName == packageName).appName;
+
+      final appName = _installedApps
+          .firstWhere((app) => app.packageName == packageName)
+          .appName;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -142,7 +149,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
       );
     } catch (e, stackTrace) {
       AppLogger.error(
-        'AppBlockerSettingsScreen',
+        _tag,
         'Failed to update app block status: package=$packageName',
         error: e,
         stackTrace: stackTrace,
@@ -169,10 +176,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.black87,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
         ),
         title: const Text(
           'Atur Aplikasi Distraksi',
@@ -184,206 +188,217 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
         ),
         systemOverlayStyle: SystemUiOverlayStyle.dark,
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator(color: Color(0xFF4A6FA5)))
-        : Column(
-            children: [
-              // Header Information
-              Container(
-                width: double.infinity,
-                margin: const EdgeInsets.all(20),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF4A6FA5).withValues(alpha: 0.05),
-                  borderRadius: BorderRadius.circular(16),
-                  border: Border.all(
-                    color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF4A6FA5)),
+            )
+          : Column(
+              children: [
+                // Header Information
+                Container(
+                  width: double.infinity,
+                  margin: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF4A6FA5).withValues(alpha: 0.05),
+                    borderRadius: BorderRadius.circular(16),
+                    border: Border.all(
+                      color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
+                    ),
                   ),
-                ),
-                child: Column(
-                  children: [
-                    Container(
-                      width: 48,
-                      height: 48,
-                      decoration: BoxDecoration(
-                        color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: const Icon(
-                        Icons.shield_outlined,
-                        color: Color(0xFF4A6FA5),
-                        size: 24,
-                      ),
-                    ),
-                    const SizedBox(height: 12),
-                    const Text(
-                      'Pilih Aplikasi untuk Diblokir',
-                      style: TextStyle(
-                        fontSize: 16,
-                        fontWeight: FontWeight.w600,
-                        color: Colors.black87,
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      'Aplikasi yang diaktifkan akan diblokir saat Anda memiliki tugas dengan prioritas tinggi',
-                      textAlign: TextAlign.center,
-                      style: TextStyle(
-                        fontSize: 14,
-                        color: Colors.grey[600],
-                        height: 1.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              
-              // Apps List
-              Expanded(
-                child: ListView.builder(
-                  padding: const EdgeInsets.symmetric(horizontal: 20),
-                  itemCount: _installedApps.length,
-                  itemBuilder: (context, index) {
-                    final app = _installedApps[index];
-                    final isBlocked = _blockedApps[app.packageName] ?? false;
-                    
-                    return Container(
-                      margin: const EdgeInsets.only(bottom: 8),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(16),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withValues(alpha: 0.04),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          ),
-                        ],
-                      ),
-                      child: Material(
-                        color: Colors.transparent,
-                        child: InkWell(
-                          onTap: () => _toggleAppBlock(app.packageName, !isBlocked),
-                          borderRadius: BorderRadius.circular(16),
-                          child: Padding(
-                            padding: const EdgeInsets.all(16),
-                            child: Row(
-                              children: [
-                                // App Icon
-                                Container(
-                                  width: 48,
-                                  height: 48,
-                                  decoration: BoxDecoration(
-                                    color: _getAppIconColor(app.packageName).withValues(alpha: 0.1),
-                                    borderRadius: BorderRadius.circular(12),
-                                  ),
-                                  child: Icon(
-                                    app.iconData,
-                                    color: _getAppIconColor(app.packageName),
-                                    size: 24,
-                                  ),
-                                ),
-                                
-                                const SizedBox(width: 16),
-                                
-                                // App Info
-                                Expanded(
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.start,
-                                    children: [
-                                      Text(
-                                        app.appName,
-                                        style: const TextStyle(
-                                          fontSize: 16,
-                                          fontWeight: FontWeight.w500,
-                                          color: Colors.black87,
-                                        ),
-                                      ),
-                                      const SizedBox(height: 2),
-                                      Text(
-                                        isBlocked ? 'Akan diblokir' : 'Tidak diblokir',
-                                        style: TextStyle(
-                                          fontSize: 13,
-                                          color: isBlocked 
-                                            ? const Color(0xFF4A6FA5) 
-                                            : Colors.grey[600],
-                                          fontWeight: isBlocked 
-                                            ? FontWeight.w500 
-                                            : FontWeight.w400,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                
-                                // Toggle Switch
-                                Switch.adaptive(
-                                  value: isBlocked,
-                                  onChanged: (value) => _toggleAppBlock(app.packageName, value),
-                                  activeThumbColor: const Color(0xFF4A6FA5),
-                                  activeTrackColor: const Color(0xFF4A6FA5).withValues(alpha: 0.3),
-                                ),
-                              ],
-                            ),
-                          ),
-                        ),
-                      ),
-                    );
-                  },
-                ),
-              ),
-              
-              // Bottom Info
-              Container(
-                width: double.infinity,
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.05),
-                      blurRadius: 10,
-                      offset: const Offset(0, -2),
-                    ),
-                  ],
-                ),
-                child: SafeArea(
                   child: Column(
                     children: [
-                      Row(
-                        children: [
-                          Icon(
-                            Icons.info_outline,
-                            size: 16,
-                            color: Colors.grey[600],
-                          ),
-                          const SizedBox(width: 8),
-                          Expanded(
-                            child: Text(
-                              'Pemblokiran aktif hanya ketika ada tugas prioritas tinggi',
-                              style: TextStyle(
-                                fontSize: 13,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                          ),
-                        ],
+                      Container(
+                        width: 48,
+                        height: 48,
+                        decoration: BoxDecoration(
+                          color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: const Icon(
+                          Icons.shield_outlined,
+                          color: Color(0xFF4A6FA5),
+                          size: 24,
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      const Text(
+                        'Pilih Aplikasi untuk Diblokir',
+                        style: TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '${_blockedApps.values.where((blocked) => blocked).length} dari ${_installedApps.length} aplikasi diblokir',
-                        style: const TextStyle(
+                        'Aplikasi yang diaktifkan akan diblokir saat Anda memiliki tugas dengan prioritas tinggi',
+                        textAlign: TextAlign.center,
+                        style: TextStyle(
                           fontSize: 14,
-                          fontWeight: FontWeight.w600,
-                          color: Color(0xFF4A6FA5),
+                          color: Colors.grey[600],
+                          height: 1.4,
                         ),
                       ),
                     ],
                   ),
                 ),
-              ),
-            ],
-          ),
+
+                // Apps List
+                Expanded(
+                  child: ListView.builder(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    itemCount: _installedApps.length,
+                    itemBuilder: (context, index) {
+                      final app = _installedApps[index];
+                      final isBlocked = _blockedApps[app.packageName] ?? false;
+
+                      return Container(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withValues(alpha: 0.04),
+                              blurRadius: 8,
+                              offset: const Offset(0, 2),
+                            ),
+                          ],
+                        ),
+                        child: Material(
+                          color: Colors.transparent,
+                          child: InkWell(
+                            onTap: () =>
+                                _toggleAppBlock(app.packageName, !isBlocked),
+                            borderRadius: BorderRadius.circular(16),
+                            child: Padding(
+                              padding: const EdgeInsets.all(16),
+                              child: Row(
+                                children: [
+                                  // App Icon
+                                  Container(
+                                    width: 48,
+                                    height: 48,
+                                    decoration: BoxDecoration(
+                                      color: _getAppIconColor(
+                                        app.packageName,
+                                      ).withValues(alpha: 0.1),
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Icon(
+                                      app.iconData,
+                                      color: _getAppIconColor(app.packageName),
+                                      size: 24,
+                                    ),
+                                  ),
+
+                                  const SizedBox(width: 16),
+
+                                  // App Info
+                                  Expanded(
+                                    child: Column(
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.start,
+                                      children: [
+                                        Text(
+                                          app.appName,
+                                          style: const TextStyle(
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.w500,
+                                            color: Colors.black87,
+                                          ),
+                                        ),
+                                        const SizedBox(height: 2),
+                                        Text(
+                                          isBlocked
+                                              ? 'Akan diblokir'
+                                              : 'Tidak diblokir',
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            color: isBlocked
+                                                ? const Color(0xFF4A6FA5)
+                                                : Colors.grey[600],
+                                            fontWeight: isBlocked
+                                                ? FontWeight.w500
+                                                : FontWeight.w400,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  ),
+
+                                  // Toggle Switch
+                                  Switch.adaptive(
+                                    value: isBlocked,
+                                    onChanged: (value) =>
+                                        _toggleAppBlock(app.packageName, value),
+                                    activeThumbColor: const Color(0xFF4A6FA5),
+                                    activeTrackColor: const Color(
+                                      0xFF4A6FA5,
+                                    ).withValues(alpha: 0.3),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+
+                // Bottom Info
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.05),
+                        blurRadius: 10,
+                        offset: const Offset(0, -2),
+                      ),
+                    ],
+                  ),
+                  child: SafeArea(
+                    child: Column(
+                      children: [
+                        Row(
+                          children: [
+                            Icon(
+                              Icons.info_outline,
+                              size: 16,
+                              color: Colors.grey[600],
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: Text(
+                                'Pemblokiran aktif hanya ketika ada tugas prioritas tinggi',
+                                style: TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.grey[600],
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        const SizedBox(height: 8),
+                        Text(
+                          '${_blockedApps.values.where((blocked) => blocked).length} dari ${_installedApps.length} aplikasi diblokir',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: Color(0xFF4A6FA5),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
