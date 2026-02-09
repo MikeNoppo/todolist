@@ -1,6 +1,9 @@
 import 'dart:convert';
+
 import 'package:shared_preferences/shared_preferences.dart';
+
 import '../models/todo_model.dart';
+import '../services/app_logger.dart';
 
 class TodoRepository {
   static const String _todosKey = 'todos';
@@ -13,9 +16,19 @@ class TodoRepository {
     final todosJson = prefs.getString(_todosKey);
     
     if (todosJson == null) return [];
-    
-    final List<dynamic> todosList = jsonDecode(todosJson);
-    return todosList.map((json) => TodoModel.fromJson(json)).toList();
+
+    try {
+      final List<dynamic> todosList = jsonDecode(todosJson);
+      return todosList.map((json) => TodoModel.fromJson(json)).toList();
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'TodoRepository',
+        'Failed to parse todo data from local storage.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return [];
+    }
   }
 
   Future<void> saveTodos(List<TodoModel> todos) async {
