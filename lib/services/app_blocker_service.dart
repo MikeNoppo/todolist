@@ -35,31 +35,24 @@ class AppBlockerService {
   }
 
   /// Show intervention screen for a blocked app
-  static void showInterventionScreen(
-    BuildContext context,
-    String packageName,
-  ) {
+  static void showInterventionScreen(BuildContext context, String packageName) {
     final appName = _appNames[packageName] ?? 'Unknown App';
-    
+
     Navigator.of(context).push(
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            InterventionScreen(
-          blockedAppName: appName,
-        ),
+            InterventionScreen(blockedAppName: appName),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const begin = 0.0;
           const end = 1.0;
           const curve = Curves.easeInOut;
 
-          var tween = Tween(begin: begin, end: end).chain(
-            CurveTween(curve: curve),
-          );
+          var tween = Tween(
+            begin: begin,
+            end: end,
+          ).chain(CurveTween(curve: curve));
 
-          return FadeTransition(
-            opacity: animation.drive(tween),
-            child: child,
-          );
+          return FadeTransition(opacity: animation.drive(tween), child: child);
         },
         transitionDuration: const Duration(milliseconds: 400),
         fullscreenDialog: true,
