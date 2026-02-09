@@ -1,7 +1,33 @@
+import 'dart:ui';
+
 import 'package:flutter/material.dart';
+
+import 'services/app_logger.dart';
 import 'screens/splash_screen.dart';
 
 void main() {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    AppLogger.error(
+      'FlutterError',
+      'Unhandled Flutter framework error.',
+      error: details.exception,
+      stackTrace: details.stack,
+    );
+  };
+
+  PlatformDispatcher.instance.onError = (Object error, StackTrace stackTrace) {
+    AppLogger.error(
+      'PlatformDispatcher',
+      'Unhandled asynchronous error.',
+      error: error,
+      stackTrace: stackTrace,
+    );
+    return true;
+  };
+
   runApp(const MainApp());
 }
 
