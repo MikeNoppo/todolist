@@ -148,7 +148,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   trailing: Switch.adaptive(
                     value: _notificationsEnabled,
                     onChanged: _updateNotificationSetting,
-                    activeColor: const Color(0xFF4A6FA5),
+                    activeThumbColor: const Color(0xFF4A6FA5),
                     activeTrackColor: const Color(0xFF4A6FA5).withValues(alpha: 0.3),
                   ),
                 ),
