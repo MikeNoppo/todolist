@@ -33,7 +33,8 @@ class TodoModel {
     this.updatedAt,
   });
 
-  factory TodoModel.fromJson(Map<String, dynamic> json) => _$TodoModelFromJson(json);
+  factory TodoModel.fromJson(Map<String, dynamic> json) =>
+      _$TodoModelFromJson(json);
   Map<String, dynamic> toJson() => _$TodoModelToJson(this);
 
   TodoModel copyWith({
