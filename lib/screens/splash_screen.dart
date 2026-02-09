@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'Home/home_screen.dart';
 import '../repositories/todo_repository.dart';
+import '../services/app_logger.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -112,6 +113,13 @@ class _SplashScreenState extends State<SplashScreen>
       final userName = await _todoRepository.getUserName();
       final hasCompletedOnboarding = userName != null && userName.isNotEmpty;
 
+      AppLogger.info(
+        'SplashScreen',
+        hasCompletedOnboarding
+            ? 'Onboarding complete, navigating to home.'
+            : 'Onboarding incomplete, navigating to onboarding.',
+      );
+
       if (mounted) {
         if (hasCompletedOnboarding) {
           _navigateToHome();
@@ -119,7 +127,14 @@ class _SplashScreenState extends State<SplashScreen>
           _navigateToOnboarding();
         }
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'SplashScreen',
+        'Failed to check first launch state; falling back to onboarding.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       // On error, go to onboarding to be safe
       if (mounted) {
         _navigateToOnboarding();
