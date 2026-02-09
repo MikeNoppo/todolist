@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../models/todo_model.dart';
 import '../../repositories/todo_repository.dart';
+import '../../services/app_logger.dart';
 import 'intervention_icons.dart';
 
 class InterventionScreen extends StatefulWidget {
@@ -101,13 +102,29 @@ class _InterventionScreenState extends State<InterventionScreen>
       if (urgentTodos.isNotEmpty) {
         // Sort by deadline to get the most urgent
         urgentTodos.sort((a, b) => a.deadline.compareTo(b.deadline));
+
+        AppLogger.debug(
+          'InterventionScreen',
+          'Loaded ${urgentTodos.length} high-priority incomplete task(s).',
+        );
+
         if (!mounted) return;
         setState(() {
           _urgentTask = urgentTodos.first.title;
         });
+      } else {
+        AppLogger.info(
+          'InterventionScreen',
+          'No high-priority incomplete tasks found.',
+        );
       }
-    } catch (e) {
-      // Handle error silently
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'InterventionScreen',
+        'Failed to load urgent task.',
+        error: e,
+        stackTrace: stackTrace,
+      );
     }
   }
 
