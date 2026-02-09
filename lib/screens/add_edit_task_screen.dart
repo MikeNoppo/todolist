@@ -59,34 +59,34 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       },
     );
 
-    if (picked != null) {
-      final timeOfDay = await showTimePicker(
-        context: context,
-        initialTime: TimeOfDay.fromDateTime(_selectedDeadline),
-        builder: (context, child) {
-          return Theme(
-            data: Theme.of(context).copyWith(
-              colorScheme: const ColorScheme.light(
-                primary: Color(0xFF4A6FA5),
-              ),
-            ),
-            child: child!,
-          );
-        },
-      );
+    if (!mounted || picked == null) return;
 
-      if (timeOfDay != null) {
-        setState(() {
-          _selectedDeadline = DateTime(
-            picked.year,
-            picked.month,
-            picked.day,
-            timeOfDay.hour,
-            timeOfDay.minute,
-          );
-        });
-      }
-    }
+    final timeOfDay = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay.fromDateTime(_selectedDeadline),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: const ColorScheme.light(
+              primary: Color(0xFF4A6FA5),
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (!mounted || timeOfDay == null) return;
+
+    setState(() {
+      _selectedDeadline = DateTime(
+        picked.year,
+        picked.month,
+        picked.day,
+        timeOfDay.hour,
+        timeOfDay.minute,
+      );
+    });
   }
 
   Future<void> _saveTask() async {
