@@ -5,7 +5,7 @@ import '../services/app_logger.dart';
 
 class AddEditTaskScreen extends StatefulWidget {
   final TodoModel? todo;
-  
+
   const AddEditTaskScreen({super.key, this.todo});
 
   @override
@@ -13,11 +13,13 @@ class AddEditTaskScreen extends StatefulWidget {
 }
 
 class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
+  static const String _tag = 'AddEditTaskScreen';
+
   final _formKey = GlobalKey<FormState>();
   final _titleController = TextEditingController();
   final _descriptionController = TextEditingController();
   final TodoRepository _todoRepository = TodoRepository();
-  
+
   DateTime _selectedDeadline = DateTime.now().add(const Duration(days: 1));
   TodoPriority _selectedPriority = TodoPriority.medium;
   bool _isLoading = false;
@@ -51,9 +53,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF4A6FA5),
-            ),
+            colorScheme: const ColorScheme.light(primary: Color(0xFF4A6FA5)),
           ),
           child: child!,
         );
@@ -68,9 +68,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: const ColorScheme.light(
-              primary: Color(0xFF4A6FA5),
-            ),
+            colorScheme: const ColorScheme.light(primary: Color(0xFF4A6FA5)),
           ),
           child: child!,
         );
@@ -118,8 +116,10 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       }
 
       AppLogger.info(
-        'AddEditTaskScreen',
-        _isEditing ? 'Task updated successfully.' : 'Task created successfully.',
+        _tag,
+        _isEditing
+            ? 'Task updated successfully.'
+            : 'Task created successfully.',
       );
 
       if (mounted) {
@@ -127,7 +127,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       }
     } catch (e, stackTrace) {
       AppLogger.error(
-        'AddEditTaskScreen',
+        _tag,
         'Failed to save task.',
         error: e,
         stackTrace: stackTrace,
@@ -176,14 +176,14 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     try {
       await _todoRepository.deleteTodo(widget.todo!.id);
 
-      AppLogger.info('AddEditTaskScreen', 'Task deleted successfully.');
+      AppLogger.info(_tag, 'Task deleted successfully.');
 
       if (mounted) {
         Navigator.pop(context, true);
       }
     } catch (e, stackTrace) {
       AppLogger.error(
-        'AddEditTaskScreen',
+        _tag,
         'Failed to delete task.',
         error: e,
         stackTrace: stackTrace,
@@ -206,13 +206,23 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
 
   String _formatDateTime(DateTime dateTime) {
     final months = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun',
-      'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'Mei',
+      'Jun',
+      'Jul',
+      'Agu',
+      'Sep',
+      'Okt',
+      'Nov',
+      'Des',
     ];
-    
+
     return '${dateTime.day} ${months[dateTime.month - 1]} ${dateTime.year}, '
-           '${dateTime.hour.toString().padLeft(2, '0')}:'
-           '${dateTime.minute.toString().padLeft(2, '0')}';
+        '${dateTime.hour.toString().padLeft(2, '0')}:'
+        '${dateTime.minute.toString().padLeft(2, '0')}';
   }
 
   String _getPriorityText(TodoPriority priority) {
@@ -281,9 +291,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                 return null;
               },
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Description Field
             _buildInputField(
               icon: Icons.description_outlined,
@@ -291,19 +301,19 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
               controller: _descriptionController,
               maxLines: 3,
             ),
-            
+
             const SizedBox(height: 24),
-            
+
             // Deadline Field
             _buildDeadlineField(),
-            
+
             const SizedBox(height: 24),
-            
+
             // Priority Field
             _buildPriorityField(),
-            
+
             const SizedBox(height: 48),
-            
+
             // Save Button
             SizedBox(
               height: 50,
@@ -323,7 +333,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          valueColor: AlwaysStoppedAnimation<Color>(
+                            Colors.white,
+                          ),
                         ),
                       )
                     : Text(
@@ -461,10 +473,14 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                   ),
                   padding: const EdgeInsets.symmetric(vertical: 12),
                   decoration: BoxDecoration(
-                    color: isSelected ? _getPriorityColor(priority) : Colors.grey[100],
+                    color: isSelected
+                        ? _getPriorityColor(priority)
+                        : Colors.grey[100],
                     borderRadius: BorderRadius.circular(12),
                     border: Border.all(
-                      color: isSelected ? _getPriorityColor(priority) : Colors.grey[300]!,
+                      color: isSelected
+                          ? _getPriorityColor(priority)
+                          : Colors.grey[300]!,
                     ),
                   ),
                   child: Text(
