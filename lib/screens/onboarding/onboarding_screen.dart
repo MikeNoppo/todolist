@@ -213,6 +213,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
   void _requestPermission() async {
     // Check if all permissions are already granted
     bool allPermissionsGranted = await PermissionService.areAllPermissionsGranted();
+
+    if (!mounted) return;
     
     if (allPermissionsGranted) {
       // If all permissions are granted, go to home screen
@@ -223,6 +225,8 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
     // Check individual permissions and show appropriate dialog
     bool accessibilityEnabled = await PermissionService.isAccessibilityServiceEnabled();
     bool usageStatsGranted = await PermissionService.isUsageStatsPermissionGranted();
+
+    if (!mounted) return;
 
     if (!accessibilityEnabled) {
       // Show accessibility instructions if not enabled
@@ -308,14 +312,14 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
 
   Future<void> _checkPermissionsAndNavigate() async {
     bool allPermissionsGranted = await PermissionService.areAllPermissionsGranted();
+
+    if (!mounted) return;
     
     if (allPermissionsGranted) {
       _navigateToHome();
     } else {
       // Show a dialog asking user to complete the permission setup
-      if (mounted) {
-        await _showIncompletePermissionDialog();
-      }
+      await _showIncompletePermissionDialog();
     }
   }
 

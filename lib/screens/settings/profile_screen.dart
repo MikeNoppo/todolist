@@ -47,12 +47,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       final userName = await _todoRepository.getUserName();
       // In a real app, you'd also load the selected avatar from preferences
+
+      if (!mounted) return;
       
       setState(() {
         _nameController.text = userName ?? '';
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -77,6 +80,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
     try {
       await _todoRepository.saveUserName(_nameController.text.trim());
       // In a real app, you'd also save the selected avatar to preferences
+
+      if (!mounted) return;
       
       HapticFeedback.lightImpact();
       
@@ -89,6 +94,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
       
       Navigator.pop(context, true); // Return true to indicate success
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Gagal menyimpan profil'),
@@ -96,9 +102,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ),
       );
     } finally {
-      setState(() {
-        _isSaving = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSaving = false;
+        });
+      }
     }
   }
 

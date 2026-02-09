@@ -34,10 +34,13 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   Future<void> _loadData() async {
+    if (!mounted) return;
     setState(() => _isLoading = true);
     
     final todos = await _todoRepository.getTodos();
     final userName = await _todoRepository.getUserName();
+
+    if (!mounted) return;
     
     setState(() {
       _todos = todos;
@@ -82,7 +85,7 @@ class _HomeScreenState extends State<HomeScreen> {
       context: context,
       backgroundColor: Colors.transparent,
       isScrollControlled: true,
-      builder: (context) => BulkActionsBottomSheet(
+      builder: (_) => BulkActionsBottomSheet(
         selectedCount: _selectionManager.selectedCount,
         selectedTodos: selectedTodos,
         onMarkAllCompleted: () async {

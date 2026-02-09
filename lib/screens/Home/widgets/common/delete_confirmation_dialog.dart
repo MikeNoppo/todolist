@@ -58,19 +58,21 @@ class DeleteConfirmationDialog extends StatelessWidget {
         ),
         ElevatedButton(
           onPressed: () async {
+            final messenger = ScaffoldMessenger.of(context);
             final repository = TodoRepository();
             await repository.deleteTodo(todo.id);
+
+            if (!context.mounted) return;
+
             Navigator.of(context).pop(true);
             onDeleted();
-            
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('${todo.title} dihapus'),
-                  duration: const Duration(seconds: 3),
-                ),
-              );
-            }
+
+            messenger.showSnackBar(
+              SnackBar(
+                content: Text('${todo.title} dihapus'),
+                duration: const Duration(seconds: 3),
+              ),
+            );
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.red[400],

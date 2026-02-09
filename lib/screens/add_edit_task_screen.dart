@@ -129,7 +129,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
         );
       }
     } finally {
-      setState(() => _isLoading = false);
+      if (mounted) {
+        setState(() => _isLoading = false);
+      }
     }
   }
 
@@ -155,23 +157,25 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       ),
     );
 
-    if (confirmed == true) {
-      setState(() => _isLoading = true);
-      try {
-        await _todoRepository.deleteTodo(widget.todo!.id);
-        if (mounted) {
-          Navigator.pop(context, true);
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: ${e.toString()}'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      } finally {
+    if (!mounted || confirmed != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      await _todoRepository.deleteTodo(widget.todo!.id);
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
         setState(() => _isLoading = false);
       }
     }

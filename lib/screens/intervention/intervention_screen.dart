@@ -101,6 +101,7 @@ class _InterventionScreenState extends State<InterventionScreen>
       if (urgentTodos.isNotEmpty) {
         // Sort by deadline to get the most urgent
         urgentTodos.sort((a, b) => a.deadline.compareTo(b.deadline));
+        if (!mounted) return;
         setState(() {
           _urgentTask = urgentTodos.first.title;
         });

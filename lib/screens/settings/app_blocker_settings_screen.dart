@@ -82,12 +82,15 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
         final isBlocked = prefs.getBool('block_${app.packageName}') ?? false;
         blockedApps[app.packageName] = isBlocked;
       }
+
+      if (!mounted) return;
       
       setState(() {
         _blockedApps = blockedApps;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -98,6 +101,8 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('block_$packageName', value);
+
+      if (!mounted) return;
       
       setState(() {
         _blockedApps[packageName] = value;

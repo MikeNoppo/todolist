@@ -31,12 +31,15 @@ class _SettingsScreenState extends State<SettingsScreen> {
       final prefs = await SharedPreferences.getInstance();
       final notifications = prefs.getBool('notifications_enabled') ?? true;
 
+      if (!mounted) return;
+
       setState(() {
         _userName = userName ?? 'Pengguna';
         _notificationsEnabled = notifications;
         _isLoading = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoading = false;
       });
@@ -47,6 +50,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool('notifications_enabled', value);
+
+      if (!mounted) return;
+
       setState(() {
         _notificationsEnabled = value;
       });
@@ -209,6 +215,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 builder: (context) => const ProfileScreen(),
               ),
             );
+            if (!mounted) return;
             if (result == true) {
               _loadSettings(); // Reload settings to get updated name
             }
