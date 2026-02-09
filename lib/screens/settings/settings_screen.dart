@@ -15,6 +15,8 @@ class SettingsScreen extends StatefulWidget {
 }
 
 class _SettingsScreenState extends State<SettingsScreen> {
+  static const String _tag = 'SettingsScreen';
+
   final TodoRepository _todoRepository = TodoRepository();
   String _userName = 'Pengguna';
   bool _notificationsEnabled = true;
@@ -41,7 +43,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
     } catch (e, stackTrace) {
       AppLogger.error(
-        'SettingsScreen',
+        _tag,
         'Failed to load settings.',
         error: e,
         stackTrace: stackTrace,
@@ -63,14 +65,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       setState(() {
         _notificationsEnabled = value;
       });
-      
+
       HapticFeedback.lightImpact();
 
-      AppLogger.info(
-        'SettingsScreen',
-        'Notification setting updated: enabled=$value',
-      );
-      
+      AppLogger.info(_tag, 'Notification setting updated: enabled=$value');
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(
@@ -82,7 +81,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
       );
     } catch (e, stackTrace) {
       AppLogger.error(
-        'SettingsScreen',
+        _tag,
         'Failed to update notification setting.',
         error: e,
         stackTrace: stackTrace,
@@ -109,10 +108,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.black87,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
         ),
         title: const Text(
           'Pengaturan',
@@ -124,86 +120,91 @@ class _SettingsScreenState extends State<SettingsScreen> {
         ),
         systemOverlayStyle: SystemUiOverlayStyle.dark,
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator(color: Color(0xFF4A6FA5)))
-        : ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              // Profile Section
-              _buildSectionHeader('Profil'),
-              const SizedBox(height: 12),
-              _buildProfileCard(),
-              
-              const SizedBox(height: 32),
-              
-              // App Settings Section
-              _buildSectionHeader('Pengaturan Aplikasi'),
-              const SizedBox(height: 12),
-              _buildSettingsCard([
-                _buildSettingItem(
-                  icon: Icons.block_outlined,
-                  title: 'Atur Aplikasi Distraksi',
-                  subtitle: 'Kelola aplikasi yang akan diblokir',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const AppBlockerSettingsScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _buildDivider(),
-                _buildSettingItem(
-                  icon: Icons.security_outlined,
-                  title: 'Test Layar Intervensi',
-                  subtitle: 'Lihat preview layar blocking',
-                  onTap: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const InterventionDemoScreen(),
-                      ),
-                    );
-                  },
-                ),
-                _buildDivider(),
-                _buildSettingItem(
-                  icon: Icons.notifications_outlined,
-                  title: 'Notifikasi',
-                  subtitle: 'Pengingat tugas dan deadline',
-                  trailing: Switch.adaptive(
-                    value: _notificationsEnabled,
-                    onChanged: _updateNotificationSetting,
-                    activeThumbColor: const Color(0xFF4A6FA5),
-                    activeTrackColor: const Color(0xFF4A6FA5).withValues(alpha: 0.3),
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF4A6FA5)),
+            )
+          : ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                // Profile Section
+                _buildSectionHeader('Profil'),
+                const SizedBox(height: 12),
+                _buildProfileCard(),
+
+                const SizedBox(height: 32),
+
+                // App Settings Section
+                _buildSectionHeader('Pengaturan Aplikasi'),
+                const SizedBox(height: 12),
+                _buildSettingsCard([
+                  _buildSettingItem(
+                    icon: Icons.block_outlined,
+                    title: 'Atur Aplikasi Distraksi',
+                    subtitle: 'Kelola aplikasi yang akan diblokir',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const AppBlockerSettingsScreen(),
+                        ),
+                      );
+                    },
                   ),
-                ),
-              ]),
-              
-              const SizedBox(height: 32),
-              
-              // About Section
-              _buildSectionHeader('Tentang'),
-              const SizedBox(height: 12),
-              _buildSettingsCard([
-                _buildSettingItem(
-                  icon: Icons.info_outline,
-                  title: 'Versi Aplikasi',
-                  subtitle: '1.0.0',
-                ),
-                _buildDivider(),
-                _buildSettingItem(
-                  icon: Icons.privacy_tip_outlined,
-                  title: 'Kebijakan Privasi',
-                  subtitle: 'Pelajari tentang privasi data Anda',
-                  onTap: () {
-                    _showPrivacyPolicy();
-                  },
-                ),
-              ]),
-            ],
-          ),
+                  _buildDivider(),
+                  _buildSettingItem(
+                    icon: Icons.security_outlined,
+                    title: 'Test Layar Intervensi',
+                    subtitle: 'Lihat preview layar blocking',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const InterventionDemoScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDivider(),
+                  _buildSettingItem(
+                    icon: Icons.notifications_outlined,
+                    title: 'Notifikasi',
+                    subtitle: 'Pengingat tugas dan deadline',
+                    trailing: Switch.adaptive(
+                      value: _notificationsEnabled,
+                      onChanged: _updateNotificationSetting,
+                      activeThumbColor: const Color(0xFF4A6FA5),
+                      activeTrackColor: const Color(
+                        0xFF4A6FA5,
+                      ).withValues(alpha: 0.3),
+                    ),
+                  ),
+                ]),
+
+                const SizedBox(height: 32),
+
+                // About Section
+                _buildSectionHeader('Tentang'),
+                const SizedBox(height: 12),
+                _buildSettingsCard([
+                  _buildSettingItem(
+                    icon: Icons.info_outline,
+                    title: 'Versi Aplikasi',
+                    subtitle: '1.0.0',
+                  ),
+                  _buildDivider(),
+                  _buildSettingItem(
+                    icon: Icons.privacy_tip_outlined,
+                    title: 'Kebijakan Privasi',
+                    subtitle: 'Pelajari tentang privasi data Anda',
+                    onTap: () {
+                      _showPrivacyPolicy();
+                    },
+                  ),
+                ]),
+              ],
+            ),
     );
   }
 
@@ -238,9 +239,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
           onTap: () async {
             final result = await Navigator.push(
               context,
-              MaterialPageRoute(
-                builder: (context) => const ProfileScreen(),
-              ),
+              MaterialPageRoute(builder: (context) => const ProfileScreen()),
             );
             if (!mounted) return;
             if (result == true) {
@@ -281,19 +280,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       const SizedBox(height: 4),
                       Text(
                         'Kelola profil dan avatar Anda',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey[400],
-                  size: 20,
-                ),
+                Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
               ],
             ),
           ),
@@ -342,11 +334,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   color: Colors.grey[50],
                   borderRadius: BorderRadius.circular(12),
                 ),
-                child: Icon(
-                  icon,
-                  color: Colors.grey[700],
-                  size: 20,
-                ),
+                child: Icon(icon, color: Colors.grey[700], size: 20),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -364,19 +352,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
-              trailing ?? Icon(
-                Icons.chevron_right,
-                color: Colors.grey[400],
-                size: 20,
-              ),
+              trailing ??
+                  Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
             ],
           ),
         ),
@@ -387,11 +369,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildDivider() {
     return Padding(
       padding: const EdgeInsets.only(left: 80),
-      child: Divider(
-        height: 1,
-        thickness: 1,
-        color: Colors.grey[100],
-      ),
+      child: Divider(height: 1, thickness: 1, color: Colors.grey[100]),
     );
   }
 
