@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../models/todo_model.dart';
 import '../../../../repositories/todo_repository.dart';
+import '../../../../services/app_logger.dart';
 
 class DeleteConfirmationDialog extends StatelessWidget {
   final TodoModel todo;
@@ -60,19 +61,40 @@ class DeleteConfirmationDialog extends StatelessWidget {
           onPressed: () async {
             final messenger = ScaffoldMessenger.of(context);
             final repository = TodoRepository();
-            await repository.deleteTodo(todo.id);
 
-            if (!context.mounted) return;
+            try {
+              await repository.deleteTodo(todo.id);
 
-            Navigator.of(context).pop(true);
-            onDeleted();
+              if (!context.mounted) return;
 
-            messenger.showSnackBar(
-              SnackBar(
-                content: Text('${todo.title} dihapus'),
-                duration: const Duration(seconds: 3),
-              ),
-            );
+              AppLogger.info('DeleteConfirmationDialog', 'Task deleted successfully.');
+
+              Navigator.of(context).pop(true);
+              onDeleted();
+
+              messenger.showSnackBar(
+                SnackBar(
+                  content: Text('${todo.title} dihapus'),
+                  duration: const Duration(seconds: 3),
+                ),
+              );
+            } catch (e, stackTrace) {
+              AppLogger.error(
+                'DeleteConfirmationDialog',
+                'Failed to delete task.',
+                error: e,
+                stackTrace: stackTrace,
+              );
+
+              if (!context.mounted) return;
+
+              messenger.showSnackBar(
+                const SnackBar(
+                  content: Text('Gagal menghapus tugas'),
+                  backgroundColor: Colors.red,
+                ),
+              );
+            }
           },
           style: ElevatedButton.styleFrom(
             backgroundColor: Colors.red[400],
