@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../models/todo_model.dart';
 import '../repositories/todo_repository.dart';
+import '../services/app_logger.dart';
 
 class AddEditTaskScreen extends StatefulWidget {
   final TodoModel? todo;
@@ -116,10 +117,22 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
         await _todoRepository.addTodo(newTodo);
       }
 
+      AppLogger.info(
+        'AddEditTaskScreen',
+        _isEditing ? 'Task updated successfully.' : 'Task created successfully.',
+      );
+
       if (mounted) {
         Navigator.pop(context, true);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'AddEditTaskScreen',
+        'Failed to save task.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -162,10 +175,20 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     setState(() => _isLoading = true);
     try {
       await _todoRepository.deleteTodo(widget.todo!.id);
+
+      AppLogger.info('AddEditTaskScreen', 'Task deleted successfully.');
+
       if (mounted) {
         Navigator.pop(context, true);
       }
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'AddEditTaskScreen',
+        'Failed to delete task.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
