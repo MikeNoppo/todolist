@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../Home/home_screen.dart';
+import '../../services/app_logger.dart';
 import '../../services/permission_service.dart';
 import 'pages/onboarding_page_1.dart';
 import 'pages/onboarding_page_2.dart';
@@ -48,7 +49,15 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
     await Future.delayed(const Duration(milliseconds: 500));
     
     bool allPermissionsGranted = await PermissionService.areAllPermissionsGranted();
-    if (allPermissionsGranted && mounted) {
+
+    if (!mounted) return;
+
+    if (allPermissionsGranted) {
+      AppLogger.info(
+        'OnboardingScreen',
+        'All permissions granted after app resume.',
+      );
+
       // Show success message and navigate to home
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -64,6 +73,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
           _navigateToHome();
         }
       });
+    } else {
+      AppLogger.debug(
+        'OnboardingScreen',
+        'Permissions still incomplete after app resume.',
+      );
     }
   }
 
@@ -217,6 +231,11 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
     if (!mounted) return;
     
     if (allPermissionsGranted) {
+      AppLogger.info(
+        'OnboardingScreen',
+        'All required permissions already granted. Navigating to home.',
+      );
+
       // If all permissions are granted, go to home screen
       _navigateToHome();
       return;
@@ -229,11 +248,21 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
     if (!mounted) return;
 
     if (!accessibilityEnabled) {
+      AppLogger.warn('OnboardingScreen', 'Accessibility permission is not enabled.');
+
       // Show accessibility instructions if not enabled
       await _showAccessibilityInstructions();
     } else if (!usageStatsGranted) {
+      AppLogger.warn('OnboardingScreen', 'Usage stats permission is not granted.');
+
       // Skip accessibility and go directly to usage stats if accessibility is already enabled
       await _showUsageStatsInstructions();
+    } else {
+      AppLogger.info(
+        'OnboardingScreen',
+        'Individual permission checks passed. Navigating to home.',
+      );
+      _navigateToHome();
     }
   }
 
@@ -262,6 +291,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
               child: const Text('Buka Pengaturan'),
               onPressed: () async {
                 Navigator.of(context).pop();
+                AppLogger.info('OnboardingScreen', 'Opening accessibility settings.');
                 // Open accessibility settings
                 await PermissionService.openAccessibilitySettings();
                 _checkPermissionsAndNavigate();
@@ -298,6 +328,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
                 child: const Text('Buka Pengaturan'),
                 onPressed: () async {
                   Navigator.of(context).pop();
+                  AppLogger.info('OnboardingScreen', 'Opening usage stats settings.');
                   // Open usage stats settings
                   await PermissionService.openUsageStatsSettings();
                   _checkPermissionsAndNavigate();
@@ -316,14 +347,25 @@ class _OnboardingScreenState extends State<OnboardingScreen> with WidgetsBinding
     if (!mounted) return;
     
     if (allPermissionsGranted) {
+      AppLogger.info(
+        'OnboardingScreen',
+        'All required permissions granted after returning from settings.',
+      );
       _navigateToHome();
     } else {
+      AppLogger.warn(
+        'OnboardingScreen',
+        'Permissions still incomplete after returning from settings.',
+      );
+
       // Show a dialog asking user to complete the permission setup
       await _showIncompletePermissionDialog();
     }
   }
 
   Future<void> _showIncompletePermissionDialog() async {
+    AppLogger.warn('OnboardingScreen', 'Showing incomplete permission dialog.');
+
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
