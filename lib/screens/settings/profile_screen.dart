@@ -11,6 +11,8 @@ class ProfileScreen extends StatefulWidget {
 }
 
 class _ProfileScreenState extends State<ProfileScreen> {
+  static const String _tag = 'ProfileScreen';
+
   final TodoRepository _todoRepository = TodoRepository();
   final TextEditingController _nameController = TextEditingController();
   String _selectedAvatar = 'person_outline';
@@ -50,14 +52,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // In a real app, you'd also load the selected avatar from preferences
 
       if (!mounted) return;
-      
+
       setState(() {
         _nameController.text = userName ?? '';
         _isLoading = false;
       });
     } catch (e, stackTrace) {
       AppLogger.error(
-        'ProfileScreen',
+        _tag,
         'Failed to load profile.',
         error: e,
         stackTrace: stackTrace,
@@ -72,7 +74,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (_nameController.text.trim().isEmpty) {
-      AppLogger.warn('ProfileScreen', 'Save profile blocked: empty name');
+      AppLogger.warn(_tag, 'Save profile blocked: empty name');
 
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
@@ -93,21 +95,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
       if (!mounted) return;
 
-      AppLogger.info('ProfileScreen', 'Profile saved successfully');
-      
+      AppLogger.info(_tag, 'Profile saved successfully');
+
       HapticFeedback.lightImpact();
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Profil berhasil disimpan'),
           backgroundColor: Color(0xFF4A6FA5),
         ),
       );
-      
+
       Navigator.pop(context, true); // Return true to indicate success
     } catch (e, stackTrace) {
       AppLogger.error(
-        'ProfileScreen',
+        _tag,
         'Failed to save profile.',
         error: e,
         stackTrace: stackTrace,
@@ -138,10 +140,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(
-            Icons.arrow_back,
-            color: Colors.black87,
-          ),
+          icon: const Icon(Icons.arrow_back, color: Colors.black87),
         ),
         title: const Text(
           'Profil & Avatar',
@@ -176,138 +175,141 @@ class _ProfileScreenState extends State<ProfileScreen> {
         ],
         systemOverlayStyle: SystemUiOverlayStyle.dark,
       ),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator(color: Color(0xFF4A6FA5)))
-        : ListView(
-            padding: const EdgeInsets.all(20),
-            children: [
-              // Current Avatar Preview
-              Center(
-                child: Container(
-                  width: 120,
-                  height: 120,
+      body: _isLoading
+          ? const Center(
+              child: CircularProgressIndicator(color: Color(0xFF4A6FA5)),
+            )
+          : ListView(
+              padding: const EdgeInsets.all(20),
+              children: [
+                // Current Avatar Preview
+                Center(
+                  child: Container(
+                    width: 120,
+                    height: 120,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      _avatarOptions.firstWhere(
+                        (avatar) => avatar['name'] == _selectedAvatar,
+                        orElse: () => _avatarOptions[0],
+                      )['icon'],
+                      color: const Color(0xFF4A6FA5),
+                      size: 60,
+                    ),
+                  ),
+                ),
+
+                const SizedBox(height: 32),
+
+                // Name Input
+                _buildSectionHeader('Nama Pengguna'),
+                const SizedBox(height: 12),
+                Container(
                   decoration: BoxDecoration(
-                    color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    _avatarOptions.firstWhere(
-                      (avatar) => avatar['name'] == _selectedAvatar,
-                      orElse: () => _avatarOptions[0],
-                    )['icon'],
-                    color: const Color(0xFF4A6FA5),
-                    size: 60,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Name Input
-              _buildSectionHeader('Nama Pengguna'),
-              const SizedBox(height: 12),
-              Container(
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: TextField(
-                  controller: _nameController,
-                  decoration: InputDecoration(
-                    hintText: 'Masukkan nama Anda',
-                    hintStyle: TextStyle(color: Colors.grey[400]),
-                    prefixIcon: Icon(
-                      Icons.edit_outlined,
-                      color: Colors.grey[600],
-                    ),
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.circular(16),
-                      borderSide: BorderSide.none,
-                    ),
-                    filled: true,
-                    fillColor: Colors.white,
-                    contentPadding: const EdgeInsets.all(20),
-                  ),
-                  style: const TextStyle(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w500,
-                    color: Colors.black87,
-                  ),
-                ),
-              ),
-              
-              const SizedBox(height: 32),
-              
-              // Avatar Selection
-              _buildSectionHeader('Pilih Avatar'),
-              const SizedBox(height: 12),
-              Container(
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.circular(16),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withValues(alpha: 0.04),
-                      blurRadius: 10,
-                      offset: const Offset(0, 2),
-                    ),
-                  ],
-                ),
-                child: GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 4,
-                    crossAxisSpacing: 16,
-                    mainAxisSpacing: 16,
-                  ),
-                  itemCount: _avatarOptions.length,
-                  itemBuilder: (context, index) {
-                    final avatar = _avatarOptions[index];
-                    final isSelected = avatar['name'] == _selectedAvatar;
-                    
-                    return GestureDetector(
-                      onTap: () {
-                        setState(() {
-                          _selectedAvatar = avatar['name'];
-                        });
-                        HapticFeedback.lightImpact();
-                      },
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: isSelected 
-                            ? const Color(0xFF4A6FA5).withValues(alpha: 0.1)
-                            : Colors.grey[50],
-                          borderRadius: BorderRadius.circular(12),
-                          border: isSelected
-                            ? Border.all(
-                                color: const Color(0xFF4A6FA5),
-                                width: 2,
-                              )
-                            : null,
-                        ),
-                        child: Icon(
-                          avatar['icon'],
-                          color: isSelected 
-                            ? const Color(0xFF4A6FA5)
-                            : Colors.grey[600],
-                          size: 32,
-                        ),
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
                       ),
-                    );
-                  },
+                    ],
+                  ),
+                  child: TextField(
+                    controller: _nameController,
+                    decoration: InputDecoration(
+                      hintText: 'Masukkan nama Anda',
+                      hintStyle: TextStyle(color: Colors.grey[400]),
+                      prefixIcon: Icon(
+                        Icons.edit_outlined,
+                        color: Colors.grey[600],
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(16),
+                        borderSide: BorderSide.none,
+                      ),
+                      filled: true,
+                      fillColor: Colors.white,
+                      contentPadding: const EdgeInsets.all(20),
+                    ),
+                    style: const TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w500,
+                      color: Colors.black87,
+                    ),
+                  ),
                 ),
-              ),
-            ],
-          ),
+
+                const SizedBox(height: 32),
+
+                // Avatar Selection
+                _buildSectionHeader('Pilih Avatar'),
+                const SizedBox(height: 12),
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(16),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: 0.04),
+                        blurRadius: 10,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: GridView.builder(
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    gridDelegate:
+                        const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          crossAxisSpacing: 16,
+                          mainAxisSpacing: 16,
+                        ),
+                    itemCount: _avatarOptions.length,
+                    itemBuilder: (context, index) {
+                      final avatar = _avatarOptions[index];
+                      final isSelected = avatar['name'] == _selectedAvatar;
+
+                      return GestureDetector(
+                        onTap: () {
+                          setState(() {
+                            _selectedAvatar = avatar['name'];
+                          });
+                          HapticFeedback.lightImpact();
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF4A6FA5).withValues(alpha: 0.1)
+                                : Colors.grey[50],
+                            borderRadius: BorderRadius.circular(12),
+                            border: isSelected
+                                ? Border.all(
+                                    color: const Color(0xFF4A6FA5),
+                                    width: 2,
+                                  )
+                                : null,
+                          ),
+                          child: Icon(
+                            avatar['icon'],
+                            color: isSelected
+                                ? const Color(0xFF4A6FA5)
+                                : Colors.grey[600],
+                            size: 32,
+                          ),
+                        ),
+                      );
+                    },
+                  ),
+                ),
+              ],
+            ),
     );
   }
 
