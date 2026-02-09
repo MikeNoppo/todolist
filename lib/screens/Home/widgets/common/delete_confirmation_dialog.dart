@@ -4,6 +4,8 @@ import '../../../../repositories/todo_repository.dart';
 import '../../../../services/app_logger.dart';
 
 class DeleteConfirmationDialog extends StatelessWidget {
+  static const String _tag = 'DeleteConfirmationDialog';
+
   final TodoModel todo;
   final VoidCallback onDeleted;
 
@@ -19,43 +21,30 @@ class DeleteConfirmationDialog extends StatelessWidget {
     required VoidCallback onDeleted,
   }) async {
     return await showDialog<bool>(
-      context: context,
-      builder: (BuildContext context) {
-        return DeleteConfirmationDialog(
-          todo: todo,
-          onDeleted: onDeleted,
-        );
-      },
-    ) ?? false;
+          context: context,
+          builder: (BuildContext context) {
+            return DeleteConfirmationDialog(todo: todo, onDeleted: onDeleted);
+          },
+        ) ??
+        false;
   }
 
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(16),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
       title: const Text(
         'Hapus Tugas',
-        style: TextStyle(
-          fontWeight: FontWeight.w600,
-        ),
+        style: TextStyle(fontWeight: FontWeight.w600),
       ),
       content: Text(
         'Apakah Anda yakin ingin menghapus "${todo.title}"?',
-        style: TextStyle(
-          color: Colors.grey[600],
-        ),
+        style: TextStyle(color: Colors.grey[600]),
       ),
       actions: [
         TextButton(
           onPressed: () => Navigator.of(context).pop(false),
-          child: Text(
-            'Batal',
-            style: TextStyle(
-              color: Colors.grey[600],
-            ),
-          ),
+          child: Text('Batal', style: TextStyle(color: Colors.grey[600])),
         ),
         ElevatedButton(
           onPressed: () async {
@@ -67,7 +56,7 @@ class DeleteConfirmationDialog extends StatelessWidget {
 
               if (!context.mounted) return;
 
-              AppLogger.info('DeleteConfirmationDialog', 'Task deleted successfully.');
+              AppLogger.info(_tag, 'Task deleted successfully.');
 
               Navigator.of(context).pop(true);
               onDeleted();
@@ -80,7 +69,7 @@ class DeleteConfirmationDialog extends StatelessWidget {
               );
             } catch (e, stackTrace) {
               AppLogger.error(
-                'DeleteConfirmationDialog',
+                _tag,
                 'Failed to delete task.',
                 error: e,
                 stackTrace: stackTrace,
