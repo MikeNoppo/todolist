@@ -4,17 +4,14 @@ import '../../../settings/settings_screen.dart';
 class ModernAppBar extends StatelessWidget {
   final String userName;
 
-  const ModernAppBar({
-    super.key,
-    required this.userName,
-  });
+  const ModernAppBar({super.key, required this.userName});
 
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
     final hour = now.hour;
     String greeting;
-    
+
     if (hour < 12) {
       greeting = 'Selamat Pagi';
     } else if (hour < 17) {
@@ -23,12 +20,33 @@ class ModernAppBar extends StatelessWidget {
       greeting = 'Selamat Malam';
     }
 
-    final dayNames = ['Minggu', 'Senin', 'Selasa', 'Rabu', 'Kamis', 'Jumat', 'Sabtu'];
-    final monthNames = ['Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni', 
-                       'Juli', 'Agustus', 'September', 'Oktober', 'November', 'Desember'];
-    
-    final dateString = '${dayNames[now.weekday % 7]}, ${now.day} ${monthNames[now.month - 1]}';
-    
+    final dayNames = [
+      'Minggu',
+      'Senin',
+      'Selasa',
+      'Rabu',
+      'Kamis',
+      'Jumat',
+      'Sabtu',
+    ];
+    final monthNames = [
+      'Januari',
+      'Februari',
+      'Maret',
+      'April',
+      'Mei',
+      'Juni',
+      'Juli',
+      'Agustus',
+      'September',
+      'Oktober',
+      'November',
+      'Desember',
+    ];
+
+    final dateString =
+        '${dayNames[now.weekday % 7]}, ${now.day} ${monthNames[now.month - 1]}';
+
     return SliverAppBar(
       backgroundColor: Colors.white,
       elevation: 0,
@@ -61,7 +79,10 @@ class ModernAppBar extends StatelessWidget {
                             decoration: BoxDecoration(
                               color: Colors.grey[100],
                               shape: BoxShape.circle,
-                              border: Border.all(color: Colors.grey[200]!, width: 1),
+                              border: Border.all(
+                                color: Colors.grey[200]!,
+                                width: 1,
+                              ),
                             ),
                             child: Icon(
                               Icons.person_outline,

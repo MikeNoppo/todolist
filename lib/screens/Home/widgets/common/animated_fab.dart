@@ -3,10 +3,7 @@ import 'package:flutter/material.dart';
 class AnimatedFab extends StatelessWidget {
   final VoidCallback onPressed;
 
-  const AnimatedFab({
-    super.key,
-    required this.onPressed,
-  });
+  const AnimatedFab({super.key, required this.onPressed});
 
   @override
   Widget build(BuildContext context) {
@@ -33,11 +30,7 @@ class AnimatedFab extends StatelessWidget {
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(16),
               ),
-              child: const Icon(
-                Icons.add,
-                color: Colors.white,
-                size: 24,
-              ),
+              child: const Icon(Icons.add, color: Colors.white, size: 24),
             ),
           ),
         );
