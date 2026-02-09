@@ -79,10 +79,7 @@ class BulkActionsBottomSheet extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         '$selectedCount task${selectedCount > 1 ? 's' : ''} selected',
-                        style: TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -187,11 +184,7 @@ class BulkActionsBottomSheet extends StatelessWidget {
                     color: color.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(10),
                   ),
-                  child: Icon(
-                    icon,
-                    color: color,
-                    size: 20,
-                  ),
+                  child: Icon(icon, color: color, size: 20),
                 ),
                 const SizedBox(width: 16),
                 Expanded(
@@ -209,19 +202,12 @@ class BulkActionsBottomSheet extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         subtitle,
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                       ),
                     ],
                   ),
                 ),
-                Icon(
-                  Icons.chevron_right,
-                  color: Colors.grey[400],
-                  size: 20,
-                ),
+                Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
               ],
             ),
           ),
@@ -234,23 +220,14 @@ class BulkActionsBottomSheet extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(16),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: const Text(
           'Delete Selected Tasks',
-          style: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w600,
-          ),
+          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
         ),
         content: Text(
           'Are you sure you want to delete $selectedCount task${selectedCount > 1 ? 's' : ''}? This action cannot be undone.',
-          style: TextStyle(
-            fontSize: 16,
-            color: Colors.grey[700],
-            height: 1.4,
-          ),
+          style: TextStyle(fontSize: 16, color: Colors.grey[700], height: 1.4),
         ),
         actions: [
           TextButton(
@@ -274,10 +251,7 @@ class BulkActionsBottomSheet extends StatelessWidget {
             ),
             child: const Text(
               'Delete',
-              style: TextStyle(
-                color: Colors.red,
-                fontWeight: FontWeight.w600,
-              ),
+              style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
             ),
           ),
         ],
