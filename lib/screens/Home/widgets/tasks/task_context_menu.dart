@@ -101,10 +101,7 @@ class _ContextMenuBottomSheet extends StatelessWidget {
                       const SizedBox(height: 4),
                       Text(
                         'Quick Actions',
-                        style: TextStyle(
-                          fontSize: 13,
-                          color: Colors.grey[600],
-                        ),
+                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                       ),
                     ],
                   ),
@@ -118,12 +115,18 @@ class _ContextMenuBottomSheet extends StatelessWidget {
             child: Column(
               children: [
                 _buildMenuItem(
-                  icon: todo.isCompleted ? Icons.refresh : Icons.check_circle_outline,
-                  title: todo.isCompleted ? 'Mark as Incomplete' : 'Mark as Complete',
-                  subtitle: todo.isCompleted 
-                    ? 'Move task back to pending'
-                    : 'Mark this task as done',
-                  color: todo.isCompleted ? Colors.orange : const Color(0xFF4A6FA5),
+                  icon: todo.isCompleted
+                      ? Icons.refresh
+                      : Icons.check_circle_outline,
+                  title: todo.isCompleted
+                      ? 'Mark as Incomplete'
+                      : 'Mark as Complete',
+                  subtitle: todo.isCompleted
+                      ? 'Move task back to pending'
+                      : 'Mark this task as done',
+                  color: todo.isCompleted
+                      ? Colors.orange
+                      : const Color(0xFF4A6FA5),
                   onTap: () {
                     Navigator.pop(context);
                     onToggleComplete();
@@ -213,11 +216,7 @@ class _ContextMenuBottomSheet extends StatelessWidget {
                   color: color.withValues(alpha: 0.1),
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 20,
-                ),
+                child: Icon(icon, color: color, size: 20),
               ),
               const SizedBox(width: 16),
               Expanded(
@@ -235,19 +234,12 @@ class _ContextMenuBottomSheet extends StatelessWidget {
                     const SizedBox(height: 2),
                     Text(
                       subtitle,
-                      style: TextStyle(
-                        fontSize: 13,
-                        color: Colors.grey[600],
-                      ),
+                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
                     ),
                   ],
                 ),
               ),
-              Icon(
-                Icons.chevron_right,
-                color: Colors.grey[400],
-                size: 20,
-              ),
+              Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
             ],
           ),
         ),

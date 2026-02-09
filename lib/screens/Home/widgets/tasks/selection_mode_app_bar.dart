@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
-class SelectionModeAppBar extends StatelessWidget implements PreferredSizeWidget {
+class SelectionModeAppBar extends StatelessWidget
+    implements PreferredSizeWidget {
   final int selectedCount;
   final VoidCallback onCancel;
   final VoidCallback onSelectAll;
@@ -24,10 +25,7 @@ class SelectionModeAppBar extends StatelessWidget implements PreferredSizeWidget
       elevation: 0,
       leading: IconButton(
         onPressed: onCancel,
-        icon: const Icon(
-          Icons.close,
-          color: Colors.white,
-        ),
+        icon: const Icon(Icons.close, color: Colors.white),
       ),
       title: Text(
         '$selectedCount selected',
@@ -40,18 +38,12 @@ class SelectionModeAppBar extends StatelessWidget implements PreferredSizeWidget
       actions: [
         IconButton(
           onPressed: onSelectAll,
-          icon: const Icon(
-            Icons.select_all,
-            color: Colors.white,
-          ),
+          icon: const Icon(Icons.select_all, color: Colors.white),
           tooltip: 'Select All',
         ),
         IconButton(
           onPressed: selectedCount > 0 ? onBulkActions : null,
-          icon: const Icon(
-            Icons.more_vert,
-            color: Colors.white,
-          ),
+          icon: const Icon(Icons.more_vert, color: Colors.white),
           tooltip: 'Bulk Actions',
         ),
         const SizedBox(width: 8),
