@@ -50,7 +50,8 @@ class _TodoCardState extends State<TodoCard> {
   }
 
   void _handleDoubleTap() {
-    if (widget.selectionManager != null && !widget.selectionManager!.isSelectionMode) {
+    if (widget.selectionManager != null &&
+        !widget.selectionManager!.isSelectionMode) {
       widget.selectionManager!.enterSelectionMode(widget.todo.id);
     }
   }
@@ -70,7 +71,7 @@ class _TodoCardState extends State<TodoCard> {
         builder: (context) => AddEditTaskScreen(todo: widget.todo),
       ),
     );
-    
+
     if (result == true) {
       widget.onDeleted(); // refresh data
     }
@@ -90,11 +91,14 @@ class _TodoCardState extends State<TodoCard> {
   @override
   Widget build(BuildContext context) {
     final isSelectionMode = widget.selectionManager?.isSelectionMode ?? false;
-    final isSelected = widget.selectionManager?.isSelected(widget.todo.id) ?? false;
+    final isSelected =
+        widget.selectionManager?.isSelected(widget.todo.id) ?? false;
 
     return Dismissible(
       key: Key(widget.todo.id),
-      direction: isSelectionMode ? DismissDirection.none : DismissDirection.horizontal,
+      direction: isSelectionMode
+          ? DismissDirection.none
+          : DismissDirection.horizontal,
       confirmDismiss: (direction) async {
         if (direction == DismissDirection.endToStart) {
           return await DeleteConfirmationDialog.show(
@@ -118,11 +122,7 @@ class _TodoCardState extends State<TodoCard> {
         padding: const EdgeInsets.only(left: 20),
         child: const Row(
           children: [
-            Icon(
-              Icons.check_circle,
-              color: Colors.white,
-              size: 24,
-            ),
+            Icon(Icons.check_circle, color: Colors.white, size: 24),
             SizedBox(width: 8),
             Text(
               'Complete',
@@ -153,11 +153,7 @@ class _TodoCardState extends State<TodoCard> {
               ),
             ),
             SizedBox(width: 8),
-            Icon(
-              Icons.delete,
-              color: Colors.white,
-              size: 24,
-            ),
+            Icon(Icons.delete, color: Colors.white, size: 24),
           ],
         ),
       ),
@@ -165,11 +161,13 @@ class _TodoCardState extends State<TodoCard> {
         duration: const Duration(milliseconds: 300),
         margin: const EdgeInsets.only(bottom: 16),
         decoration: BoxDecoration(
-          color: isSelected ? const Color(0xFF4A6FA5).withValues(alpha: 0.1) : Colors.white,
+          color: isSelected
+              ? const Color(0xFF4A6FA5).withValues(alpha: 0.1)
+              : Colors.white,
           borderRadius: BorderRadius.circular(16),
-          border: isSelected 
-            ? Border.all(color: const Color(0xFF4A6FA5), width: 2)
-            : null,
+          border: isSelected
+              ? Border.all(color: const Color(0xFF4A6FA5), width: 2)
+              : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withValues(alpha: 0.04),
@@ -197,20 +195,24 @@ class _TodoCardState extends State<TodoCard> {
                             width: 24,
                             height: 24,
                             decoration: BoxDecoration(
-                              color: isSelected ? const Color(0xFF4A6FA5) : Colors.transparent,
+                              color: isSelected
+                                  ? const Color(0xFF4A6FA5)
+                                  : Colors.transparent,
                               border: Border.all(
-                                color: isSelected ? const Color(0xFF4A6FA5) : Colors.grey,
+                                color: isSelected
+                                    ? const Color(0xFF4A6FA5)
+                                    : Colors.grey,
                                 width: 2,
                               ),
                               borderRadius: BorderRadius.circular(12),
                             ),
-                            child: isSelected 
-                              ? const Icon(
-                                  Icons.check,
-                                  color: Colors.white,
-                                  size: 16,
-                                )
-                              : null,
+                            child: isSelected
+                                ? const Icon(
+                                    Icons.check,
+                                    color: Colors.white,
+                                    size: 16,
+                                  )
+                                : null,
                           ),
                           const SizedBox(width: 16),
                         ] else ...[
@@ -229,12 +231,12 @@ class _TodoCardState extends State<TodoCard> {
                                 style: TextStyle(
                                   fontSize: 16,
                                   fontWeight: FontWeight.w600,
-                                  color: widget.todo.isCompleted 
-                                    ? Colors.grey[500]
-                                    : Colors.black87,
-                                  decoration: widget.todo.isCompleted 
-                                    ? TextDecoration.lineThrough
-                                    : null,
+                                  color: widget.todo.isCompleted
+                                      ? Colors.grey[500]
+                                      : Colors.black87,
+                                  decoration: widget.todo.isCompleted
+                                      ? TextDecoration.lineThrough
+                                      : null,
                                   height: 1.3,
                                 ),
                               ),

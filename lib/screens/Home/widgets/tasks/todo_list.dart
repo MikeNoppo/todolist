@@ -24,19 +24,16 @@ class TodoList extends StatelessWidget {
     return SliverPadding(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
       sliver: SliverList(
-        delegate: SliverChildBuilderDelegate(
-          (context, index) {
-            final todo = todos[index];
-            return TodoCard(
-              todo: todo,
-              onToggleComplete: () => onToggleComplete(todo.id),
-              onDeleted: onDeleted,
-              selectionManager: selectionManager,
-              onDuplicate: onDuplicate != null ? () => onDuplicate!(todo) : null,
-            );
-          },
-          childCount: todos.length,
-        ),
+        delegate: SliverChildBuilderDelegate((context, index) {
+          final todo = todos[index];
+          return TodoCard(
+            todo: todo,
+            onToggleComplete: () => onToggleComplete(todo.id),
+            onDeleted: onDeleted,
+            selectionManager: selectionManager,
+            onDuplicate: onDuplicate != null ? () => onDuplicate!(todo) : null,
+          );
+        }, childCount: todos.length),
       ),
     );
   }
