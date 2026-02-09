@@ -21,6 +21,8 @@ class InterventionScreen extends StatefulWidget {
 
 class _InterventionScreenState extends State<InterventionScreen>
     with SingleTickerProviderStateMixin {
+  static const String _tag = 'InterventionScreen';
+
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
@@ -31,23 +33,25 @@ class _InterventionScreenState extends State<InterventionScreen>
   final List<Map<String, String>> _quotes = [
     {
       'text': 'Penundaan adalah pembunuh alami kesempatan.',
-      'author': 'Victor Kiam'
+      'author': 'Victor Kiam',
     },
     {
       'text': 'Fokus adalah kekuatan super rahasia untuk mencapai kesuksesan.',
-      'author': 'Unknown'
+      'author': 'Unknown',
     },
     {
-      'text': 'Produktivitas bukan tentang waktu yang Anda habiskan, tetapi tentang perhatian yang Anda berikan.',
-      'author': 'Unknown'
+      'text':
+          'Produktivitas bukan tentang waktu yang Anda habiskan, tetapi tentang perhatian yang Anda berikan.',
+      'author': 'Unknown',
     },
     {
       'text': 'Distraksi adalah musuh terbesar dari pencapaian.',
-      'author': 'Unknown'
+      'author': 'Unknown',
     },
     {
-      'text': 'Setiap detik yang Anda fokus adalah investasi untuk masa depan yang lebih baik.',
-      'author': 'Unknown'
+      'text':
+          'Setiap detik yang Anda fokus adalah investasi untuk masa depan yang lebih baik.',
+      'author': 'Unknown',
     },
   ];
 
@@ -65,21 +69,13 @@ class _InterventionScreenState extends State<InterventionScreen>
       vsync: this,
     );
 
-    _scaleAnimation = Tween<double>(
-      begin: 0.3,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.elasticOut,
-    ));
+    _scaleAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.elasticOut),
+    );
 
-    _fadeAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _animationController,
-      curve: Curves.easeIn,
-    ));
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
+    );
   }
 
   void _startAnimations() {
@@ -94,17 +90,17 @@ class _InterventionScreenState extends State<InterventionScreen>
     try {
       final todos = await _todoRepository.getTodos();
       final urgentTodos = todos
-          .where((todo) => 
-              !todo.isCompleted && 
-              todo.priority == TodoPriority.high)
+          .where(
+            (todo) => !todo.isCompleted && todo.priority == TodoPriority.high,
+          )
           .toList();
-      
+
       if (urgentTodos.isNotEmpty) {
         // Sort by deadline to get the most urgent
         urgentTodos.sort((a, b) => a.deadline.compareTo(b.deadline));
 
         AppLogger.debug(
-          'InterventionScreen',
+          _tag,
           'Loaded ${urgentTodos.length} high-priority incomplete task(s).',
         );
 
@@ -113,14 +109,11 @@ class _InterventionScreenState extends State<InterventionScreen>
           _urgentTask = urgentTodos.first.title;
         });
       } else {
-        AppLogger.info(
-          'InterventionScreen',
-          'No high-priority incomplete tasks found.',
-        );
+        AppLogger.info(_tag, 'No high-priority incomplete tasks found.');
       }
     } catch (e, stackTrace) {
       AppLogger.error(
-        'InterventionScreen',
+        _tag,
         'Failed to load urgent task.',
         error: e,
         stackTrace: stackTrace,
@@ -152,10 +145,7 @@ class _InterventionScreenState extends State<InterventionScreen>
           gradient: LinearGradient(
             begin: Alignment.topCenter,
             end: Alignment.bottomCenter,
-            colors: [
-              Color(0xFF2D2D2D),
-              Color(0xFF1A1A1A),
-            ],
+            colors: [Color(0xFF2D2D2D), Color(0xFF1A1A1A)],
           ),
         ),
         child: SafeArea(
@@ -165,7 +155,7 @@ class _InterventionScreenState extends State<InterventionScreen>
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 const Spacer(flex: 2),
-                
+
                 // Main Icon with Animation
                 AnimatedBuilder(
                   animation: _scaleAnimation,
@@ -184,7 +174,9 @@ class _InterventionScreenState extends State<InterventionScreen>
                           ),
                         ),
                         child: Icon(
-                          InterventionIcons.getIconForApp(widget.blockedAppName.toLowerCase()),
+                          InterventionIcons.getIconForApp(
+                            widget.blockedAppName.toLowerCase(),
+                          ),
                           size: 60,
                           color: Colors.white70,
                         ),
@@ -192,9 +184,9 @@ class _InterventionScreenState extends State<InterventionScreen>
                     );
                   },
                 ),
-                
+
                 const SizedBox(height: 48),
-                
+
                 // Motivational Quote with Fade Animation
                 AnimatedBuilder(
                   animation: _fadeAnimation,
@@ -217,7 +209,7 @@ class _InterventionScreenState extends State<InterventionScreen>
                             ),
                           ),
                           const SizedBox(height: 16),
-                          
+
                           // Quote Author
                           Text(
                             '— ${quote['author']}',
@@ -233,9 +225,9 @@ class _InterventionScreenState extends State<InterventionScreen>
                     );
                   },
                 ),
-                
+
                 const SizedBox(height: 40),
-                
+
                 // Task Reminder
                 if (_urgentTask != null) ...[
                   AnimatedBuilder(
@@ -249,10 +241,14 @@ class _InterventionScreenState extends State<InterventionScreen>
                             vertical: 16,
                           ),
                           decoration: BoxDecoration(
-                            color: const Color(0xFF4A6FA5).withValues(alpha: 0.2),
+                            color: const Color(
+                              0xFF4A6FA5,
+                            ).withValues(alpha: 0.2),
                             borderRadius: BorderRadius.circular(16),
                             border: Border.all(
-                              color: const Color(0xFF4A6FA5).withValues(alpha: 0.3),
+                              color: const Color(
+                                0xFF4A6FA5,
+                              ).withValues(alpha: 0.3),
                               width: 1,
                             ),
                           ),
@@ -284,9 +280,9 @@ class _InterventionScreenState extends State<InterventionScreen>
                   ),
                   const SizedBox(height: 32),
                 ],
-                
+
                 const Spacer(flex: 3),
-                
+
                 // Back to Work Button
                 AnimatedBuilder(
                   animation: _fadeAnimation,
@@ -314,9 +310,9 @@ class _InterventionScreenState extends State<InterventionScreen>
                     );
                   },
                 ),
-                
+
                 const SizedBox(height: 20),
-                
+
                 // Blocked App Info
                 AnimatedBuilder(
                   animation: _fadeAnimation,
@@ -345,10 +341,10 @@ class _InterventionScreenState extends State<InterventionScreen>
   void _handleBackToWork() {
     // Add haptic feedback
     HapticFeedback.lightImpact();
-    
+
     // Close the intervention screen
     Navigator.of(context).pop();
-    
+
     // Optional: Navigate to home screen or task list
     // You can customize this behavior based on your app's navigation structure
   }

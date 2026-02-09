@@ -37,13 +37,10 @@ class InterventionDemoScreen extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Klik salah satu aplikasi di bawah untuk melihat layar intervensi',
-              style: TextStyle(
-                fontSize: 16,
-                color: Colors.grey[600],
-              ),
+              style: TextStyle(fontSize: 16, color: Colors.grey[600]),
             ),
             const SizedBox(height: 32),
-            
+
             // Grid of blocked apps for demo
             Expanded(
               child: GridView.builder(
@@ -55,9 +52,12 @@ class InterventionDemoScreen extends StatelessWidget {
                 ),
                 itemCount: AppBlockerService.getDefaultBlockedApps().length,
                 itemBuilder: (context, index) {
-                  final packageName = AppBlockerService.getDefaultBlockedApps()[index];
-                  final appName = AppBlockerService.getAppDisplayName(packageName);
-                  
+                  final packageName =
+                      AppBlockerService.getDefaultBlockedApps()[index];
+                  final appName = AppBlockerService.getAppDisplayName(
+                    packageName,
+                  );
+
                   return _buildAppCard(context, packageName, appName);
                 },
               ),
@@ -68,7 +68,11 @@ class InterventionDemoScreen extends StatelessWidget {
     );
   }
 
-  Widget _buildAppCard(BuildContext context, String packageName, String appName) {
+  Widget _buildAppCard(
+    BuildContext context,
+    String packageName,
+    String appName,
+  ) {
     // Map package names to appropriate icons
     final Map<String, IconData> appIcons = {
       'com.facebook.katana': Icons.facebook,
