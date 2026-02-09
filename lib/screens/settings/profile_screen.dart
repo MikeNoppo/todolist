@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../repositories/todo_repository.dart';
+import '../../services/app_logger.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -54,7 +55,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
         _nameController.text = userName ?? '';
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'ProfileScreen',
+        'Failed to load profile.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -64,6 +72,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _saveProfile() async {
     if (_nameController.text.trim().isEmpty) {
+      AppLogger.warn('ProfileScreen', 'Save profile blocked: empty name');
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Nama tidak boleh kosong'),
@@ -82,6 +92,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
       // In a real app, you'd also save the selected avatar to preferences
 
       if (!mounted) return;
+
+      AppLogger.info('ProfileScreen', 'Profile saved successfully');
       
       HapticFeedback.lightImpact();
       
@@ -93,7 +105,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
       );
       
       Navigator.pop(context, true); // Return true to indicate success
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'ProfileScreen',
+        'Failed to save profile.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
