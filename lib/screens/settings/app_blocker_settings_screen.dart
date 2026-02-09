@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../../services/app_logger.dart';
+
 class AppBlockerSettingsScreen extends StatefulWidget {
   const AppBlockerSettingsScreen({super.key});
 
@@ -83,13 +85,26 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
         blockedApps[app.packageName] = isBlocked;
       }
 
+      final blockedCount = blockedApps.values.where((isBlocked) => isBlocked).length;
+      AppLogger.info(
+        'AppBlockerSettingsScreen',
+        'Loaded blocked apps: $blockedCount/${blockedApps.length}',
+      );
+
       if (!mounted) return;
       
       setState(() {
         _blockedApps = blockedApps;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'AppBlockerSettingsScreen',
+        'Failed to load blocked apps.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -107,6 +122,11 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
       setState(() {
         _blockedApps[packageName] = value;
       });
+
+      AppLogger.info(
+        'AppBlockerSettingsScreen',
+        'Updated app block status: package=$packageName blocked=$value',
+      );
       
       HapticFeedback.lightImpact();
       
@@ -120,8 +140,23 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
           duration: const Duration(seconds: 2),
         ),
       );
-    } catch (e) {
-      // Handle error
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'AppBlockerSettingsScreen',
+        'Failed to update app block status: package=$packageName',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal memperbarui status blokir aplikasi'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
