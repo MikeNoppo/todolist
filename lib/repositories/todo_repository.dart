@@ -6,6 +6,8 @@ import '../models/todo_model.dart';
 import '../services/app_logger.dart';
 
 class TodoRepository {
+  static const String _tag = 'TodoRepository';
+
   static const String _todosKey = 'todos';
   static const String _userNameKey = 'user_name';
   static const String _userAvatarKey = 'user_avatar';
@@ -14,7 +16,7 @@ class TodoRepository {
   Future<List<TodoModel>> getTodos() async {
     final prefs = await SharedPreferences.getInstance();
     final todosJson = prefs.getString(_todosKey);
-    
+
     if (todosJson == null) return [];
 
     try {
@@ -22,7 +24,7 @@ class TodoRepository {
       return todosList.map((json) => TodoModel.fromJson(json)).toList();
     } catch (e, stackTrace) {
       AppLogger.error(
-        'TodoRepository',
+        _tag,
         'Failed to parse todo data from local storage.',
         error: e,
         stackTrace: stackTrace,
@@ -32,9 +34,24 @@ class TodoRepository {
   }
 
   Future<void> saveTodos(List<TodoModel> todos) async {
-    final prefs = await SharedPreferences.getInstance();
-    final todosJson = jsonEncode(todos.map((todo) => todo.toJson()).toList());
-    await prefs.setString(_todosKey, todosJson);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final todosJson = jsonEncode(todos.map((todo) => todo.toJson()).toList());
+      await prefs.setString(_todosKey, todosJson);
+
+      AppLogger.debug(
+        _tag,
+        'Saved todos to local storage: count=${todos.length}',
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to save todos to local storage.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
   }
 
   Future<void> addTodo(TodoModel todo) async {
@@ -46,7 +63,7 @@ class TodoRepository {
   Future<void> updateTodo(TodoModel updatedTodo) async {
     final todos = await getTodos();
     final index = todos.indexWhere((todo) => todo.id == updatedTodo.id);
-    
+
     if (index != -1) {
       todos[index] = updatedTodo;
       await saveTodos(todos);
@@ -62,7 +79,7 @@ class TodoRepository {
   Future<void> toggleTodoComplete(String todoId) async {
     final todos = await getTodos();
     final index = todos.indexWhere((todo) => todo.id == todoId);
-    
+
     if (index != -1) {
       final todo = todos[index];
       final updatedTodo = todo.copyWith(
@@ -81,8 +98,20 @@ class TodoRepository {
   }
 
   Future<void> saveUserName(String name) async {
-    final prefs = await SharedPreferences.getInstance();
-    await prefs.setString(_userNameKey, name);
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString(_userNameKey, name);
+
+      AppLogger.debug(_tag, 'Saved user name to local storage.');
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to save user name to local storage.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
   }
 
   Future<String?> getUserAvatar() async {
@@ -98,24 +127,25 @@ class TodoRepository {
   // Utility Methods
   Future<List<TodoModel>> getTodosByPriority(TodoPriority priority) async {
     final todos = await getTodos();
-    return todos.where((todo) => todo.priority == priority && !todo.isCompleted).toList();
+    return todos
+        .where((todo) => todo.priority == priority && !todo.isCompleted)
+        .toList();
   }
 
   Future<List<TodoModel>> getOverdueTodos() async {
     final todos = await getTodos();
     final now = DateTime.now();
-    return todos.where((todo) => 
-      !todo.isCompleted && 
-      todo.deadline.isBefore(now)
-    ).toList();
+    return todos
+        .where((todo) => !todo.isCompleted && todo.deadline.isBefore(now))
+        .toList();
   }
 
   Future<TodoModel?> getHighestPriorityTodo() async {
     final todos = await getTodos();
     final incompleteTodos = todos.where((todo) => !todo.isCompleted).toList();
-    
+
     if (incompleteTodos.isEmpty) return null;
-    
+
     // Sort by priority (high first) then by deadline
     incompleteTodos.sort((a, b) {
       if (a.priority != b.priority) {
@@ -123,7 +153,7 @@ class TodoRepository {
       }
       return a.deadline.compareTo(b.deadline);
     });
-    
+
     return incompleteTodos.first;
   }
 
