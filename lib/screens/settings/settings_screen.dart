@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../repositories/todo_repository.dart';
+import '../../services/app_logger.dart';
 import 'app_blocker_settings_screen.dart';
 import 'profile_screen.dart';
 import '../intervention/intervention_demo_screen.dart';
@@ -38,7 +39,13 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _notificationsEnabled = notifications;
         _isLoading = false;
       });
-    } catch (e) {
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'SettingsScreen',
+        'Failed to load settings.',
+        error: e,
+        stackTrace: stackTrace,
+      );
       if (!mounted) return;
       setState(() {
         _isLoading = false;
@@ -58,6 +65,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
       });
       
       HapticFeedback.lightImpact();
+
+      AppLogger.info(
+        'SettingsScreen',
+        'Notification setting updated: enabled=$value',
+      );
       
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
@@ -68,8 +80,23 @@ class _SettingsScreenState extends State<SettingsScreen> {
           duration: const Duration(seconds: 2),
         ),
       );
-    } catch (e) {
-      // Handle error
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        'SettingsScreen',
+        'Failed to update notification setting.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal memperbarui pengaturan notifikasi'),
+          backgroundColor: Colors.red,
+          duration: Duration(seconds: 2),
+        ),
+      );
     }
   }
 
