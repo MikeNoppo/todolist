@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../models/todo_model.dart';
 import '../../repositories/todo_repository.dart';
+import '../../services/app_logger.dart';
 import '../add_edit_task_screen.dart';
 import 'widgets/widgets.dart';
 
@@ -12,6 +13,8 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  static const String _tag = 'HomeScreen';
+
   final TodoRepository _todoRepository = TodoRepository();
   final BulkSelectionManager _selectionManager = BulkSelectionManager();
   List<TodoModel> _todos = [];
@@ -36,43 +39,106 @@ class _HomeScreenState extends State<HomeScreen> {
   Future<void> _loadData() async {
     if (!mounted) return;
     setState(() => _isLoading = true);
-    
-    final todos = await _todoRepository.getTodos();
-    final userName = await _todoRepository.getUserName();
 
-    if (!mounted) return;
-    
-    setState(() {
-      _todos = todos;
-      _userName = userName ?? 'Pengguna';
-      _isLoading = false;
-    });
+    try {
+      final todos = await _todoRepository.getTodos();
+      final userName = await _todoRepository.getUserName();
+
+      AppLogger.debug(
+        _tag,
+        'Loaded home data: todos=${todos.length}, hasUserName=${(userName ?? '').isNotEmpty}',
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _todos = todos;
+        _userName = userName ?? 'Pengguna';
+        _isLoading = false;
+      });
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to load home data.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) return;
+
+      setState(() => _isLoading = false);
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal memuat data tugas'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _toggleTodoComplete(String todoId) async {
-    await _todoRepository.toggleTodoComplete(todoId);
-    await _loadData();
+    try {
+      await _todoRepository.toggleTodoComplete(todoId);
+      AppLogger.info(_tag, 'Toggled task completion: id=$todoId');
+      await _loadData();
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to toggle task completion: id=$todoId',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal memperbarui status tugas'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
   }
 
   Future<void> _duplicateTodo(TodoModel todo) async {
-    final newTodo = TodoModel(
-      id: DateTime.now().millisecondsSinceEpoch.toString(),
-      title: '${todo.title} (Copy)',
-      description: todo.description,
-      priority: todo.priority,
-      deadline: todo.deadline,
-      isCompleted: false,
-      createdAt: DateTime.now(),
-    );
-    
-    await _todoRepository.addTodo(newTodo);
-    await _loadData();
-    
-    if (mounted) {
+    try {
+      final newTodo = TodoModel(
+        id: DateTime.now().millisecondsSinceEpoch.toString(),
+        title: '${todo.title} (Copy)',
+        description: todo.description,
+        priority: todo.priority,
+        deadline: todo.deadline,
+        isCompleted: false,
+        createdAt: DateTime.now(),
+      );
+
+      await _todoRepository.addTodo(newTodo);
+      AppLogger.info(_tag, 'Duplicated task: sourceId=${todo.id}');
+      await _loadData();
+
+      if (!mounted) return;
+
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Task duplicated successfully'),
           backgroundColor: Color(0xFF4A6FA5),
+        ),
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to duplicate task: sourceId=${todo.id}',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) return;
+
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Gagal menduplikasi tugas'),
+          backgroundColor: Colors.red,
         ),
       );
     }
@@ -80,7 +146,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   void _showBulkActions() {
     final selectedTodos = _selectionManager.getSelectedTodos(_todos);
-    
+
     showModalBottomSheet(
       context: context,
       backgroundColor: Colors.transparent,
@@ -89,34 +155,114 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedCount: _selectionManager.selectedCount,
         selectedTodos: selectedTodos,
         onMarkAllCompleted: () async {
-          for (final todo in selectedTodos) {
-            if (!todo.isCompleted) {
-              await _todoRepository.toggleTodoComplete(todo.id);
+          try {
+            int updatedCount = 0;
+            for (final todo in selectedTodos) {
+              if (!todo.isCompleted) {
+                await _todoRepository.toggleTodoComplete(todo.id);
+                updatedCount++;
+              }
             }
+
+            AppLogger.info(
+              _tag,
+              'Bulk mark complete finished: updated=$updatedCount selected=${selectedTodos.length}',
+            );
+
+            _selectionManager.exitSelectionMode();
+            await _loadData();
+          } catch (e, stackTrace) {
+            AppLogger.error(
+              _tag,
+              'Failed bulk mark complete action.',
+              error: e,
+              stackTrace: stackTrace,
+            );
+
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Gagal menandai semua tugas selesai'),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
-          _selectionManager.exitSelectionMode();
-          await _loadData();
         },
         onMarkAllIncomplete: () async {
-          for (final todo in selectedTodos) {
-            if (todo.isCompleted) {
-              await _todoRepository.toggleTodoComplete(todo.id);
+          try {
+            int updatedCount = 0;
+            for (final todo in selectedTodos) {
+              if (todo.isCompleted) {
+                await _todoRepository.toggleTodoComplete(todo.id);
+                updatedCount++;
+              }
             }
+
+            AppLogger.info(
+              _tag,
+              'Bulk mark incomplete finished: updated=$updatedCount selected=${selectedTodos.length}',
+            );
+
+            _selectionManager.exitSelectionMode();
+            await _loadData();
+          } catch (e, stackTrace) {
+            AppLogger.error(
+              _tag,
+              'Failed bulk mark incomplete action.',
+              error: e,
+              stackTrace: stackTrace,
+            );
+
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Gagal menandai semua tugas belum selesai'),
+                backgroundColor: Colors.red,
+              ),
+            );
           }
-          _selectionManager.exitSelectionMode();
-          await _loadData();
         },
         onDeleteAll: () async {
-          for (final todo in selectedTodos) {
-            await _todoRepository.deleteTodo(todo.id);
-          }
-          _selectionManager.exitSelectionMode();
-          await _loadData();
-          
-          if (mounted) {
+          try {
+            int deletedCount = 0;
+            for (final todo in selectedTodos) {
+              await _todoRepository.deleteTodo(todo.id);
+              deletedCount++;
+            }
+
+            AppLogger.info(
+              _tag,
+              'Bulk delete finished: deleted=$deletedCount selected=${selectedTodos.length}',
+            );
+
+            _selectionManager.exitSelectionMode();
+            await _loadData();
+
+            if (!mounted) return;
+
             ScaffoldMessenger.of(context).showSnackBar(
               SnackBar(
-                content: Text('${selectedTodos.length} task${selectedTodos.length > 1 ? 's' : ''} deleted'),
+                content: Text(
+                  '$deletedCount task${deletedCount > 1 ? 's' : ''} deleted',
+                ),
+                backgroundColor: Colors.red,
+              ),
+            );
+          } catch (e, stackTrace) {
+            AppLogger.error(
+              _tag,
+              'Failed bulk delete action.',
+              error: e,
+              stackTrace: stackTrace,
+            );
+
+            if (!mounted) return;
+
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Gagal menghapus tugas terpilih'),
                 backgroundColor: Colors.red,
               ),
             );
@@ -133,14 +279,14 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.grey[50],
-      appBar: _selectionManager.isSelectionMode 
-        ? SelectionModeAppBar(
-            selectedCount: _selectionManager.selectedCount,
-            onCancel: () => _selectionManager.exitSelectionMode(),
-            onSelectAll: () => _selectionManager.selectAll(_todos),
-            onBulkActions: _showBulkActions,
-          )
-        : null,
+      appBar: _selectionManager.isSelectionMode
+          ? SelectionModeAppBar(
+              selectedCount: _selectionManager.selectedCount,
+              onCancel: () => _selectionManager.exitSelectionMode(),
+              onSelectAll: () => _selectionManager.selectAll(_todos),
+              onBulkActions: _showBulkActions,
+            )
+          : null,
       body: _isLoading
           ? const LoadingSkeleton()
           : RefreshIndicator(
@@ -163,34 +309,39 @@ class _HomeScreenState extends State<HomeScreen> {
                       ],
                     ),
                   ),
-                  _todos.isEmpty 
-                    ? const SliverFillRemaining(child: EmptyState())
-                    : TodoList(
-                        todos: _todos,
-                        onToggleComplete: _toggleTodoComplete,
-                        onDeleted: _loadData,
-                        selectionManager: _selectionManager,
-                        onDuplicate: _duplicateTodo,
-                      ),
+                  _todos.isEmpty
+                      ? const SliverFillRemaining(child: EmptyState())
+                      : TodoList(
+                          todos: _todos,
+                          onToggleComplete: _toggleTodoComplete,
+                          onDeleted: _loadData,
+                          selectionManager: _selectionManager,
+                          onDuplicate: _duplicateTodo,
+                        ),
                 ],
               ),
             ),
       floatingActionButton: !_selectionManager.isSelectionMode
-        ? AnimatedFab(
-            onPressed: () async {
-              final result = await Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const AddEditTaskScreen(),
-                ),
-              );
-              
-              if (result == true) {
-                await _loadData();
-              }
-            },
-          )
-        : null,
+          ? AnimatedFab(
+              onPressed: () async {
+                final result = await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const AddEditTaskScreen(),
+                  ),
+                );
+
+                AppLogger.debug(
+                  _tag,
+                  'Add task screen returned: result=$result',
+                );
+
+                if (result == true) {
+                  await _loadData();
+                }
+              },
+            )
+          : null,
     );
   }
 }
