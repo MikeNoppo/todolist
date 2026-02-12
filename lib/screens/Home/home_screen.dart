@@ -294,6 +294,7 @@ class _HomeScreenState extends State<HomeScreen> {
               color: const Color(0xFF4A6FA5),
               backgroundColor: Colors.white,
               child: CustomScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
                 slivers: [
                   if (!_selectionManager.isSelectionMode)
                     ModernAppBar(userName: _userName),
@@ -310,7 +311,10 @@ class _HomeScreenState extends State<HomeScreen> {
                     ),
                   ),
                   _todos.isEmpty
-                      ? const SliverFillRemaining(child: EmptyState())
+                      ? const SliverFillRemaining(
+                          hasScrollBody: false,
+                          child: EmptyState(),
+                        )
                       : TodoList(
                           todos: _todos,
                           onToggleComplete: _toggleTodoComplete,
