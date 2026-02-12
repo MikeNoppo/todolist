@@ -1,6 +1,7 @@
 import 'dart:ui';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'services/app_logger.dart';
 import 'screens/splash_screen.dart';
@@ -36,47 +37,55 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Todo List',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.grey,
-        scaffoldBackgroundColor: Colors.white,
-        fontFamily: 'Inter',
-        textTheme: const TextTheme(
-          displayLarge: TextStyle(
-            fontSize: 32,
-            fontWeight: FontWeight.w300,
-            color: Colors.black87,
+    return ScreenUtilInit(
+      designSize: const Size(393, 851),
+      minTextAdapt: true,
+      splitScreenMode: true,
+      builder: (context, child) {
+        return MaterialApp(
+          title: 'Todo List',
+          debugShowCheckedModeBanner: false,
+          theme: ThemeData(
+            primarySwatch: Colors.grey,
+            scaffoldBackgroundColor: Colors.white,
+            fontFamily: 'Inter',
+            textTheme: TextTheme(
+              displayLarge: TextStyle(
+                fontSize: 32.sp,
+                fontWeight: FontWeight.w300,
+                color: Colors.black87,
+              ),
+              displayMedium: TextStyle(
+                fontSize: 28.sp,
+                fontWeight: FontWeight.w300,
+                color: Colors.black87,
+              ),
+              headlineMedium: TextStyle(
+                fontSize: 24.sp,
+                fontWeight: FontWeight.w400,
+                color: Colors.black87,
+              ),
+              titleLarge: TextStyle(
+                fontSize: 20.sp,
+                fontWeight: FontWeight.w500,
+                color: Colors.black87,
+              ),
+              bodyLarge: TextStyle(
+                fontSize: 16.sp,
+                fontWeight: FontWeight.w400,
+                color: Colors.black54,
+              ),
+              bodyMedium: TextStyle(
+                fontSize: 14.sp,
+                fontWeight: FontWeight.w400,
+                color: Colors.black54,
+              ),
+            ),
           ),
-          displayMedium: TextStyle(
-            fontSize: 28,
-            fontWeight: FontWeight.w300,
-            color: Colors.black87,
-          ),
-          headlineMedium: TextStyle(
-            fontSize: 24,
-            fontWeight: FontWeight.w400,
-            color: Colors.black87,
-          ),
-          titleLarge: TextStyle(
-            fontSize: 20,
-            fontWeight: FontWeight.w500,
-            color: Colors.black87,
-          ),
-          bodyLarge: TextStyle(
-            fontSize: 16,
-            fontWeight: FontWeight.w400,
-            color: Colors.black54,
-          ),
-          bodyMedium: TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.w400,
-            color: Colors.black54,
-          ),
-        ),
-      ),
-      home: const SplashScreen(),
+          home: child,
+        );
+      },
+      child: const SplashScreen(),
     );
   }
 }
