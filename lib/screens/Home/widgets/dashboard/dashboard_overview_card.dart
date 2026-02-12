@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+import '../../../../core/ui/app_size_tokens.dart';
 import '../../../../models/todo_model.dart';
 import 'stat_card.dart';
 
@@ -22,13 +24,38 @@ class DashboardOverviewCard extends StatelessWidget {
       );
       return deadline.isAtSameMomentAs(today);
     }).length;
+    final stats = [
+      (
+        label: 'Total',
+        value: totalTasks.toString(),
+        icon: Icons.assignment_outlined,
+        color: Colors.grey[600]!,
+      ),
+      (
+        label: 'Selesai',
+        value: completedTasks.toString(),
+        icon: Icons.check_circle_outline,
+        color: const Color(0xFF4A6FA5),
+      ),
+      (
+        label: 'Hari Ini',
+        value: todayTasks.toString(),
+        icon: Icons.today_outlined,
+        color: Colors.grey[700]!,
+      ),
+    ];
 
     return Container(
-      margin: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 0.h),
-      padding: EdgeInsets.all(20.r),
+      margin: EdgeInsets.fromLTRB(
+        AppSizeTokens.pagePadding,
+        AppSizeTokens.space16,
+        AppSizeTokens.pagePadding,
+        0,
+      ),
+      padding: EdgeInsets.all(AppSizeTokens.cardPadding),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
+        borderRadius: BorderRadius.circular(AppSizeTokens.radius16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -43,41 +70,40 @@ class DashboardOverviewCard extends StatelessWidget {
           Text(
             'Ringkasan Tugas',
             style: TextStyle(
-              fontSize: 18.sp,
+              fontSize: AppSizeTokens.text18,
               fontWeight: FontWeight.w600,
               color: Colors.black87,
             ),
           ),
-          SizedBox(height: 16.h),
-          Row(
-            children: [
-              Expanded(
-                child: StatCard(
-                  label: 'Total',
-                  value: totalTasks.toString(),
-                  icon: Icons.assignment_outlined,
-                  color: Colors.grey[600]!,
+          SizedBox(height: AppSizeTokens.space16),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final textScale = MediaQuery.textScalerOf(context).scale(1);
+              final shouldUseTwoColumns =
+                  constraints.maxWidth < 330.w || textScale > 1.2;
+
+              return GridView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: stats.length,
+                gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: shouldUseTwoColumns ? 2 : 3,
+                  crossAxisSpacing: AppSizeTokens.space12,
+                  mainAxisSpacing: AppSizeTokens.space12,
+                  mainAxisExtent: textScale > 1.2 ? 112.h : 96.h,
                 ),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: StatCard(
-                  label: 'Selesai',
-                  value: completedTasks.toString(),
-                  icon: Icons.check_circle_outline,
-                  color: const Color(0xFF4A6FA5),
-                ),
-              ),
-              SizedBox(width: 12.w),
-              Expanded(
-                child: StatCard(
-                  label: 'Hari Ini',
-                  value: todayTasks.toString(),
-                  icon: Icons.today_outlined,
-                  color: Colors.grey[700]!,
-                ),
-              ),
-            ],
+                itemBuilder: (context, index) {
+                  final item = stats[index];
+
+                  return StatCard(
+                    label: item.label,
+                    value: item.value,
+                    icon: item.icon,
+                    color: item.color,
+                  );
+                },
+              );
+            },
           ),
         ],
       ),
