@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/services.dart';
 import 'onboarding/onboarding_screen.dart';
 import 'Home/home_screen.dart';
@@ -215,7 +216,7 @@ class _SplashScreenState extends State<SplashScreen>
                           width: screenWidth * 0.25,
                           height: screenWidth * 0.25,
                           decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(20.r),
                             boxShadow: [
                               BoxShadow(
                                 color: const Color(
@@ -228,7 +229,7 @@ class _SplashScreenState extends State<SplashScreen>
                             ],
                           ),
                           child: ClipRRect(
-                            borderRadius: BorderRadius.circular(20),
+                            borderRadius: BorderRadius.circular(20.r),
                             child: Image.asset(
                               'assets/icon/appIcon.png',
                               fit: BoxFit.cover,
@@ -237,7 +238,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 return Container(
                                   decoration: BoxDecoration(
                                     color: const Color(0xFF4A6FA5),
-                                    borderRadius: BorderRadius.circular(20),
+                                    borderRadius: BorderRadius.circular(20.r),
                                   ),
                                   child: Icon(
                                     Icons.assignment_outlined,
@@ -272,7 +273,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   fontSize: screenHeight * 0.045,
                                   fontWeight: FontWeight.w300,
                                   color: Colors.black87,
-                                  letterSpacing: 1.2,
+                                  letterSpacing: 1.2.sp,
                                 ),
                               ),
 
@@ -285,7 +286,7 @@ class _SplashScreenState extends State<SplashScreen>
                                   fontSize: screenHeight * 0.018,
                                   fontWeight: FontWeight.w400,
                                   color: const Color(0xFF4A6FA5),
-                                  letterSpacing: 0.5,
+                                  letterSpacing: 0.5.sp,
                                 ),
                               ),
                             ],
@@ -312,7 +313,7 @@ class _SplashScreenState extends State<SplashScreen>
                                 height: 3,
                                 decoration: BoxDecoration(
                                   color: Colors.grey[200],
-                                  borderRadius: BorderRadius.circular(1.5),
+                                  borderRadius: BorderRadius.circular(1.5.r),
                                 ),
                                 child: FractionallySizedBox(
                                   alignment: Alignment.centerLeft,
@@ -320,7 +321,9 @@ class _SplashScreenState extends State<SplashScreen>
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: const Color(0xFF4A6FA5),
-                                      borderRadius: BorderRadius.circular(1.5),
+                                      borderRadius: BorderRadius.circular(
+                                        1.5.r,
+                                      ),
                                     ),
                                   ),
                                 ),
