@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+
+import '../../core/ui/app_size_tokens.dart';
 import '../../repositories/todo_repository.dart';
 import '../../services/app_logger.dart';
 import 'app_blocker_settings_screen.dart';
@@ -114,7 +116,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         title: Text(
           'Pengaturan',
           style: TextStyle(
-            fontSize: 20.sp,
+            fontSize: AppSizeTokens.text20,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
@@ -126,18 +128,16 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: CircularProgressIndicator(color: Color(0xFF4A6FA5)),
             )
           : ListView(
-              padding: EdgeInsets.all(20.r),
+              padding: EdgeInsets.all(AppSizeTokens.cardPadding),
               children: [
-                // Profile Section
                 _buildSectionHeader('Profil'),
-                SizedBox(height: 12.h),
+                SizedBox(height: AppSizeTokens.space12),
                 _buildProfileCard(),
 
-                SizedBox(height: 32.h),
+                SizedBox(height: AppSizeTokens.space32),
 
-                // App Settings Section
                 _buildSectionHeader('Pengaturan Aplikasi'),
-                SizedBox(height: 12.h),
+                SizedBox(height: AppSizeTokens.space12),
                 _buildSettingsCard([
                   _buildSettingItem(
                     icon: Icons.block_outlined,
@@ -183,11 +183,10 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ]),
 
-                SizedBox(height: 32.h),
+                SizedBox(height: AppSizeTokens.space32),
 
-                // About Section
                 _buildSectionHeader('Tentang'),
-                SizedBox(height: 12.h),
+                SizedBox(height: AppSizeTokens.space12),
                 _buildSettingsCard([
                   _buildSettingItem(
                     icon: Icons.info_outline,
@@ -213,7 +212,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Text(
       title,
       style: TextStyle(
-        fontSize: 14.sp,
+        fontSize: AppSizeTokens.text14,
         fontWeight: FontWeight.w600,
         color: Colors.black54,
         letterSpacing: 0.5.sp,
@@ -225,7 +224,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
+        borderRadius: BorderRadius.circular(AppSizeTokens.radius16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -247,14 +246,14 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _loadSettings(); // Reload settings to get updated name
             }
           },
-          borderRadius: BorderRadius.circular(16.r),
+          borderRadius: BorderRadius.circular(AppSizeTokens.radius16),
           child: Padding(
-            padding: EdgeInsets.all(20.r),
+            padding: EdgeInsets.all(AppSizeTokens.cardPadding),
             child: Row(
               children: [
                 Container(
-                  width: 60,
-                  height: 60,
+                  width: 60.w,
+                  height: 60.w,
                   decoration: BoxDecoration(
                     color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
@@ -262,34 +261,42 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   child: Icon(
                     Icons.person_outline,
                     color: Color(0xFF4A6FA5),
-                    size: 28.sp,
+                    size: AppSizeTokens.icon28,
                   ),
                 ),
-                SizedBox(width: 16.w),
+                SizedBox(width: AppSizeTokens.space16),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         _userName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 18.sp,
+                          fontSize: AppSizeTokens.text18,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
                         ),
                       ),
-                      SizedBox(height: 4.h),
+                      SizedBox(height: AppSizeTokens.space4),
                       Text(
                         'Kelola profil dan avatar Anda',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                         style: TextStyle(
-                          fontSize: 14.sp,
+                          fontSize: AppSizeTokens.text14,
                           color: Colors.grey[600],
                         ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right, color: Colors.grey[400], size: 20.sp),
+                Icon(
+                  Icons.chevron_right,
+                  color: Colors.grey[400],
+                  size: AppSizeTokens.icon20,
+                ),
               ],
             ),
           ),
@@ -302,7 +309,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16.r),
+        borderRadius: BorderRadius.circular(AppSizeTokens.radius16),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -326,38 +333,46 @@ class _SettingsScreenState extends State<SettingsScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16.r),
+        borderRadius: BorderRadius.circular(AppSizeTokens.radius16),
         child: Padding(
-          padding: EdgeInsets.all(20.r),
+          padding: EdgeInsets.all(AppSizeTokens.cardPadding),
           child: Row(
             children: [
               Container(
-                width: 44,
-                height: 44,
+                width: 44.w,
+                height: 44.w,
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(12.r),
+                  borderRadius: BorderRadius.circular(AppSizeTokens.radius12),
                 ),
-                child: Icon(icon, color: Colors.grey[700], size: 20.sp),
+                child: Icon(
+                  icon,
+                  color: Colors.grey[700],
+                  size: AppSizeTokens.icon20,
+                ),
               ),
-              SizedBox(width: 16.w),
+              SizedBox(width: AppSizeTokens.space16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 16.sp,
+                        fontSize: AppSizeTokens.text16,
                         fontWeight: FontWeight.w500,
                         color: Colors.black87,
                       ),
                     ),
-                    SizedBox(height: 2.h),
+                    SizedBox(height: AppSizeTokens.space2),
                     Text(
                       subtitle,
+                      maxLines: 2,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 13.sp,
+                        fontSize: AppSizeTokens.text13,
                         color: Colors.grey[600],
                       ),
                     ),
@@ -368,7 +383,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   Icon(
                     Icons.chevron_right,
                     color: Colors.grey[400],
-                    size: 20.sp,
+                    size: AppSizeTokens.icon20,
                   ),
             ],
           ),
@@ -379,7 +394,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildDivider() {
     return Padding(
-      padding: EdgeInsets.only(left: 80.r),
+      padding: EdgeInsets.only(left: 80.w),
       child: Divider(height: 1, thickness: 1, color: Colors.grey[100]),
     );
   }
