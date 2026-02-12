@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
+
+import '../../../../core/ui/app_size_tokens.dart';
 
 class StatCard extends StatelessWidget {
   final String label;
@@ -18,28 +19,35 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.all(12.r),
+      padding: EdgeInsets.all(AppSizeTokens.space12),
       decoration: BoxDecoration(
         color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12.r),
+        borderRadius: BorderRadius.circular(AppSizeTokens.radius12),
       ),
       child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(icon, color: color, size: 24.sp),
-          SizedBox(height: 8.h),
-          Text(
-            value,
-            style: TextStyle(
-              fontSize: 18.sp,
-              fontWeight: FontWeight.w700,
-              color: color,
+          Icon(icon, color: color, size: AppSizeTokens.icon24),
+          SizedBox(height: AppSizeTokens.space8),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: AppSizeTokens.text18,
+                fontWeight: FontWeight.w700,
+                color: color,
+              ),
             ),
           ),
-          SizedBox(height: 4.h),
+          SizedBox(height: AppSizeTokens.space4),
           Text(
             label,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.center,
             style: TextStyle(
-              fontSize: 12.sp,
+              fontSize: AppSizeTokens.text12,
               color: Colors.grey[600],
               fontWeight: FontWeight.w500,
             ),
