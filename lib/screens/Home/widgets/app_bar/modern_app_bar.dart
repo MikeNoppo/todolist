@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
+import '../../../../core/ui/app_size_tokens.dart';
+
 import '../../../settings/settings_screen.dart';
 
 class ModernAppBar extends StatelessWidget {
@@ -9,6 +11,7 @@ class ModernAppBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final textScale = MediaQuery.textScalerOf(context).scale(1);
     final now = DateTime.now();
     final hour = now.hour;
     String greeting;
@@ -47,78 +50,91 @@ class ModernAppBar extends StatelessWidget {
 
     final dateString =
         '${dayNames[now.weekday % 7]}, ${now.day} ${monthNames[now.month - 1]}';
+    final expandedHeight = textScale > 1.2
+        ? AppSizeTokens.appBarExpandedLarge
+        : AppSizeTokens.appBarExpanded;
 
     return SliverAppBar(
       backgroundColor: Colors.white,
       elevation: 0,
       pinned: true,
-      expandedHeight: 160,
+      expandedHeight: expandedHeight,
       automaticallyImplyLeading: false,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
           decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(24.r),
-              bottomRight: Radius.circular(24.r),
+              bottomLeft: Radius.circular(AppSizeTokens.radius24),
+              bottomRight: Radius.circular(AppSizeTokens.radius24),
             ),
           ),
           child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.all(20.r),
+              padding: EdgeInsets.all(AppSizeTokens.cardPadding),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(
-                            width: 48,
-                            height: 48,
-                            decoration: BoxDecoration(
-                              color: Colors.grey[100],
-                              shape: BoxShape.circle,
-                              border: Border.all(
-                                color: Colors.grey[200]!,
-                                width: 1,
-                              ),
-                            ),
-                            child: Icon(
-                              Icons.person_outline,
-                              color: Colors.grey[600],
-                              size: 24.sp,
-                            ),
-                          ),
-                          SizedBox(width: 12.w),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                greeting,
-                                style: TextStyle(
-                                  fontSize: 14.sp,
-                                  color: Colors.grey[600],
-                                  fontWeight: FontWeight.w400,
+                      Expanded(
+                        child: Row(
+                          children: [
+                            Container(
+                              width: 48.w,
+                              height: 48.w,
+                              decoration: BoxDecoration(
+                                color: Colors.grey[100],
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.grey[200]!,
+                                  width: 1,
                                 ),
                               ),
-                              Text(
-                                userName,
-                                style: TextStyle(
-                                  fontSize: 20.sp,
-                                  fontWeight: FontWeight.w600,
-                                  color: Colors.black87,
-                                ),
+                              child: Icon(
+                                Icons.person_outline,
+                                color: Colors.grey[600],
+                                size: AppSizeTokens.icon24,
                               ),
-                            ],
-                          ),
-                        ],
+                            ),
+                            SizedBox(width: AppSizeTokens.space12),
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.start,
+                                children: [
+                                  Text(
+                                    greeting,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: AppSizeTokens.text14,
+                                      color: Colors.grey[600],
+                                      fontWeight: FontWeight.w400,
+                                    ),
+                                  ),
+                                  Text(
+                                    userName,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: TextStyle(
+                                      fontSize: AppSizeTokens.text20,
+                                      fontWeight: FontWeight.w600,
+                                      color: Colors.black87,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ],
+                        ),
                       ),
+                      SizedBox(width: AppSizeTokens.space8),
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(12.r),
+                          borderRadius: BorderRadius.circular(
+                            AppSizeTokens.radius12,
+                          ),
                         ),
                         child: IconButton(
                           onPressed: () {
@@ -132,17 +148,19 @@ class ModernAppBar extends StatelessWidget {
                           icon: Icon(
                             Icons.settings_outlined,
                             color: Colors.grey[600],
-                            size: 22.sp,
+                            size: AppSizeTokens.icon22,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  SizedBox(height: 16.h),
+                  SizedBox(height: AppSizeTokens.space16),
                   Text(
                     dateString,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 16.sp,
+                      fontSize: AppSizeTokens.text16,
                       color: Colors.grey[700],
                       fontWeight: FontWeight.w500,
                     ),
