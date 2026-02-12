@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/services.dart';
 import '../../repositories/todo_repository.dart';
 import '../../services/app_logger.dart';
@@ -140,12 +141,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: Colors.black87),
         ),
-        title: const Text(
+        title: Text(
           'Profil & Avatar',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 20.sp,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
@@ -154,24 +155,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
           TextButton(
             onPressed: _isSaving ? null : _saveProfile,
             child: _isSaving
-                ? const SizedBox(
-                    width: 16,
+                ? SizedBox(
+                    width: 16.w,
                     height: 16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: Color(0xFF4A6FA5),
                     ),
                   )
-                : const Text(
+                : Text(
                     'Simpan',
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 16.sp,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF4A6FA5),
                     ),
                   ),
           ),
-          const SizedBox(width: 16),
+          SizedBox(width: 16.w),
         ],
         systemOverlayStyle: SystemUiOverlayStyle.dark,
       ),
@@ -180,7 +181,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: CircularProgressIndicator(color: Color(0xFF4A6FA5)),
             )
           : ListView(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.r),
               children: [
                 // Current Avatar Preview
                 Center(
@@ -197,20 +198,20 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         orElse: () => _avatarOptions[0],
                       )['icon'],
                       color: const Color(0xFF4A6FA5),
-                      size: 60,
+                      size: 60.sp,
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                SizedBox(height: 32.h),
 
                 // Name Input
                 _buildSectionHeader('Nama Pengguna'),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(16.r),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.04),
@@ -229,31 +230,31 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: Colors.grey[600],
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16),
+                        borderRadius: BorderRadius.circular(16.r),
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: const EdgeInsets.all(20),
+                      contentPadding: EdgeInsets.all(20.r),
                     ),
-                    style: const TextStyle(
-                      fontSize: 16,
+                    style: TextStyle(
+                      fontSize: 16.sp,
                       fontWeight: FontWeight.w500,
                       color: Colors.black87,
                     ),
                   ),
                 ),
 
-                const SizedBox(height: 32),
+                SizedBox(height: 32.h),
 
                 // Avatar Selection
                 _buildSectionHeader('Pilih Avatar'),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 Container(
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(20.r),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(16.r),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.04),
@@ -265,12 +266,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: GridView.builder(
                     shrinkWrap: true,
                     physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate:
-                        const SliverGridDelegateWithFixedCrossAxisCount(
-                          crossAxisCount: 4,
-                          crossAxisSpacing: 16,
-                          mainAxisSpacing: 16,
-                        ),
+                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                      crossAxisCount: 4,
+                      crossAxisSpacing: 16,
+                      mainAxisSpacing: 16,
+                    ),
                     itemCount: _avatarOptions.length,
                     itemBuilder: (context, index) {
                       final avatar = _avatarOptions[index];
@@ -288,7 +288,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: isSelected
                                 ? const Color(0xFF4A6FA5).withValues(alpha: 0.1)
                                 : Colors.grey[50],
-                            borderRadius: BorderRadius.circular(12),
+                            borderRadius: BorderRadius.circular(12.r),
                             border: isSelected
                                 ? Border.all(
                                     color: const Color(0xFF4A6FA5),
@@ -301,7 +301,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                             color: isSelected
                                 ? const Color(0xFF4A6FA5)
                                 : Colors.grey[600],
-                            size: 32,
+                            size: 32.sp,
                           ),
                         ),
                       );
@@ -316,11 +316,11 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Widget _buildSectionHeader(String title) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 14,
+      style: TextStyle(
+        fontSize: 14.sp,
         fontWeight: FontWeight.w600,
         color: Colors.black54,
-        letterSpacing: 0.5,
+        letterSpacing: 0.5.sp,
       ),
     );
   }

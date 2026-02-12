@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../repositories/todo_repository.dart';
@@ -108,12 +109,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: Colors.black87),
         ),
-        title: const Text(
+        title: Text(
           'Pengaturan',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 20.sp,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
@@ -125,18 +126,18 @@ class _SettingsScreenState extends State<SettingsScreen> {
               child: CircularProgressIndicator(color: Color(0xFF4A6FA5)),
             )
           : ListView(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.r),
               children: [
                 // Profile Section
                 _buildSectionHeader('Profil'),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 _buildProfileCard(),
 
-                const SizedBox(height: 32),
+                SizedBox(height: 32.h),
 
                 // App Settings Section
                 _buildSectionHeader('Pengaturan Aplikasi'),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 _buildSettingsCard([
                   _buildSettingItem(
                     icon: Icons.block_outlined,
@@ -182,11 +183,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                 ]),
 
-                const SizedBox(height: 32),
+                SizedBox(height: 32.h),
 
                 // About Section
                 _buildSectionHeader('Tentang'),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 _buildSettingsCard([
                   _buildSettingItem(
                     icon: Icons.info_outline,
@@ -211,11 +212,11 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Widget _buildSectionHeader(String title) {
     return Text(
       title,
-      style: const TextStyle(
-        fontSize: 14,
+      style: TextStyle(
+        fontSize: 14.sp,
         fontWeight: FontWeight.w600,
         color: Colors.black54,
-        letterSpacing: 0.5,
+        letterSpacing: 0.5.sp,
       ),
     );
   }
@@ -224,7 +225,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -246,9 +247,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
               _loadSettings(); // Reload settings to get updated name
             }
           },
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16.r),
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(20.r),
             child: Row(
               children: [
                 Container(
@@ -258,34 +259,37 @@ class _SettingsScreenState extends State<SettingsScreen> {
                     color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.person_outline,
                     color: Color(0xFF4A6FA5),
-                    size: 28,
+                    size: 28.sp,
                   ),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16.w),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         _userName,
-                        style: const TextStyle(
-                          fontSize: 18,
+                        style: TextStyle(
+                          fontSize: 18.sp,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4.h),
                       Text(
                         'Kelola profil dan avatar Anda',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: Colors.grey[600],
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+                Icon(Icons.chevron_right, color: Colors.grey[400], size: 20.sp),
               ],
             ),
           ),
@@ -298,7 +302,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Container(
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -322,9 +326,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
       color: Colors.transparent,
       child: InkWell(
         onTap: onTap,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         child: Padding(
-          padding: const EdgeInsets.all(20),
+          padding: EdgeInsets.all(20.r),
           child: Row(
             children: [
               Container(
@@ -332,33 +336,40 @@ class _SettingsScreenState extends State<SettingsScreen> {
                 height: 44,
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(12),
+                  borderRadius: BorderRadius.circular(12.r),
                 ),
-                child: Icon(icon, color: Colors.grey[700], size: 20),
+                child: Icon(icon, color: Colors.grey[700], size: 20.sp),
               ),
-              const SizedBox(width: 16),
+              SizedBox(width: 16.w),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
                       title,
-                      style: const TextStyle(
-                        fontSize: 16,
+                      style: TextStyle(
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w500,
                         color: Colors.black87,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    SizedBox(height: 2.h),
                     Text(
                       subtitle,
-                      style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                      style: TextStyle(
+                        fontSize: 13.sp,
+                        color: Colors.grey[600],
+                      ),
                     ),
                   ],
                 ),
               ),
               trailing ??
-                  Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+                  Icon(
+                    Icons.chevron_right,
+                    color: Colors.grey[400],
+                    size: 20.sp,
+                  ),
             ],
           ),
         ),
@@ -368,7 +379,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
   Widget _buildDivider() {
     return Padding(
-      padding: const EdgeInsets.only(left: 80),
+      padding: EdgeInsets.only(left: 80.r),
       child: Divider(height: 1, thickness: 1, color: Colors.grey[100]),
     );
   }
@@ -377,8 +388,8 @@ class _SettingsScreenState extends State<SettingsScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Kebijakan Privasi'),
-        content: const SingleChildScrollView(
+        title: Text('Kebijakan Privasi'),
+        content: SingleChildScrollView(
           child: Text(
             'Aplikasi myTask berkomitmen untuk melindungi privasi Anda:\n\n'
             '• Data tugas disimpan secara lokal di perangkat Anda\n'
@@ -391,10 +402,7 @@ class _SettingsScreenState extends State<SettingsScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text(
-              'Tutup',
-              style: TextStyle(color: Color(0xFF4A6FA5)),
-            ),
+            child: Text('Tutup', style: TextStyle(color: Color(0xFF4A6FA5))),
           ),
         ],
       ),

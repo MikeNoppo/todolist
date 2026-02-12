@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/services.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -176,12 +177,12 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back, color: Colors.black87),
+          icon: Icon(Icons.arrow_back, color: Colors.black87),
         ),
-        title: const Text(
+        title: Text(
           'Atur Aplikasi Distraksi',
           style: TextStyle(
-            fontSize: 20,
+            fontSize: 20.sp,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
@@ -197,11 +198,11 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                 // Header Information
                 Container(
                   width: double.infinity,
-                  margin: const EdgeInsets.all(20),
-                  padding: const EdgeInsets.all(20),
+                  margin: EdgeInsets.all(20.r),
+                  padding: EdgeInsets.all(20.r),
                   decoration: BoxDecoration(
                     color: const Color(0xFF4A6FA5).withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(16),
+                    borderRadius: BorderRadius.circular(16.r),
                     border: Border.all(
                       color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
                     ),
@@ -213,29 +214,29 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                         height: 48,
                         decoration: BoxDecoration(
                           color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12.r),
                         ),
-                        child: const Icon(
+                        child: Icon(
                           Icons.shield_outlined,
                           color: Color(0xFF4A6FA5),
-                          size: 24,
+                          size: 24.sp,
                         ),
                       ),
-                      const SizedBox(height: 12),
-                      const Text(
+                      SizedBox(height: 12.h),
+                      Text(
                         'Pilih Aplikasi untuk Diblokir',
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      SizedBox(height: 8.h),
                       Text(
                         'Aplikasi yang diaktifkan akan diblokir saat Anda memiliki tugas dengan prioritas tinggi',
                         textAlign: TextAlign.center,
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 14.sp,
                           color: Colors.grey[600],
                           height: 1.4,
                         ),
@@ -247,17 +248,17 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                 // Apps List
                 Expanded(
                   child: ListView.builder(
-                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    padding: EdgeInsets.symmetric(horizontal: 20.w),
                     itemCount: _installedApps.length,
                     itemBuilder: (context, index) {
                       final app = _installedApps[index];
                       final isBlocked = _blockedApps[app.packageName] ?? false;
 
                       return Container(
-                        margin: const EdgeInsets.only(bottom: 8),
+                        margin: EdgeInsets.only(bottom: 8.r),
                         decoration: BoxDecoration(
                           color: Colors.white,
-                          borderRadius: BorderRadius.circular(16),
+                          borderRadius: BorderRadius.circular(16.r),
                           boxShadow: [
                             BoxShadow(
                               color: Colors.black.withValues(alpha: 0.04),
@@ -271,9 +272,9 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                           child: InkWell(
                             onTap: () =>
                                 _toggleAppBlock(app.packageName, !isBlocked),
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(16.r),
                             child: Padding(
-                              padding: const EdgeInsets.all(16),
+                              padding: EdgeInsets.all(16.r),
                               child: Row(
                                 children: [
                                   // App Icon
@@ -284,16 +285,16 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                                       color: _getAppIconColor(
                                         app.packageName,
                                       ).withValues(alpha: 0.1),
-                                      borderRadius: BorderRadius.circular(12),
+                                      borderRadius: BorderRadius.circular(12.r),
                                     ),
                                     child: Icon(
                                       app.iconData,
                                       color: _getAppIconColor(app.packageName),
-                                      size: 24,
+                                      size: 24.sp,
                                     ),
                                   ),
 
-                                  const SizedBox(width: 16),
+                                  SizedBox(width: 16.w),
 
                                   // App Info
                                   Expanded(
@@ -303,19 +304,19 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                                       children: [
                                         Text(
                                           app.appName,
-                                          style: const TextStyle(
-                                            fontSize: 16,
+                                          style: TextStyle(
+                                            fontSize: 16.sp,
                                             fontWeight: FontWeight.w500,
                                             color: Colors.black87,
                                           ),
                                         ),
-                                        const SizedBox(height: 2),
+                                        SizedBox(height: 2.h),
                                         Text(
                                           isBlocked
                                               ? 'Akan diblokir'
                                               : 'Tidak diblokir',
                                           style: TextStyle(
-                                            fontSize: 13,
+                                            fontSize: 13.sp,
                                             color: isBlocked
                                                 ? const Color(0xFF4A6FA5)
                                                 : Colors.grey[600],
@@ -351,7 +352,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                 // Bottom Info
                 Container(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(20),
+                  padding: EdgeInsets.all(20.r),
                   decoration: BoxDecoration(
                     color: Colors.white,
                     boxShadow: [
@@ -369,26 +370,26 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                           children: [
                             Icon(
                               Icons.info_outline,
-                              size: 16,
+                              size: 16.sp,
                               color: Colors.grey[600],
                             ),
-                            const SizedBox(width: 8),
+                            SizedBox(width: 8.w),
                             Expanded(
                               child: Text(
                                 'Pemblokiran aktif hanya ketika ada tugas prioritas tinggi',
                                 style: TextStyle(
-                                  fontSize: 13,
+                                  fontSize: 13.sp,
                                   color: Colors.grey[600],
                                 ),
                               ),
                             ),
                           ],
                         ),
-                        const SizedBox(height: 8),
+                        SizedBox(height: 8.h),
                         Text(
                           '${_blockedApps.values.where((blocked) => blocked).length} dari ${_installedApps.length} aplikasi diblokir',
-                          style: const TextStyle(
-                            fontSize: 14,
+                          style: TextStyle(
+                            fontSize: 14.sp,
                             fontWeight: FontWeight.w600,
                             color: Color(0xFF4A6FA5),
                           ),
