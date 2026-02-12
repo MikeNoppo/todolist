@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'shimmer_container.dart';
 import 'shimmer_stat_card.dart';
 import 'shimmer_task_card.dart';
@@ -18,16 +19,16 @@ class LoadingSkeleton extends StatelessWidget {
           automaticallyImplyLeading: false,
           flexibleSpace: FlexibleSpaceBar(
             background: Container(
-              decoration: const BoxDecoration(
+              decoration: BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.only(
-                  bottomLeft: Radius.circular(24),
-                  bottomRight: Radius.circular(24),
+                  bottomLeft: Radius.circular(24.r),
+                  bottomRight: Radius.circular(24.r),
                 ),
               ),
-              child: const SafeArea(
+              child: SafeArea(
                 child: Padding(
-                  padding: EdgeInsets.all(20),
+                  padding: EdgeInsets.all(20.r),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -38,18 +39,18 @@ class LoadingSkeleton extends StatelessWidget {
                             height: 48,
                             isCircle: true,
                           ),
-                          SizedBox(width: 12),
+                          SizedBox(width: 12.w),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               ShimmerContainer(width: 80, height: 14),
-                              SizedBox(height: 4),
+                              SizedBox(height: 4.h),
                               ShimmerContainer(width: 120, height: 20),
                             ],
                           ),
                         ],
                       ),
-                      SizedBox(height: 16),
+                      SizedBox(height: 16.h),
                       ShimmerContainer(width: 150, height: 16),
                     ],
                   ),
@@ -60,11 +61,11 @@ class LoadingSkeleton extends StatelessWidget {
         ),
         SliverToBoxAdapter(
           child: Container(
-            margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-            padding: const EdgeInsets.all(20),
+            margin: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 0.h),
+            padding: EdgeInsets.all(20.r),
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withValues(alpha: 0.04),
@@ -73,17 +74,17 @@ class LoadingSkeleton extends StatelessWidget {
                 ),
               ],
             ),
-            child: const Column(
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 ShimmerContainer(width: 140, height: 18),
-                SizedBox(height: 16),
+                SizedBox(height: 16.h),
                 Row(
                   children: [
                     Expanded(child: ShimmerStatCard()),
-                    SizedBox(width: 12),
+                    SizedBox(width: 12.w),
                     Expanded(child: ShimmerStatCard()),
-                    SizedBox(width: 12),
+                    SizedBox(width: 12.w),
                     Expanded(child: ShimmerStatCard()),
                   ],
                 ),
@@ -92,7 +93,7 @@ class LoadingSkeleton extends StatelessWidget {
           ),
         ),
         SliverPadding(
-          padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+          padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 100.h),
           sliver: SliverList(
             delegate: SliverChildBuilderDelegate(
               (context, index) => const ShimmerTaskCard(),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../models/todo_model.dart';
 import '../../../add_edit_task_screen.dart';
 import '../common/delete_confirmation_dialog.dart';
@@ -113,17 +114,17 @@ class _TodoCardState extends State<TodoCard> {
         return false;
       },
       background: Container(
-        margin: const EdgeInsets.only(bottom: 16),
+        margin: EdgeInsets.only(bottom: 16.r),
         decoration: BoxDecoration(
           color: const Color(0xFF4A6FA5),
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16.r),
         ),
         alignment: Alignment.centerLeft,
-        padding: const EdgeInsets.only(left: 20),
-        child: const Row(
+        padding: EdgeInsets.only(left: 20.r),
+        child: Row(
           children: [
-            Icon(Icons.check_circle, color: Colors.white, size: 24),
-            SizedBox(width: 8),
+            Icon(Icons.check_circle, color: Colors.white, size: 24.sp),
+            SizedBox(width: 8.w),
             Text(
               'Complete',
               style: TextStyle(
@@ -135,14 +136,14 @@ class _TodoCardState extends State<TodoCard> {
         ),
       ),
       secondaryBackground: Container(
-        margin: const EdgeInsets.only(bottom: 16),
+        margin: EdgeInsets.only(bottom: 16.r),
         decoration: BoxDecoration(
           color: Colors.red,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16.r),
         ),
         alignment: Alignment.centerRight,
-        padding: const EdgeInsets.only(right: 20),
-        child: const Row(
+        padding: EdgeInsets.only(right: 20.r),
+        child: Row(
           mainAxisAlignment: MainAxisAlignment.end,
           children: [
             Text(
@@ -152,19 +153,19 @@ class _TodoCardState extends State<TodoCard> {
                 fontWeight: FontWeight.w600,
               ),
             ),
-            SizedBox(width: 8),
-            Icon(Icons.delete, color: Colors.white, size: 24),
+            SizedBox(width: 8.w),
+            Icon(Icons.delete, color: Colors.white, size: 24.sp),
           ],
         ),
       ),
       child: AnimatedContainer(
         duration: const Duration(milliseconds: 300),
-        margin: const EdgeInsets.only(bottom: 16),
+        margin: EdgeInsets.only(bottom: 16.r),
         decoration: BoxDecoration(
           color: isSelected
               ? const Color(0xFF4A6FA5).withValues(alpha: 0.1)
               : Colors.white,
-          borderRadius: BorderRadius.circular(16),
+          borderRadius: BorderRadius.circular(16.r),
           border: isSelected
               ? Border.all(color: const Color(0xFF4A6FA5), width: 2)
               : null,
@@ -183,9 +184,9 @@ class _TodoCardState extends State<TodoCard> {
             child: InkWell(
               onTap: _handleTap,
               onLongPress: _handleLongPress,
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
               child: Padding(
-                padding: const EdgeInsets.all(20),
+                padding: EdgeInsets.all(20.r),
                 child: Column(
                   children: [
                     Row(
@@ -204,23 +205,23 @@ class _TodoCardState extends State<TodoCard> {
                                     : Colors.grey,
                                 width: 2,
                               ),
-                              borderRadius: BorderRadius.circular(12),
+                              borderRadius: BorderRadius.circular(12.r),
                             ),
                             child: isSelected
-                                ? const Icon(
+                                ? Icon(
                                     Icons.check,
                                     color: Colors.white,
-                                    size: 16,
+                                    size: 16.sp,
                                   )
                                 : null,
                           ),
-                          const SizedBox(width: 16),
+                          SizedBox(width: 16.w),
                         ] else ...[
                           TodoCheckbox(
                             isCompleted: widget.todo.isCompleted,
                             onToggle: widget.onToggleComplete,
                           ),
-                          const SizedBox(width: 16),
+                          SizedBox(width: 16.w),
                         ],
                         Expanded(
                           child: Column(
@@ -229,7 +230,7 @@ class _TodoCardState extends State<TodoCard> {
                               Text(
                                 widget.todo.title,
                                 style: TextStyle(
-                                  fontSize: 16,
+                                  fontSize: 16.sp,
                                   fontWeight: FontWeight.w600,
                                   color: widget.todo.isCompleted
                                       ? Colors.grey[500]
@@ -240,7 +241,7 @@ class _TodoCardState extends State<TodoCard> {
                                   height: 1.3,
                                 ),
                               ),
-                              const SizedBox(height: 12),
+                              SizedBox(height: 12.h),
                               Row(
                                 children: [
                                   DeadlineBadge(deadline: widget.todo.deadline),

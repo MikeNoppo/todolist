@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../models/todo_model.dart';
 import '../../repositories/todo_repository.dart';
 import '../../services/app_logger.dart';
@@ -303,9 +304,9 @@ class _HomeScreenState extends State<HomeScreen> {
                       children: [
                         if (!_selectionManager.isSelectionMode) ...[
                           DashboardOverviewCard(todos: _todos),
-                          const SizedBox(height: 8),
+                          SizedBox(height: 8.h),
                         ] else ...[
-                          const SizedBox(height: 20),
+                          SizedBox(height: 20.h),
                         ],
                       ],
                     ),

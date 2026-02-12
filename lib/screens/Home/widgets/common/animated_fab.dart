@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class AnimatedFab extends StatelessWidget {
   final VoidCallback onPressed;
@@ -15,7 +16,7 @@ class AnimatedFab extends StatelessWidget {
           scale: value,
           child: Container(
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(16),
+              borderRadius: BorderRadius.circular(16.r),
               boxShadow: [
                 BoxShadow(
                   color: const Color(0xFF4A6FA5).withValues(alpha: 0.3),
@@ -28,9 +29,9 @@ class AnimatedFab extends StatelessWidget {
               onPressed: onPressed,
               backgroundColor: const Color(0xFF4A6FA5),
               shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
+                borderRadius: BorderRadius.circular(16.r),
               ),
-              child: const Icon(Icons.add, color: Colors.white, size: 24),
+              child: Icon(Icons.add, color: Colors.white, size: 24.sp),
             ),
           ),
         );

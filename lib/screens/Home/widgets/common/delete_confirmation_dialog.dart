@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../models/todo_model.dart';
 import '../../../../repositories/todo_repository.dart';
 import '../../../../services/app_logger.dart';
@@ -32,11 +33,8 @@ class DeleteConfirmationDialog extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AlertDialog(
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-      title: const Text(
-        'Hapus Tugas',
-        style: TextStyle(fontWeight: FontWeight.w600),
-      ),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16.r)),
+      title: Text('Hapus Tugas', style: TextStyle(fontWeight: FontWeight.w600)),
       content: Text(
         'Apakah Anda yakin ingin menghapus "${todo.title}"?',
         style: TextStyle(color: Colors.grey[600]),
@@ -89,10 +87,10 @@ class DeleteConfirmationDialog extends StatelessWidget {
             backgroundColor: Colors.red[400],
             foregroundColor: Colors.white,
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(8),
+              borderRadius: BorderRadius.circular(8.r),
             ),
           ),
-          child: const Text('Hapus'),
+          child: Text('Hapus'),
         ),
       ],
     );

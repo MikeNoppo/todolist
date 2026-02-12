@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class TodoCheckbox extends StatelessWidget {
   final bool isCompleted;
@@ -30,9 +31,9 @@ class TodoCheckbox extends StatelessWidget {
         child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 200),
           child: isCompleted
-              ? const Icon(
+              ? Icon(
                   Icons.check,
-                  size: 18,
+                  size: 18.sp,
                   color: Colors.white,
                   key: ValueKey('checked'),
                 )

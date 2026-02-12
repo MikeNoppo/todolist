@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../models/todo_model.dart';
 
 class BulkActionsBottomSheet extends StatelessWidget {
@@ -25,11 +26,11 @@ class BulkActionsBottomSheet extends StatelessWidget {
     final hasIncompleteTasks = selectedTodos.any((todo) => !todo.isCompleted);
 
     return Container(
-      decoration: const BoxDecoration(
+      decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.only(
-          topLeft: Radius.circular(20),
-          topRight: Radius.circular(20),
+          topLeft: Radius.circular(20.r),
+          topRight: Radius.circular(20.r),
         ),
       ),
       child: Column(
@@ -37,17 +38,17 @@ class BulkActionsBottomSheet extends StatelessWidget {
         children: [
           // Handle
           Container(
-            margin: const EdgeInsets.only(top: 12),
+            margin: EdgeInsets.only(top: 12.r),
             width: 40,
             height: 4,
             decoration: BoxDecoration(
               color: Colors.grey[300],
-              borderRadius: BorderRadius.circular(2),
+              borderRadius: BorderRadius.circular(2.r),
             ),
           ),
           // Header
           Padding(
-            padding: const EdgeInsets.all(20),
+            padding: EdgeInsets.all(20.r),
             child: Row(
               children: [
                 Container(
@@ -55,38 +56,41 @@ class BulkActionsBottomSheet extends StatelessWidget {
                   height: 40,
                   decoration: BoxDecoration(
                     color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(12.r),
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Icons.checklist,
                     color: Color(0xFF4A6FA5),
-                    size: 20,
+                    size: 20.sp,
                   ),
                 ),
-                const SizedBox(width: 12),
+                SizedBox(width: 12.w),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         'Bulk Actions',
-                        style: const TextStyle(
-                          fontSize: 18,
+                        style: TextStyle(
+                          fontSize: 18.sp,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 4),
+                      SizedBox(height: 4.h),
                       Text(
                         '$selectedCount task${selectedCount > 1 ? 's' : ''} selected',
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 14.sp,
+                          color: Colors.grey[600],
+                        ),
                       ),
                     ],
                   ),
                 ),
                 IconButton(
                   onPressed: onCancel,
-                  icon: const Icon(Icons.close),
+                  icon: Icon(Icons.close),
                   color: Colors.grey[600],
                 ),
               ],
@@ -94,7 +98,7 @@ class BulkActionsBottomSheet extends StatelessWidget {
           ),
           // Actions
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+            padding: EdgeInsets.fromLTRB(20.w, 0.h, 20.w, 20.h),
             child: Column(
               children: [
                 if (hasIncompleteTasks)
@@ -122,23 +126,23 @@ class BulkActionsBottomSheet extends StatelessWidget {
                     _showDeleteConfirmation(context);
                   },
                 ),
-                const SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 // Cancel button
                 SizedBox(
                   width: double.infinity,
                   child: TextButton(
                     onPressed: onCancel,
                     style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 16),
+                      padding: EdgeInsets.symmetric(vertical: 16.h),
                       backgroundColor: Colors.grey[100],
                       shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
+                        borderRadius: BorderRadius.circular(12.r),
                       ),
                     ),
-                    child: const Text(
+                    child: Text(
                       'Cancel',
                       style: TextStyle(
-                        fontSize: 16,
+                        fontSize: 16.sp,
                         fontWeight: FontWeight.w600,
                         color: Colors.black54,
                       ),
@@ -163,17 +167,17 @@ class BulkActionsBottomSheet extends StatelessWidget {
     required VoidCallback onTap,
   }) {
     return Container(
-      margin: const EdgeInsets.only(bottom: 8),
+      margin: EdgeInsets.only(bottom: 8.r),
       child: Material(
         color: Colors.transparent,
         child: InkWell(
           onTap: onTap,
-          borderRadius: BorderRadius.circular(12),
+          borderRadius: BorderRadius.circular(12.r),
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16.r),
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey[200]!),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(12.r),
             ),
             child: Row(
               children: [
@@ -182,32 +186,35 @@ class BulkActionsBottomSheet extends StatelessWidget {
                   height: 40,
                   decoration: BoxDecoration(
                     color: color.withValues(alpha: 0.1),
-                    borderRadius: BorderRadius.circular(10),
+                    borderRadius: BorderRadius.circular(10.r),
                   ),
-                  child: Icon(icon, color: color, size: 20),
+                  child: Icon(icon, color: color, size: 20.sp),
                 ),
-                const SizedBox(width: 16),
+                SizedBox(width: 16.w),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         title,
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style: TextStyle(
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.w600,
                           color: Colors.black87,
                         ),
                       ),
-                      const SizedBox(height: 2),
+                      SizedBox(height: 2.h),
                       Text(
                         subtitle,
-                        style: TextStyle(fontSize: 13, color: Colors.grey[600]),
+                        style: TextStyle(
+                          fontSize: 13.sp,
+                          color: Colors.grey[600],
+                        ),
                       ),
                     ],
                   ),
                 ),
-                Icon(Icons.chevron_right, color: Colors.grey[400], size: 20),
+                Icon(Icons.chevron_right, color: Colors.grey[400], size: 20.sp),
               ],
             ),
           ),
@@ -220,14 +227,20 @@ class BulkActionsBottomSheet extends StatelessWidget {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-        title: const Text(
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(16.r),
+        ),
+        title: Text(
           'Delete Selected Tasks',
-          style: TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
+          style: TextStyle(fontSize: 20.sp, fontWeight: FontWeight.w600),
         ),
         content: Text(
           'Are you sure you want to delete $selectedCount task${selectedCount > 1 ? 's' : ''}? This action cannot be undone.',
-          style: TextStyle(fontSize: 16, color: Colors.grey[700], height: 1.4),
+          style: TextStyle(
+            fontSize: 16.sp,
+            color: Colors.grey[700],
+            height: 1.4,
+          ),
         ),
         actions: [
           TextButton(
@@ -249,7 +262,7 @@ class BulkActionsBottomSheet extends StatelessWidget {
             style: TextButton.styleFrom(
               backgroundColor: Colors.red.withValues(alpha: 0.1),
             ),
-            child: const Text(
+            child: Text(
               'Delete',
               style: TextStyle(color: Colors.red, fontWeight: FontWeight.w600),
             ),

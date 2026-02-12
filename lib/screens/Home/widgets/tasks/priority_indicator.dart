@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../models/todo_model.dart';
 
 class PriorityIndicator extends StatelessWidget {
@@ -24,7 +25,7 @@ class PriorityIndicator extends StatelessWidget {
       height: 50,
       decoration: BoxDecoration(
         color: _getPriorityColor(priority),
-        borderRadius: BorderRadius.circular(3),
+        borderRadius: BorderRadius.circular(3.r),
       ),
     );
   }

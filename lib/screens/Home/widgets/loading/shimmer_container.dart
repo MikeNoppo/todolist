@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class ShimmerContainer extends StatelessWidget {
   final double width;
@@ -26,7 +27,7 @@ class ShimmerContainer extends StatelessWidget {
             height: height,
             decoration: BoxDecoration(
               color: Colors.grey[200],
-              borderRadius: isCircle ? null : BorderRadius.circular(8),
+              borderRadius: isCircle ? null : BorderRadius.circular(8.r),
               shape: isCircle ? BoxShape.circle : BoxShape.rectangle,
             ),
           ),

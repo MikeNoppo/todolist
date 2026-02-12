@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../settings/settings_screen.dart';
 
 class ModernAppBar extends StatelessWidget {
@@ -55,16 +56,16 @@ class ModernAppBar extends StatelessWidget {
       automaticallyImplyLeading: false,
       flexibleSpace: FlexibleSpaceBar(
         background: Container(
-          decoration: const BoxDecoration(
+          decoration: BoxDecoration(
             color: Colors.white,
             borderRadius: BorderRadius.only(
-              bottomLeft: Radius.circular(24),
-              bottomRight: Radius.circular(24),
+              bottomLeft: Radius.circular(24.r),
+              bottomRight: Radius.circular(24.r),
             ),
           ),
           child: SafeArea(
             child: Padding(
-              padding: const EdgeInsets.all(20),
+              padding: EdgeInsets.all(20.r),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
@@ -87,25 +88,25 @@ class ModernAppBar extends StatelessWidget {
                             child: Icon(
                               Icons.person_outline,
                               color: Colors.grey[600],
-                              size: 24,
+                              size: 24.sp,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          SizedBox(width: 12.w),
                           Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
                                 greeting,
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 14.sp,
                                   color: Colors.grey[600],
                                   fontWeight: FontWeight.w400,
                                 ),
                               ),
                               Text(
                                 userName,
-                                style: const TextStyle(
-                                  fontSize: 20,
+                                style: TextStyle(
+                                  fontSize: 20.sp,
                                   fontWeight: FontWeight.w600,
                                   color: Colors.black87,
                                 ),
@@ -117,7 +118,7 @@ class ModernAppBar extends StatelessWidget {
                       Container(
                         decoration: BoxDecoration(
                           color: Colors.grey[50],
-                          borderRadius: BorderRadius.circular(12),
+                          borderRadius: BorderRadius.circular(12.r),
                         ),
                         child: IconButton(
                           onPressed: () {
@@ -131,17 +132,17 @@ class ModernAppBar extends StatelessWidget {
                           icon: Icon(
                             Icons.settings_outlined,
                             color: Colors.grey[600],
-                            size: 22,
+                            size: 22.sp,
                           ),
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
+                  SizedBox(height: 16.h),
                   Text(
                     dateString,
                     style: TextStyle(
-                      fontSize: 16,
+                      fontSize: 16.sp,
                       color: Colors.grey[700],
                       fontWeight: FontWeight.w500,
                     ),

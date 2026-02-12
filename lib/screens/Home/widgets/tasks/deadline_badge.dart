@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class DeadlineBadge extends StatelessWidget {
   final DateTime deadline;
@@ -30,32 +31,32 @@ class DeadlineBadge extends StatelessWidget {
         deadline.day == now.day;
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
       decoration: BoxDecoration(
         color: isOverdue
             ? Colors.red[50]
             : isToday
             ? Colors.orange[50]
             : Colors.grey[50],
-        borderRadius: BorderRadius.circular(8),
+        borderRadius: BorderRadius.circular(8.r),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
             Icons.schedule_outlined,
-            size: 16,
+            size: 16.sp,
             color: isOverdue
                 ? Colors.red[600]
                 : isToday
                 ? Colors.orange[600]
                 : Colors.grey[600],
           ),
-          const SizedBox(width: 4),
+          SizedBox(width: 4.w),
           Text(
             _formatDeadline(deadline),
             style: TextStyle(
-              fontSize: 13,
+              fontSize: 13.sp,
               color: isOverdue
                   ? Colors.red[600]
                   : isToday

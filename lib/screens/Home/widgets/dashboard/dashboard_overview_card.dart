@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../models/todo_model.dart';
 import 'stat_card.dart';
 
@@ -23,11 +24,11 @@ class DashboardOverviewCard extends StatelessWidget {
     }).length;
 
     return Container(
-      margin: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-      padding: const EdgeInsets.all(20),
+      margin: EdgeInsets.fromLTRB(20.w, 16.h, 20.w, 0.h),
+      padding: EdgeInsets.all(20.r),
       decoration: BoxDecoration(
         color: Colors.white,
-        borderRadius: BorderRadius.circular(16),
+        borderRadius: BorderRadius.circular(16.r),
         boxShadow: [
           BoxShadow(
             color: Colors.black.withValues(alpha: 0.04),
@@ -39,15 +40,15 @@ class DashboardOverviewCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          const Text(
+          Text(
             'Ringkasan Tugas',
             style: TextStyle(
-              fontSize: 18,
+              fontSize: 18.sp,
               fontWeight: FontWeight.w600,
               color: Colors.black87,
             ),
           ),
-          const SizedBox(height: 16),
+          SizedBox(height: 16.h),
           Row(
             children: [
               Expanded(
@@ -58,7 +59,7 @@ class DashboardOverviewCard extends StatelessWidget {
                   color: Colors.grey[600]!,
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12.w),
               Expanded(
                 child: StatCard(
                   label: 'Selesai',
@@ -67,7 +68,7 @@ class DashboardOverviewCard extends StatelessWidget {
                   color: const Color(0xFF4A6FA5),
                 ),
               ),
-              const SizedBox(width: 12),
+              SizedBox(width: 12.w),
               Expanded(
                 child: StatCard(
                   label: 'Hari Ini',

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'shimmer_container.dart';
 
 class ShimmerStatCard extends StatelessWidget {
@@ -7,17 +8,17 @@ class ShimmerStatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: EdgeInsets.all(12.r),
       decoration: BoxDecoration(
         color: Colors.grey[50],
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(12.r),
       ),
-      child: const Column(
+      child: Column(
         children: [
           ShimmerContainer(width: 24, height: 24, isCircle: true),
-          SizedBox(height: 8),
+          SizedBox(height: 8.h),
           ShimmerContainer(width: 30, height: 18),
-          SizedBox(height: 4),
+          SizedBox(height: 4.h),
           ShimmerContainer(width: 50, height: 12),
         ],
       ),

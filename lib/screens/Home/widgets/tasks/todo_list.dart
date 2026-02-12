@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../models/todo_model.dart';
 import 'todo_card.dart';
 import 'bulk_selection_manager.dart';
@@ -22,7 +23,7 @@ class TodoList extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SliverPadding(
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 100),
+      padding: EdgeInsets.fromLTRB(20.w, 24.h, 20.w, 100.h),
       sliver: SliverList(
         delegate: SliverChildBuilderDelegate((context, index) {
           final todo = todos[index];
