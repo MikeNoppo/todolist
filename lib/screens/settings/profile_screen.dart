@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/services.dart';
+
+import '../../core/ui/app_size_tokens.dart';
 import '../../repositories/todo_repository.dart';
 import '../../services/app_logger.dart';
 
@@ -146,7 +148,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         title: Text(
           'Profil & Avatar',
           style: TextStyle(
-            fontSize: 20.sp,
+            fontSize: AppSizeTokens.text20,
             fontWeight: FontWeight.w600,
             color: Colors.black87,
           ),
@@ -156,8 +158,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
             onPressed: _isSaving ? null : _saveProfile,
             child: _isSaving
                 ? SizedBox(
-                    width: 16.w,
-                    height: 16,
+                    width: AppSizeTokens.icon16,
+                    height: AppSizeTokens.icon16,
                     child: CircularProgressIndicator(
                       strokeWidth: 2,
                       color: Color(0xFF4A6FA5),
@@ -166,13 +168,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 : Text(
                     'Simpan',
                     style: TextStyle(
-                      fontSize: 16.sp,
+                      fontSize: AppSizeTokens.text16,
                       fontWeight: FontWeight.w600,
                       color: Color(0xFF4A6FA5),
                     ),
                   ),
           ),
-          SizedBox(width: 16.w),
+          SizedBox(width: AppSizeTokens.space16),
         ],
         systemOverlayStyle: SystemUiOverlayStyle.dark,
       ),
@@ -181,13 +183,12 @@ class _ProfileScreenState extends State<ProfileScreen> {
               child: CircularProgressIndicator(color: Color(0xFF4A6FA5)),
             )
           : ListView(
-              padding: EdgeInsets.all(20.r),
+              padding: EdgeInsets.all(AppSizeTokens.cardPadding),
               children: [
-                // Current Avatar Preview
                 Center(
                   child: Container(
-                    width: 120,
-                    height: 120,
+                    width: 120.w,
+                    height: 120.w,
                     decoration: BoxDecoration(
                       color: const Color(0xFF4A6FA5).withValues(alpha: 0.1),
                       shape: BoxShape.circle,
@@ -198,20 +199,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         orElse: () => _avatarOptions[0],
                       )['icon'],
                       color: const Color(0xFF4A6FA5),
-                      size: 60.sp,
+                      size: 60.w,
                     ),
                   ),
                 ),
 
-                SizedBox(height: 32.h),
+                SizedBox(height: AppSizeTokens.space32),
 
-                // Name Input
                 _buildSectionHeader('Nama Pengguna'),
-                SizedBox(height: 12.h),
+                SizedBox(height: AppSizeTokens.space12),
                 Container(
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16.r),
+                    borderRadius: BorderRadius.circular(AppSizeTokens.radius16),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.04),
@@ -230,31 +230,32 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         color: Colors.grey[600],
                       ),
                       border: OutlineInputBorder(
-                        borderRadius: BorderRadius.circular(16.r),
+                        borderRadius: BorderRadius.circular(
+                          AppSizeTokens.radius16,
+                        ),
                         borderSide: BorderSide.none,
                       ),
                       filled: true,
                       fillColor: Colors.white,
-                      contentPadding: EdgeInsets.all(20.r),
+                      contentPadding: EdgeInsets.all(AppSizeTokens.cardPadding),
                     ),
                     style: TextStyle(
-                      fontSize: 16.sp,
+                      fontSize: AppSizeTokens.text16,
                       fontWeight: FontWeight.w500,
                       color: Colors.black87,
                     ),
                   ),
                 ),
 
-                SizedBox(height: 32.h),
+                SizedBox(height: AppSizeTokens.space32),
 
-                // Avatar Selection
                 _buildSectionHeader('Pilih Avatar'),
-                SizedBox(height: 12.h),
+                SizedBox(height: AppSizeTokens.space12),
                 Container(
-                  padding: EdgeInsets.all(20.r),
+                  padding: EdgeInsets.all(AppSizeTokens.cardPadding),
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    borderRadius: BorderRadius.circular(16.r),
+                    borderRadius: BorderRadius.circular(AppSizeTokens.radius16),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.04),
@@ -263,47 +264,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       ),
                     ],
                   ),
-                  child: GridView.builder(
-                    shrinkWrap: true,
-                    physics: const NeverScrollableScrollPhysics(),
-                    gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                      crossAxisCount: 4,
-                      crossAxisSpacing: 16,
-                      mainAxisSpacing: 16,
-                    ),
-                    itemCount: _avatarOptions.length,
-                    itemBuilder: (context, index) {
-                      final avatar = _avatarOptions[index];
-                      final isSelected = avatar['name'] == _selectedAvatar;
+                  child: LayoutBuilder(
+                    builder: (context, constraints) {
+                      final minTileWidth = 64.w;
+                      final crossAxisSpacing = AppSizeTokens.space12;
+                      var crossAxisCount =
+                          ((constraints.maxWidth + crossAxisSpacing) /
+                                  (minTileWidth + crossAxisSpacing))
+                              .floor();
+                      crossAxisCount = crossAxisCount.clamp(3, 5);
 
-                      return GestureDetector(
-                        onTap: () {
-                          setState(() {
-                            _selectedAvatar = avatar['name'];
-                          });
-                          HapticFeedback.lightImpact();
-                        },
-                        child: Container(
-                          decoration: BoxDecoration(
-                            color: isSelected
-                                ? const Color(0xFF4A6FA5).withValues(alpha: 0.1)
-                                : Colors.grey[50],
-                            borderRadius: BorderRadius.circular(12.r),
-                            border: isSelected
-                                ? Border.all(
-                                    color: const Color(0xFF4A6FA5),
-                                    width: 2,
-                                  )
-                                : null,
-                          ),
-                          child: Icon(
-                            avatar['icon'],
-                            color: isSelected
-                                ? const Color(0xFF4A6FA5)
-                                : Colors.grey[600],
-                            size: 32.sp,
-                          ),
+                      return GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: crossAxisCount,
+                          crossAxisSpacing: crossAxisSpacing,
+                          mainAxisSpacing: AppSizeTokens.space12,
+                          mainAxisExtent: 64.w,
                         ),
+                        itemCount: _avatarOptions.length,
+                        itemBuilder: (context, index) {
+                          final avatar = _avatarOptions[index];
+                          final isSelected = avatar['name'] == _selectedAvatar;
+
+                          return GestureDetector(
+                            onTap: () {
+                              setState(() {
+                                _selectedAvatar = avatar['name'];
+                              });
+                              HapticFeedback.lightImpact();
+                            },
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: isSelected
+                                    ? const Color(
+                                        0xFF4A6FA5,
+                                      ).withValues(alpha: 0.1)
+                                    : Colors.grey[50],
+                                borderRadius: BorderRadius.circular(
+                                  AppSizeTokens.radius12,
+                                ),
+                                border: isSelected
+                                    ? Border.all(
+                                        color: const Color(0xFF4A6FA5),
+                                        width: 2,
+                                      )
+                                    : null,
+                              ),
+                              child: Icon(
+                                avatar['icon'],
+                                color: isSelected
+                                    ? const Color(0xFF4A6FA5)
+                                    : Colors.grey[600],
+                                size: 32.sp,
+                              ),
+                            ),
+                          );
+                        },
                       );
                     },
                   ),
@@ -317,7 +335,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     return Text(
       title,
       style: TextStyle(
-        fontSize: 14.sp,
+        fontSize: AppSizeTokens.text14,
         fontWeight: FontWeight.w600,
         color: Colors.black54,
         letterSpacing: 0.5.sp,
