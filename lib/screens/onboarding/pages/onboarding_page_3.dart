@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../utils/responsive_helper.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class OnboardingPage3 extends StatefulWidget {
   final VoidCallback onReadComplete;
@@ -44,64 +44,70 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
 
   @override
   Widget build(BuildContext context) {
-    final responsive = ResponsiveHelper(context);
+    final horizontalPadding = 0.08.sw;
+    final availableHeight = 0.75.sh;
+    final iconSize = (0.1.sh).clamp(50.w, 100.w).toDouble();
+    final titleSize = 24.sp.clamp(20.sp, 30.sp).toDouble();
+    final subtitleSize = 14.sp.clamp(12.sp, 18.sp).toDouble();
+    final permissionTitleSize = 14.sp.clamp(12.sp, 18.sp).toDouble();
+    final permissionSubtitleSize = 12.sp.clamp(11.sp, 16.sp).toDouble();
+    final disclaimerSize = 12.sp.clamp(11.sp, 16.sp).toDouble();
+    final permissionIconSize = (0.025.sh).clamp(16.sp, 32.sp).toDouble();
+
+    double spacingPage3(double ratio) {
+      return (ScreenUtil().screenHeight * ratio).clamp(4.h, 100.h).toDouble();
+    }
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: responsive.horizontalPadding),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: SingleChildScrollView(
         controller: _scrollController,
         child: ConstrainedBox(
-          constraints: BoxConstraints(
-            minHeight: responsive.availableHeightPage3,
-          ),
+          constraints: BoxConstraints(minHeight: availableHeight),
           child: Column(
             children: [
-              SizedBox(height: responsive.spacingPage3(0.02)),
-              // Hero icon - Security/Permission
+              SizedBox(height: spacingPage3(0.02)),
               Container(
-                width: responsive.iconSizePage3,
-                height: responsive.iconSizePage3,
+                width: iconSize,
+                height: iconSize,
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.security_outlined,
-                  size: responsive.iconSizePage3 * 0.5,
+                  size: iconSize * 0.5,
                   color: const Color(0xFF4A6FA5),
                 ),
               ),
-              SizedBox(height: responsive.spacingPage3(0.03)),
-              // Title
+              SizedBox(height: spacingPage3(0.03)),
               Text(
                 'Izin Akses\nPenggunaan',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: responsive.titleFontSizePage3,
+                  fontSize: titleSize,
                   fontWeight: FontWeight.w300,
                   color: Colors.black87,
                   height: 1.2,
                 ),
               ),
-              SizedBox(height: responsive.spacingPage3(0.015)),
-              // Subtitle
+              SizedBox(height: spacingPage3(0.015)),
               Text(
                 'Untuk memblokir aplikasi pengganggu, kami memerlukan izin akses penggunaan aplikasi di perangkat Anda.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: responsive.subtitleFontSizePage3,
+                  fontSize: subtitleSize,
                   fontWeight: FontWeight.w400,
                   color: Colors.black54,
                   height: 1.4,
                 ),
               ),
-              SizedBox(height: responsive.spacingPage3(0.03)),
-              // Permission info
+              SizedBox(height: spacingPage3(0.03)),
               Container(
-                padding: EdgeInsets.all(responsive.spacingPage3(0.02)),
+                padding: EdgeInsets.all(spacingPage3(0.02)),
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(16),
+                  borderRadius: BorderRadius.circular(16.r),
                   border: Border.all(color: Colors.grey[200]!),
                 ),
                 child: Column(
@@ -110,40 +116,46 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
                       Icons.visibility_outlined,
                       'Memantau Aplikasi Aktif',
                       'Mendeteksi aplikasi yang sedang digunakan',
-                      responsive,
+                      permissionIconSize,
+                      permissionTitleSize,
+                      permissionSubtitleSize,
+                      spacingPage3,
                     ),
-                    SizedBox(height: responsive.spacingPage3(0.015)),
+                    SizedBox(height: spacingPage3(0.015)),
                     _buildPermissionItem(
                       Icons.block_outlined,
                       'Mencegah Akses Aplikasi',
                       'Memblokir aplikasi yang mengganggu',
-                      responsive,
+                      permissionIconSize,
+                      permissionTitleSize,
+                      permissionSubtitleSize,
+                      spacingPage3,
                     ),
-                    SizedBox(height: responsive.spacingPage3(0.015)),
+                    SizedBox(height: spacingPage3(0.015)),
                     _buildPermissionItem(
                       Icons.lock_outline,
                       'Privasi Terjamin',
                       'Data tidak dibagikan ke pihak ketiga',
-                      responsive,
+                      permissionIconSize,
+                      permissionTitleSize,
+                      permissionSubtitleSize,
+                      spacingPage3,
                     ),
                   ],
                 ),
               ),
-              SizedBox(height: responsive.spacingPage3(0.02)),
-              // Disclaimer
+              SizedBox(height: spacingPage3(0.02)),
               Text(
                 'Izin ini hanya digunakan untuk fitur pemblokiran aplikasi dan tidak akan mengakses data pribadi Anda.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
-                  fontSize: responsive.disclaimerFontSize,
+                  fontSize: disclaimerSize,
                   fontWeight: FontWeight.w400,
                   color: Colors.black45,
                   height: 1.3,
                 ),
               ),
-              SizedBox(
-                height: responsive.spacingPage3(0.04),
-              ), // Extra space to ensure scroll
+              SizedBox(height: spacingPage3(0.04)),
             ],
           ),
         ),
@@ -155,16 +167,15 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
     IconData icon,
     String title,
     String subtitle,
-    ResponsiveHelper responsive,
+    double permissionIconSize,
+    double permissionTitleSize,
+    double permissionSubtitleSize,
+    double Function(double ratio) spacingPage3,
   ) {
     return Row(
       children: [
-        Icon(
-          icon,
-          size: responsive.permissionIconSize,
-          color: const Color(0xFF4A6FA5),
-        ),
-        SizedBox(width: responsive.spacingPage3(0.015)),
+        Icon(icon, size: permissionIconSize, color: const Color(0xFF4A6FA5)),
+        SizedBox(width: spacingPage3(0.015)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -172,16 +183,16 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: responsive.permissionTitleFontSize,
+                  fontSize: permissionTitleSize,
                   fontWeight: FontWeight.w500,
                   color: Colors.black87,
                 ),
               ),
-              SizedBox(height: responsive.spacingPage3(0.002)),
+              SizedBox(height: spacingPage3(0.002)),
               Text(
                 subtitle,
                 style: TextStyle(
-                  fontSize: responsive.permissionSubtitleFontSize,
+                  fontSize: permissionSubtitleSize,
                   fontWeight: FontWeight.w400,
                   color: Colors.black54,
                 ),

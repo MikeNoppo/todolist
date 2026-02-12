@@ -1,55 +1,65 @@
 import 'package:flutter/material.dart';
-import '../utils/responsive_helper.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class OnboardingPage2 extends StatelessWidget {
   const OnboardingPage2({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final responsive = ResponsiveHelper(context);
+    final availableHeight = 0.55.sh;
+    final horizontalPadding = 0.08.sw;
+    final iconSize = (availableHeight * 0.12).clamp(50.w, 100.w).toDouble();
+    final titleSize = 28.sp.clamp(24.sp, 36.sp).toDouble();
+    final subtitleSize = 16.sp.clamp(14.sp, 20.sp).toDouble();
+    final stepCircleSize = (availableHeight * 0.05)
+        .clamp(24.w, 50.w)
+        .toDouble();
+    final stepIconContainer = (availableHeight * 0.07)
+        .clamp(32.w, 70.w)
+        .toDouble();
+    final stepTitleSize = 18.sp.clamp(16.sp, 22.sp).toDouble();
+    final stepSubtitleSize = 14.sp.clamp(12.sp, 18.sp).toDouble();
+    final smallSpacing = (availableHeight * 0.02).clamp(8.h, 20.h).toDouble();
 
     return Padding(
-      padding: EdgeInsets.symmetric(horizontal: responsive.horizontalPadding),
+      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: SingleChildScrollView(
         child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: responsive.availableHeight),
+          constraints: BoxConstraints(minHeight: availableHeight),
           child: Column(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              // Hero icon - Shield protection
               Container(
-                width: responsive.iconSizePage2,
-                height: responsive.iconSizePage2,
+                width: iconSize,
+                height: iconSize,
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
                   Icons.shield_outlined,
-                  size: responsive.iconSizePage2 * 0.5,
+                  size: iconSize * 0.5,
                   color: const Color(0xFF4A6FA5),
                 ),
               ),
-
-              // Title and subtitle section
               Column(
                 children: [
                   Text(
                     'Lindungi Waktu\nProduktifmu',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: responsive.titleFontSize,
+                      fontSize: titleSize,
                       fontWeight: FontWeight.w300,
                       color: Colors.black87,
                       height: 1.2,
                     ),
                   ),
-                  SizedBox(height: responsive.spacing(0.02)),
+                  SizedBox(height: smallSpacing),
                   Text(
                     'Sistem yang bisa mendeteksi dan mencegah akses ke aplikasi yang mengganggu produktivitas.',
                     textAlign: TextAlign.center,
                     style: TextStyle(
-                      fontSize: responsive.subtitleFontSize,
+                      fontSize: subtitleSize,
                       fontWeight: FontWeight.w400,
                       color: Colors.black54,
                       height: 1.3,
@@ -57,8 +67,6 @@ class OnboardingPage2 extends StatelessWidget {
                   ),
                 ],
               ),
-
-              // Workflow steps
               Column(
                 children: [
                   _buildWorkflowStep(
@@ -66,23 +74,35 @@ class OnboardingPage2 extends StatelessWidget {
                     Icons.assignment_outlined,
                     'Buat Daftar Tugas',
                     'Tambahkan tugas dengan prioritas dan deadline',
-                    responsive,
+                    stepCircleSize,
+                    stepIconContainer,
+                    stepTitleSize,
+                    stepSubtitleSize,
+                    smallSpacing,
                   ),
-                  SizedBox(height: responsive.smallSpacing),
+                  SizedBox(height: smallSpacing),
                   _buildWorkflowStep(
                     2,
                     Icons.block_outlined,
                     'Aktifkan Perlindungan',
                     'Sistem akan memblokir aplikasi pengganggu',
-                    responsive,
+                    stepCircleSize,
+                    stepIconContainer,
+                    stepTitleSize,
+                    stepSubtitleSize,
+                    smallSpacing,
                   ),
-                  SizedBox(height: responsive.smallSpacing),
+                  SizedBox(height: smallSpacing),
                   _buildWorkflowStep(
                     3,
                     Icons.trending_up_outlined,
                     'Tingkatkan Produktivitas',
                     'Fokus pada tugas tanpa gangguan',
-                    responsive,
+                    stepCircleSize,
+                    stepIconContainer,
+                    stepTitleSize,
+                    stepSubtitleSize,
+                    smallSpacing,
                   ),
                 ],
               ),
@@ -98,17 +118,20 @@ class OnboardingPage2 extends StatelessWidget {
     IconData icon,
     String title,
     String subtitle,
-    ResponsiveHelper responsive,
+    double stepCircleSize,
+    double stepIconContainer,
+    double stepTitleSize,
+    double stepSubtitleSize,
+    double smallSpacing,
   ) {
-    final stepFontSize = responsive.stepCircleSize * 0.4;
-    final iconSize = responsive.stepIconContainerSize * 0.45;
+    final stepFontSize = stepCircleSize * 0.4;
+    final iconSize = stepIconContainer * 0.45;
 
     return Row(
       children: [
-        // Step number
         Container(
-          width: responsive.stepCircleSize,
-          height: responsive.stepCircleSize,
+          width: stepCircleSize,
+          height: stepCircleSize,
           decoration: const BoxDecoration(
             color: Color(0xFF4A6FA5),
             shape: BoxShape.circle,
@@ -124,19 +147,17 @@ class OnboardingPage2 extends StatelessWidget {
             ),
           ),
         ),
-        SizedBox(width: responsive.smallSpacing),
-        // Icon
+        SizedBox(width: smallSpacing),
         Container(
-          width: responsive.stepIconContainerSize,
-          height: responsive.stepIconContainerSize,
+          width: stepIconContainer,
+          height: stepIconContainer,
           decoration: BoxDecoration(
             color: Colors.grey[100],
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(8.r),
           ),
           child: Icon(icon, size: iconSize, color: Colors.black54),
         ),
-        SizedBox(width: responsive.smallSpacing),
-        // Content
+        SizedBox(width: smallSpacing),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -144,16 +165,16 @@ class OnboardingPage2 extends StatelessWidget {
               Text(
                 title,
                 style: TextStyle(
-                  fontSize: responsive.stepTitleFontSize,
+                  fontSize: stepTitleSize,
                   fontWeight: FontWeight.w500,
                   color: Colors.black87,
                 ),
               ),
-              SizedBox(height: responsive.spacing(0.005)),
+              SizedBox(height: 4.h),
               Text(
                 subtitle,
                 style: TextStyle(
-                  fontSize: responsive.stepSubtitleFontSize,
+                  fontSize: stepSubtitleSize,
                   fontWeight: FontWeight.w400,
                   color: Colors.black54,
                 ),

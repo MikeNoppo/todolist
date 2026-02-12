@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../Home/home_screen.dart';
 import '../../services/app_logger.dart';
 import '../../services/permission_service.dart';
@@ -97,22 +98,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _buildSkipButton() {
     return Padding(
-      padding: const EdgeInsets.all(20.0),
+      padding: EdgeInsets.all(20.0.r),
       child: Align(
         alignment: Alignment.centerRight,
         child: _currentPage < 2
             ? TextButton(
                 onPressed: () => _skipToEnd(),
-                child: const Text(
+                child: Text(
                   'Lewati',
                   style: TextStyle(
                     color: Colors.black54,
-                    fontSize: 16,
+                    fontSize: 16.sp,
                     fontWeight: FontWeight.w400,
                   ),
                 ),
               )
-            : const SizedBox(height: 48),
+            : SizedBox(height: 48.h),
       ),
     );
   }
@@ -143,11 +144,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _buildBottomNavigation() {
     return Padding(
-      padding: const EdgeInsets.all(32.0),
+      padding: EdgeInsets.all(32.0.r),
       child: Column(
         children: [
           _buildPageIndicator(),
-          const SizedBox(height: 32),
+          SizedBox(height: 32.h),
           _buildNavigationButton(),
         ],
       ),
@@ -160,12 +161,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       children: List.generate(
         3,
         (index) => Container(
-          margin: const EdgeInsets.symmetric(horizontal: 4),
+          margin: EdgeInsets.symmetric(horizontal: 4.w),
           width: _currentPage == index ? 24 : 8,
           height: 8,
           decoration: BoxDecoration(
             color: _currentPage == index ? accentColor : Colors.grey[300],
-            borderRadius: BorderRadius.circular(4),
+            borderRadius: BorderRadius.circular(4.r),
           ),
         ),
       ),
@@ -187,14 +188,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(12),
+            borderRadius: BorderRadius.circular(12.r),
           ),
         ),
         child: Text(
           _currentPage < 2
               ? 'Lanjutkan'
               : (_hasReadPage3 ? 'Berikan Izin Akses' : 'Baca Hingga Selesai'),
-          style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+          style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
         ),
       ),
     );
@@ -265,24 +266,24 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Aktifkan Layanan Aksesibilitas'),
-          content: const SingleChildScrollView(
+          title: Text('Aktifkan Layanan Aksesibilitas'),
+          content: SingleChildScrollView(
             child: ListBody(
               children: <Widget>[
                 Text('Langkah-langkah:'),
-                SizedBox(height: 8),
+                SizedBox(height: 8.h),
                 Text('1. Cari "TodoList" dalam daftar layanan'),
                 Text('2. Tap pada "TodoList"'),
                 Text('3. Aktifkan toggle "Gunakan TodoList"'),
                 Text('4. Tap "OK" pada dialog konfirmasi'),
-                SizedBox(height: 12),
+                SizedBox(height: 12.h),
                 Text('Setelah selesai, kembali ke aplikasi.'),
               ],
             ),
           ),
           actions: <Widget>[
             ElevatedButton(
-              child: const Text('Buka Pengaturan'),
+              child: Text('Buka Pengaturan'),
               onPressed: () async {
                 Navigator.of(context).pop();
                 AppLogger.info(_tag, 'Opening accessibility settings.');
@@ -303,25 +304,25 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         context: context,
         builder: (BuildContext context) {
           return AlertDialog(
-            title: const Text('Aktifkan Akses Statistik Penggunaan'),
-            content: const SingleChildScrollView(
+            title: Text('Aktifkan Akses Statistik Penggunaan'),
+            content: SingleChildScrollView(
               child: ListBody(
                 children: <Widget>[
                   Text('Langkah-langkah:'),
-                  SizedBox(height: 8),
+                  SizedBox(height: 8.h),
                   Text('1. Cari "TodoList" dalam daftar aplikasi'),
                   Text('2. Tap pada "TodoList"'),
                   Text(
                     '3. Aktifkan toggle "Izinkan akses statistik penggunaan"',
                   ),
-                  SizedBox(height: 12),
+                  SizedBox(height: 12.h),
                   Text('Setelah kedua izin aktif, kembali ke aplikasi.'),
                 ],
               ),
             ),
             actions: <Widget>[
               ElevatedButton(
-                child: const Text('Buka Pengaturan'),
+                child: Text('Buka Pengaturan'),
                 onPressed: () async {
                   Navigator.of(context).pop();
                   AppLogger.info(_tag, 'Opening usage stats settings.');
@@ -367,21 +368,21 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: const Text('Izin Belum Lengkap'),
-          content: const Text(
+          title: Text('Izin Belum Lengkap'),
+          content: Text(
             'Beberapa izin belum diaktifkan. Aplikasi mungkin tidak berfungsi dengan optimal.\n\n'
             'Anda dapat mengaktifkan izin nanti melalui pengaturan aplikasi.',
           ),
           actions: <Widget>[
             TextButton(
-              child: const Text('Coba Lagi'),
+              child: Text('Coba Lagi'),
               onPressed: () {
                 Navigator.of(context).pop();
                 _requestPermission();
               },
             ),
             ElevatedButton(
-              child: const Text('Lanjutkan'),
+              child: Text('Lanjutkan'),
               onPressed: () {
                 Navigator.of(context).pop();
                 _navigateToHome();
