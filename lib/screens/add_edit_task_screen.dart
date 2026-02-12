@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../models/todo_model.dart';
 import '../repositories/todo_repository.dart';
 import '../services/app_logger.dart';
@@ -154,17 +155,17 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     final confirmed = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Hapus Tugas'),
-        content: const Text('Apakah Anda yakin ingin menghapus tugas ini?'),
+        title: Text('Hapus Tugas'),
+        content: Text('Apakah Anda yakin ingin menghapus tugas ini?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
+            child: Text('Batal'),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
-            child: const Text('Hapus'),
+            child: Text('Hapus'),
           ),
         ],
       ),
@@ -256,20 +257,17 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
         elevation: 0,
         leading: IconButton(
           onPressed: () => Navigator.pop(context),
-          icon: const Icon(Icons.arrow_back, color: Colors.black54),
+          icon: Icon(Icons.arrow_back, color: Colors.black54),
         ),
         title: Text(
           _isEditing ? 'Ubah Tugas' : 'Tambah Tugas',
-          style: const TextStyle(
-            color: Colors.black87,
-            fontWeight: FontWeight.w500,
-          ),
+          style: TextStyle(color: Colors.black87, fontWeight: FontWeight.w500),
         ),
         actions: _isEditing
             ? [
                 IconButton(
                   onPressed: _isLoading ? null : _deleteTask,
-                  icon: const Icon(Icons.delete_outline, color: Colors.red),
+                  icon: Icon(Icons.delete_outline, color: Colors.red),
                 ),
               ]
             : null,
@@ -277,7 +275,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       body: Form(
         key: _formKey,
         child: ListView(
-          padding: const EdgeInsets.all(24),
+          padding: EdgeInsets.all(24.r),
           children: [
             // Title Field
             _buildInputField(
@@ -292,7 +290,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
               },
             ),
 
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
 
             // Description Field
             _buildInputField(
@@ -302,21 +300,21 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
               maxLines: 3,
             ),
 
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
 
             // Deadline Field
             _buildDeadlineField(),
 
-            const SizedBox(height: 24),
+            SizedBox(height: 24.h),
 
             // Priority Field
             _buildPriorityField(),
 
-            const SizedBox(height: 48),
+            SizedBox(height: 48.h),
 
             // Save Button
             SizedBox(
-              height: 50,
+              height: 50.h,
               child: ElevatedButton(
                 onPressed: _isLoading ? null : _saveTask,
                 style: ElevatedButton.styleFrom(
@@ -324,12 +322,12 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                   foregroundColor: Colors.white,
                   elevation: 0,
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(12.r),
                   ),
                 ),
                 child: _isLoading
-                    ? const SizedBox(
-                        width: 20,
+                    ? SizedBox(
+                        width: 20.w,
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
@@ -340,8 +338,8 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                       )
                     : Text(
                         _isEditing ? 'Simpan Perubahan' : 'Tambah Tugas',
-                        style: const TextStyle(
-                          fontSize: 16,
+                        style: TextStyle(
+                          fontSize: 16.sp,
                           fontWeight: FontWeight.w500,
                         ),
                       ),
@@ -365,19 +363,19 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       children: [
         Row(
           children: [
-            Icon(icon, size: 20, color: Colors.grey[600]),
-            const SizedBox(width: 8),
+            Icon(icon, size: 20.sp, color: Colors.grey[600]),
+            SizedBox(width: 8.w),
             Text(
               label,
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 16.sp,
                 fontWeight: FontWeight.w500,
                 color: Colors.grey[700],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         TextFormField(
           controller: controller,
           validator: validator,
@@ -386,18 +384,18 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
             hintText: 'Masukkan $label',
             hintStyle: TextStyle(color: Colors.grey[400]),
             border: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(12.r),
               borderSide: BorderSide(color: Colors.grey[300]!),
             ),
             enabledBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(12.r),
               borderSide: BorderSide(color: Colors.grey[300]!),
             ),
             focusedBorder: OutlineInputBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(12.r),
               borderSide: const BorderSide(color: Color(0xFF4A6FA5)),
             ),
-            contentPadding: const EdgeInsets.all(16),
+            contentPadding: EdgeInsets.all(16.r),
           ),
         ),
       ],
@@ -410,31 +408,31 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       children: [
         Row(
           children: [
-            Icon(Icons.schedule_outlined, size: 20, color: Colors.grey[600]),
-            const SizedBox(width: 8),
+            Icon(Icons.schedule_outlined, size: 20.sp, color: Colors.grey[600]),
+            SizedBox(width: 8.w),
             Text(
               'Tenggat Waktu',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 16.sp,
                 fontWeight: FontWeight.w500,
                 color: Colors.grey[700],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         GestureDetector(
           onTap: _selectDeadline,
           child: Container(
             width: double.infinity,
-            padding: const EdgeInsets.all(16),
+            padding: EdgeInsets.all(16.r),
             decoration: BoxDecoration(
               border: Border.all(color: Colors.grey[300]!),
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(12.r),
             ),
             child: Text(
               _formatDateTime(_selectedDeadline),
-              style: const TextStyle(fontSize: 16),
+              style: TextStyle(fontSize: 16.sp),
             ),
           ),
         ),
@@ -448,19 +446,19 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
       children: [
         Row(
           children: [
-            Icon(Icons.flag_outlined, size: 20, color: Colors.grey[600]),
-            const SizedBox(width: 8),
+            Icon(Icons.flag_outlined, size: 20.sp, color: Colors.grey[600]),
+            SizedBox(width: 8.w),
             Text(
               'Tingkat Urgensi',
               style: TextStyle(
-                fontSize: 16,
+                fontSize: 16.sp,
                 fontWeight: FontWeight.w500,
                 color: Colors.grey[700],
               ),
             ),
           ],
         ),
-        const SizedBox(height: 8),
+        SizedBox(height: 8.h),
         Row(
           children: TodoPriority.values.map((priority) {
             final isSelected = _selectedPriority == priority;
@@ -469,14 +467,14 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
                 onTap: () => setState(() => _selectedPriority = priority),
                 child: Container(
                   margin: EdgeInsets.only(
-                    right: priority != TodoPriority.values.last ? 8 : 0,
+                    right: priority != TodoPriority.values.last ? 8 : 0.r,
                   ),
-                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  padding: EdgeInsets.symmetric(vertical: 12.h),
                   decoration: BoxDecoration(
                     color: isSelected
                         ? _getPriorityColor(priority)
                         : Colors.grey[100],
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(12.r),
                     border: Border.all(
                       color: isSelected
                           ? _getPriorityColor(priority)
