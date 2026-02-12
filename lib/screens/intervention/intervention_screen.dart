@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/services.dart';
 import '../../models/todo_model.dart';
 import '../../repositories/todo_repository.dart';
@@ -150,7 +151,7 @@ class _InterventionScreenState extends State<InterventionScreen>
         ),
         child: SafeArea(
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 40),
+            padding: EdgeInsets.symmetric(horizontal: 32.w, vertical: 40.h),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -177,7 +178,7 @@ class _InterventionScreenState extends State<InterventionScreen>
                           InterventionIcons.getIconForApp(
                             widget.blockedAppName.toLowerCase(),
                           ),
-                          size: 60,
+                          size: 60.sp,
                           color: Colors.white70,
                         ),
                       ),
@@ -185,7 +186,7 @@ class _InterventionScreenState extends State<InterventionScreen>
                   },
                 ),
 
-                const SizedBox(height: 48),
+                SizedBox(height: 48.h),
 
                 // Motivational Quote with Fade Animation
                 AnimatedBuilder(
@@ -199,22 +200,22 @@ class _InterventionScreenState extends State<InterventionScreen>
                           Text(
                             '"${quote['text']}"',
                             textAlign: TextAlign.center,
-                            style: const TextStyle(
+                            style: TextStyle(
                               fontFamily: 'Georgia', // Serif font for elegance
-                              fontSize: 22,
+                              fontSize: 22.sp,
                               fontWeight: FontWeight.w400,
                               color: Colors.white,
                               height: 1.5,
-                              letterSpacing: 0.5,
+                              letterSpacing: 0.5.sp,
                             ),
                           ),
-                          const SizedBox(height: 16),
+                          SizedBox(height: 16.h),
 
                           // Quote Author
                           Text(
                             '— ${quote['author']}',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: 16.sp,
                               fontWeight: FontWeight.w300,
                               color: Colors.white.withValues(alpha: 0.7),
                               fontStyle: FontStyle.italic,
@@ -226,7 +227,7 @@ class _InterventionScreenState extends State<InterventionScreen>
                   },
                 ),
 
-                const SizedBox(height: 40),
+                SizedBox(height: 40.h),
 
                 // Task Reminder
                 if (_urgentTask != null) ...[
@@ -236,15 +237,15 @@ class _InterventionScreenState extends State<InterventionScreen>
                       return Opacity(
                         opacity: _fadeAnimation.value,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 24,
-                            vertical: 16,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 24.w,
+                            vertical: 16.h,
                           ),
                           decoration: BoxDecoration(
                             color: const Color(
                               0xFF4A6FA5,
                             ).withValues(alpha: 0.2),
-                            borderRadius: BorderRadius.circular(16),
+                            borderRadius: BorderRadius.circular(16.r),
                             border: Border.all(
                               color: const Color(
                                 0xFF4A6FA5,
@@ -257,17 +258,17 @@ class _InterventionScreenState extends State<InterventionScreen>
                               Text(
                                 'Tugas mendesak saat ini:',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: 14.sp,
                                   fontWeight: FontWeight.w400,
                                   color: Colors.white.withValues(alpha: 0.8),
                                 ),
                               ),
-                              const SizedBox(height: 8),
+                              SizedBox(height: 8.h),
                               Text(
                                 _urgentTask!,
                                 textAlign: TextAlign.center,
-                                style: const TextStyle(
-                                  fontSize: 18,
+                                style: TextStyle(
+                                  fontSize: 18.sp,
                                   fontWeight: FontWeight.w600,
                                   color: Color(0xFF4A6FA5),
                                 ),
@@ -278,7 +279,7 @@ class _InterventionScreenState extends State<InterventionScreen>
                       );
                     },
                   ),
-                  const SizedBox(height: 32),
+                  SizedBox(height: 32.h),
                 ],
 
                 const Spacer(flex: 3),
@@ -292,17 +293,17 @@ class _InterventionScreenState extends State<InterventionScreen>
                       child: GestureDetector(
                         onTap: _handleBackToWork,
                         child: Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 32,
-                            vertical: 16,
+                          padding: EdgeInsets.symmetric(
+                            horizontal: 32.w,
+                            vertical: 16.h,
                           ),
-                          child: const Text(
+                          child: Text(
                             'Kembali Bekerja',
                             style: TextStyle(
-                              fontSize: 18,
+                              fontSize: 18.sp,
                               fontWeight: FontWeight.w500,
                               color: Colors.white,
-                              letterSpacing: 0.5,
+                              letterSpacing: 0.5.sp,
                             ),
                           ),
                         ),
@@ -311,7 +312,7 @@ class _InterventionScreenState extends State<InterventionScreen>
                   },
                 ),
 
-                const SizedBox(height: 20),
+                SizedBox(height: 20.h),
 
                 // Blocked App Info
                 AnimatedBuilder(
@@ -322,7 +323,7 @@ class _InterventionScreenState extends State<InterventionScreen>
                       child: Text(
                         'Akses ke ${widget.blockedAppName} diblokir',
                         style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 14.sp,
                           fontWeight: FontWeight.w300,
                           color: Colors.white.withValues(alpha: 0.5),
                         ),
