@@ -60,7 +60,10 @@ class _InterventionScreenState extends State<InterventionScreen>
   void initState() {
     super.initState();
     _initializeAnimations();
-    _loadUrgentTask();
+    _urgentTask = widget.currentHighPriorityTask;
+    if (_urgentTask == null || _urgentTask!.isEmpty) {
+      _loadUrgentTask();
+    }
     _startAnimations();
   }
 
