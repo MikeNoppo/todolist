@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../Home/home_screen.dart';
+import '../../repositories/todo_repository.dart';
 import '../../services/app_logger.dart';
 import '../../services/permission_service.dart';
 import 'pages/onboarding_page_1.dart';
@@ -19,8 +20,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   static const String _tag = 'OnboardingScreen';
 
   final PageController _pageController = PageController();
+  final TodoRepository _todoRepository = TodoRepository();
   int _currentPage = 0;
   bool _hasReadPage3 = false; // Track if user has read page 3 completely
+  bool _isReturningFromPermissionSettings = false;
 
   // Define accent color - muted blue
   static const Color accentColor = Color(0xFF4A6FA5);
@@ -36,6 +39,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void dispose() {
     // Remove observer when widget is disposed
     WidgetsBinding.instance.removeObserver(this);
+    _pageController.dispose();
     super.dispose();
   }
 
@@ -43,7 +47,10 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
     // Check permissions when app resumes from background
-    if (state == AppLifecycleState.resumed && _currentPage == 2) {
+    if (state == AppLifecycleState.resumed &&
+        _currentPage == 2 &&
+        _isReturningFromPermissionSettings) {
+      _isReturningFromPermissionSettings = false;
       _checkPermissionsAfterResume();
     }
   }
@@ -70,13 +77,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       );
 
       // Navigate to home after a short delay
-      Future.delayed(const Duration(seconds: 2), () {
+      Future.delayed(const Duration(seconds: 2), () async {
         if (mounted) {
-          _navigateToHome();
+          await _navigateToHome();
         }
       });
     } else {
       AppLogger.debug(_tag, 'Permissions still incomplete after app resume.');
+      await _showIncompletePermissionDialog();
     }
   }
 
@@ -230,7 +238,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       );
 
       // If all permissions are granted, go to home screen
-      _navigateToHome();
+      await _navigateToHome();
       return;
     }
 
@@ -257,7 +265,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         _tag,
         'Individual permission checks passed. Navigating to home.',
       );
-      _navigateToHome();
+      await _navigateToHome();
     }
   }
 
@@ -287,9 +295,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               onPressed: () async {
                 Navigator.of(context).pop();
                 AppLogger.info(_tag, 'Opening accessibility settings.');
+                _isReturningFromPermissionSettings = true;
                 // Open accessibility settings
                 await PermissionService.openAccessibilitySettings();
-                _checkPermissionsAndNavigate();
               },
             ),
           ],
@@ -326,9 +334,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 onPressed: () async {
                   Navigator.of(context).pop();
                   AppLogger.info(_tag, 'Opening usage stats settings.');
+                  _isReturningFromPermissionSettings = true;
                   // Open usage stats settings
                   await PermissionService.openUsageStatsSettings();
-                  _checkPermissionsAndNavigate();
                 },
               ),
             ],
@@ -338,30 +346,11 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
   }
 
-  Future<void> _checkPermissionsAndNavigate() async {
-    bool allPermissionsGranted =
-        await PermissionService.areAllPermissionsGranted();
-
-    if (!mounted) return;
-
-    if (allPermissionsGranted) {
-      AppLogger.info(
-        _tag,
-        'All required permissions granted after returning from settings.',
-      );
-      _navigateToHome();
-    } else {
-      AppLogger.warn(
-        _tag,
-        'Permissions still incomplete after returning from settings.',
-      );
-
-      // Show a dialog asking user to complete the permission setup
-      await _showIncompletePermissionDialog();
-    }
-  }
-
   Future<void> _showIncompletePermissionDialog() async {
+    if (!mounted) {
+      return;
+    }
+
     AppLogger.warn(_tag, 'Showing incomplete permission dialog.');
 
     return showDialog<void>(
@@ -383,9 +372,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             ),
             ElevatedButton(
               child: Text('Lanjutkan'),
-              onPressed: () {
+              onPressed: () async {
                 Navigator.of(context).pop();
-                _navigateToHome();
+                await _navigateToHome();
               },
             ),
           ],
@@ -394,7 +383,22 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  void _navigateToHome() {
+  Future<void> _navigateToHome() async {
+    try {
+      await _todoRepository.setOnboardingCompleted(true);
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to persist onboarding completion state.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+
+    if (!mounted) {
+      return;
+    }
+
     Navigator.pushReplacement(
       context,
       MaterialPageRoute(builder: (context) => const HomeScreen()),
