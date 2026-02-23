@@ -10,6 +10,7 @@ class InterventionDebugInfo {
   const InterventionDebugInfo({
     required this.interventionEnabled,
     required this.blockedPackages,
+    required this.alwaysAllowedPackages,
     required this.lastBlockedPackage,
     required this.lastBlockedPriority,
     required this.lastBlockedTaskTitle,
@@ -24,6 +25,7 @@ class InterventionDebugInfo {
 
   final bool interventionEnabled;
   final List<String> blockedPackages;
+  final List<String> alwaysAllowedPackages;
 
   final String? lastBlockedPackage;
   final String? lastBlockedPriority;
@@ -54,6 +56,7 @@ class AppBlockerService {
   static const String _tag = 'AppBlockerService';
 
   static const String blockKeyPrefix = 'block_';
+  static const String allowKeyPrefix = 'allow_';
   static const String interventionEnabledKey = 'intervention_enabled';
   static const String lowWindowHoursKey = 'intervention_window_low_hours';
   static const String mediumWindowHoursKey = 'intervention_window_medium_hours';
@@ -223,6 +226,19 @@ class AppBlockerService {
 
     blockedPackages.sort();
 
+    final alwaysAllowedPackages =
+        prefs
+            .getKeys()
+            .where((key) => key.startsWith(allowKeyPrefix))
+            .where((key) => prefs.getBool(key) ?? false)
+            .map((key) => key.replaceFirst(allowKeyPrefix, ''))
+            .toList()
+          ..sort();
+
+    blockedPackages = blockedPackages
+        .where((packageName) => !alwaysAllowedPackages.contains(packageName))
+        .toList();
+
     final int? lastBlockedAtMillis = prefs.getInt(debugLastBlockedAtMillisKey);
     final DateTime? lastBlockedAt = lastBlockedAtMillis == null
         ? null
@@ -237,6 +253,7 @@ class AppBlockerService {
     return InterventionDebugInfo(
       interventionEnabled: true,
       blockedPackages: blockedPackages,
+      alwaysAllowedPackages: alwaysAllowedPackages,
       lastBlockedPackage: prefs.getString(debugLastBlockedPackageKey),
       lastBlockedPriority: prefs.getString(debugLastBlockedPriorityKey),
       lastBlockedTaskTitle: prefs.getString(debugLastBlockedTaskTitleKey),
@@ -298,6 +315,12 @@ class AppBlockerService {
     required SharedPreferences prefs,
     required String packageName,
   }) {
+    final isAlwaysAllowed =
+        prefs.getBool('$allowKeyPrefix$packageName') ?? false;
+    if (isAlwaysAllowed) {
+      return false;
+    }
+
     final hasAnyUserConfig = prefs.getKeys().any(
       (key) => key.startsWith(blockKeyPrefix),
     );
