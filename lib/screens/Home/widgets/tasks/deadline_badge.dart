@@ -8,16 +8,32 @@ class DeadlineBadge extends StatelessWidget {
 
   String _formatDeadline(DateTime deadline) {
     final now = DateTime.now();
-    final difference = deadline.difference(now).inDays;
+    final isOverdue = deadline.isBefore(now);
+    final deadlineDate = DateTime(deadline.year, deadline.month, deadline.day);
+    final todayDate = DateTime(now.year, now.month, now.day);
+    final dayDifference = deadlineDate.difference(todayDate).inDays;
 
-    if (difference < 0) {
-      return 'Terlambat ${difference.abs()} hari';
-    } else if (difference == 0) {
+    if (isOverdue) {
+      final overdueDuration = now.difference(deadline);
+      if (overdueDuration.inHours < 1) {
+        final minutes = overdueDuration.inMinutes.clamp(1, 59).toInt();
+        return 'Terlambat $minutes menit';
+      }
+
+      if (overdueDuration.inHours < 24) {
+        return 'Terlambat ${overdueDuration.inHours} jam';
+      }
+
+      final days = overdueDuration.inDays;
+      return 'Terlambat $days hari';
+    }
+
+    if (dayDifference == 0) {
       return 'Hari ini';
-    } else if (difference == 1) {
+    } else if (dayDifference == 1) {
       return 'Besok';
     } else {
-      return '$difference hari lagi';
+      return '$dayDifference hari lagi';
     }
   }
 
