@@ -98,19 +98,26 @@ class _SplashScreenState extends State<SplashScreen>
 
   Future<void> _checkFirstLaunch() async {
     try {
-      // Check if user has saved their name (indicator of completed onboarding)
+      final hasCompletedOnboarding = await _todoRepository
+          .hasCompletedOnboarding();
       final userName = await _todoRepository.getUserName();
-      final hasCompletedOnboarding = userName != null && userName.isNotEmpty;
+      final hasLegacyOnboarding = userName != null && userName.isNotEmpty;
+      final shouldNavigateToHome =
+          hasCompletedOnboarding || hasLegacyOnboarding;
+
+      if (hasLegacyOnboarding && !hasCompletedOnboarding) {
+        await _todoRepository.setOnboardingCompleted(true);
+      }
 
       AppLogger.info(
         _tag,
-        hasCompletedOnboarding
+        shouldNavigateToHome
             ? 'Onboarding complete, navigating to home.'
             : 'Onboarding incomplete, navigating to onboarding.',
       );
 
       if (mounted) {
-        if (hasCompletedOnboarding) {
+        if (shouldNavigateToHome) {
           _navigateToHome();
         } else {
           _navigateToOnboarding();
