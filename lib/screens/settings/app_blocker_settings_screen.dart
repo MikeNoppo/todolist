@@ -36,6 +36,11 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
       final installedApps = await PermissionService.getInstalledFocusApps();
       final Map<String, bool> blockedApps = {};
       final Map<String, bool> alwaysAllowedApps = {};
+      final hasAnyUserBlockConfig = prefs.getKeys().any(
+        (key) => key.startsWith(AppBlockerService.blockKeyPrefix),
+      );
+      final defaultBlockedApps = AppBlockerService.getDefaultBlockedApps()
+          .toSet();
 
       for (final app in installedApps) {
         final isAlwaysAllowed =
@@ -43,11 +48,12 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
               '${AppBlockerService.allowKeyPrefix}${app.packageName}',
             ) ??
             false;
-        final isBlocked =
-            prefs.getBool(
-              '${AppBlockerService.blockKeyPrefix}${app.packageName}',
-            ) ??
-            false;
+        final isBlocked = hasAnyUserBlockConfig
+            ? prefs.getBool(
+                    '${AppBlockerService.blockKeyPrefix}${app.packageName}',
+                  ) ??
+                  false
+            : defaultBlockedApps.contains(app.packageName);
         blockedApps[app.packageName] = isAlwaysAllowed ? false : isBlocked;
         alwaysAllowedApps[app.packageName] = isAlwaysAllowed;
       }
