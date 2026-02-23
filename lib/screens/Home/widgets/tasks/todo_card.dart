@@ -79,14 +79,11 @@ class _TodoCardState extends State<TodoCard> {
   }
 
   void _deleteTask() async {
-    final shouldDelete = await DeleteConfirmationDialog.show(
+    await DeleteConfirmationDialog.show(
       context: context,
       todo: widget.todo,
       onDeleted: widget.onDeleted,
     );
-    if (shouldDelete == true) {
-      widget.onDeleted();
-    }
   }
 
   @override
