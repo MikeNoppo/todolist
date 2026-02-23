@@ -11,6 +11,7 @@ class TodoRepository {
   static const String _todosKey = 'todos';
   static const String _userNameKey = 'user_name';
   static const String _userAvatarKey = 'user_avatar';
+  static const String _onboardingCompletedKey = 'onboarding_completed';
 
   // Todo Operations
   Future<List<TodoModel>> getTodos() async {
@@ -122,6 +123,31 @@ class TodoRepository {
   Future<void> saveUserAvatar(String avatarPath) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString(_userAvatarKey, avatarPath);
+  }
+
+  Future<bool> hasCompletedOnboarding() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(_onboardingCompletedKey) ?? false;
+  }
+
+  Future<void> setOnboardingCompleted(bool completed) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setBool(_onboardingCompletedKey, completed);
+
+      AppLogger.debug(
+        _tag,
+        'Updated onboarding completion state: completed=$completed',
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to update onboarding completion state.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      rethrow;
+    }
   }
 
   // Utility Methods
