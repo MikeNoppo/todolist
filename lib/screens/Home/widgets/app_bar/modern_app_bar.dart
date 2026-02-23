@@ -12,6 +12,9 @@ class ModernAppBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final textScale = MediaQuery.textScalerOf(context).scale(1);
+    final headerHorizontalPadding = AppSizeTokens.cardPadding;
+    final headerTopPadding = AppSizeTokens.cardPadding;
+    final headerBottomPadding = AppSizeTokens.space4;
     final now = DateTime.now();
     final hour = now.hour;
     String greeting;
@@ -50,9 +53,7 @@ class ModernAppBar extends StatelessWidget {
 
     final dateString =
         '${dayNames[now.weekday % 7]}, ${now.day} ${monthNames[now.month - 1]}';
-    final expandedHeight = textScale > 1.2
-        ? AppSizeTokens.appBarExpandedLarge
-        : AppSizeTokens.appBarExpanded;
+    final expandedHeight = textScale > 1.2 ? 170.h : 146.h;
 
     return SliverAppBar(
       backgroundColor: Colors.white,
@@ -71,7 +72,12 @@ class ModernAppBar extends StatelessWidget {
           ),
           child: SafeArea(
             child: Padding(
-              padding: EdgeInsets.all(AppSizeTokens.cardPadding),
+              padding: EdgeInsets.fromLTRB(
+                headerHorizontalPadding,
+                headerTopPadding,
+                headerHorizontalPadding,
+                headerBottomPadding,
+              ),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
