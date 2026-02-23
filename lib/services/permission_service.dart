@@ -3,12 +3,49 @@ import 'package:flutter/services.dart';
 import '../models/installed_focus_app.dart';
 import 'app_logger.dart';
 
+typedef BlockedPackageQueuedListener = void Function(String packageName);
+
 class PermissionService {
   static const String _tag = 'PermissionService';
 
   static const MethodChannel _channel = MethodChannel(
     'app_blocker/permissions',
   );
+
+  static BlockedPackageQueuedListener? _blockedPackageQueuedListener;
+  static bool _incomingHandlerBound = false;
+
+  static void setBlockedPackageQueuedListener(
+    BlockedPackageQueuedListener? listener,
+  ) {
+    _blockedPackageQueuedListener = listener;
+    if (_incomingHandlerBound) {
+      return;
+    }
+
+    _incomingHandlerBound = true;
+    _channel.setMethodCallHandler((call) async {
+      if (call.method != 'blockedPackageQueued') {
+        AppLogger.warn(
+          _tag,
+          'Unhandled incoming method call: method=${call.method}',
+        );
+        return;
+      }
+
+      final packageName = call.arguments?.toString();
+      AppLogger.debug(
+        _tag,
+        'Incoming blocked package queued event: package=$packageName',
+      );
+
+      if (packageName == null || packageName.isEmpty) {
+        return;
+      }
+
+      _blockedPackageQueuedListener?.call(packageName);
+    });
+  }
 
   /// Check if accessibility service is enabled
   static Future<bool> isAccessibilityServiceEnabled() async {

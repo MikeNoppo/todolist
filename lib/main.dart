@@ -53,6 +53,14 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    PermissionService.setBlockedPackageQueuedListener((packageName) {
+      AppLogger.debug(
+        _tag,
+        'Received native blocked package callback: package=$packageName',
+      );
+      _pendingBlockedPackage = packageName;
+      _consumeBlockedPackageAndPresent();
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumeBlockedPackageAndPresent();
     });
@@ -60,6 +68,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
+    PermissionService.setBlockedPackageQueuedListener(null);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -67,6 +76,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
+    AppLogger.debug(_tag, 'App lifecycle changed: state=$state');
     if (state == AppLifecycleState.resumed) {
       _consumeBlockedPackageAndPresent();
     }
