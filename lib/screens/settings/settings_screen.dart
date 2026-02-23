@@ -7,6 +7,8 @@ import '../../core/ui/app_size_tokens.dart';
 import '../../repositories/todo_repository.dart';
 import '../../services/app_logger.dart';
 import 'app_blocker_settings_screen.dart';
+import 'debug_settings_screen.dart';
+import 'intervention_rules_settings_screen.dart';
 import 'profile_screen.dart';
 import '../intervention/intervention_demo_screen.dart';
 
@@ -155,6 +157,21 @@ class _SettingsScreenState extends State<SettingsScreen> {
                   ),
                   _buildDivider(),
                   _buildSettingItem(
+                    icon: Icons.tune,
+                    title: 'Aturan Intervensi',
+                    subtitle: 'Atur urgensi deadline untuk pemblokiran',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) =>
+                              const InterventionRulesSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDivider(),
+                  _buildSettingItem(
                     icon: Icons.security_outlined,
                     title: 'Test Layar Intervensi',
                     subtitle: 'Lihat preview layar blocking',
@@ -163,6 +180,20 @@ class _SettingsScreenState extends State<SettingsScreen> {
                         context,
                         MaterialPageRoute(
                           builder: (context) => const InterventionDemoScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDivider(),
+                  _buildSettingItem(
+                    icon: Icons.bug_report_outlined,
+                    title: 'Debug',
+                    subtitle: 'Data policy hard block dan alasan blokir',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const DebugSettingsScreen(),
                         ),
                       );
                     },
