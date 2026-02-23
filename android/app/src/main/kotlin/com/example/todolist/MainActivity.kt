@@ -1,5 +1,6 @@
 package com.example.todolist
 
+import android.app.AppOpsManager
 import android.app.usage.UsageStatsManager
 import android.content.ComponentName
 import android.content.Context
@@ -11,6 +12,7 @@ import android.graphics.drawable.BitmapDrawable
 import android.graphics.drawable.Drawable
 import android.os.Build
 import android.os.Bundle
+import android.os.Process
 import android.provider.Settings
 import android.text.TextUtils.SimpleStringSplitter
 import io.flutter.embedding.android.FlutterActivity
@@ -283,11 +285,36 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun isUsageStatsPermissionGranted(): Boolean {
+        val appOpsManager = getSystemService(Context.APP_OPS_SERVICE) as AppOpsManager
+        val mode = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            appOpsManager.unsafeCheckOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(),
+                packageName
+            )
+        } else {
+            @Suppress("DEPRECATION")
+            appOpsManager.checkOpNoThrow(
+                AppOpsManager.OPSTR_GET_USAGE_STATS,
+                Process.myUid(),
+                packageName
+            )
+        }
+
+        if (mode == AppOpsManager.MODE_ALLOWED) {
+            return true
+        }
+
+        if (mode != AppOpsManager.MODE_DEFAULT) {
+            return false
+        }
+
         val usageStatsManager = getSystemService(Context.USAGE_STATS_SERVICE) as UsageStatsManager
         val time = System.currentTimeMillis()
+        val lookbackWindowMillis = 24L * 60L * 60L * 1000L
         val stats = usageStatsManager.queryUsageStats(
             UsageStatsManager.INTERVAL_DAILY,
-            time - 1000 * 10,
+            time - lookbackWindowMillis,
             time
         )
         return stats != null && stats.isNotEmpty()
