@@ -52,12 +52,17 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _loadProfile() async {
     try {
       final userName = await _todoRepository.getUserName();
-      // In a real app, you'd also load the selected avatar from preferences
+      final userAvatar = await _todoRepository.getUserAvatar();
+      final fallbackAvatar = _avatarOptions.first['name'] as String;
+      final selectedAvatar = _isValidAvatarName(userAvatar)
+          ? userAvatar!
+          : fallbackAvatar;
 
       if (!mounted) return;
 
       setState(() {
         _nameController.text = userName ?? '';
+        _selectedAvatar = selectedAvatar;
         _isLoading = false;
       });
     } catch (e, stackTrace) {
@@ -94,7 +99,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
     try {
       await _todoRepository.saveUserName(_nameController.text.trim());
-      // In a real app, you'd also save the selected avatar to preferences
+      await _todoRepository.saveUserAvatar(_selectedAvatar);
 
       if (!mounted) return;
 
@@ -341,5 +346,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
         letterSpacing: 0.5.sp,
       ),
     );
+  }
+
+  bool _isValidAvatarName(String? avatarName) {
+    if (avatarName == null || avatarName.isEmpty) {
+      return false;
+    }
+
+    return _avatarOptions.any((avatar) => avatar['name'] == avatarName);
   }
 }
