@@ -1,142 +1,157 @@
 # AGENTS.md
-Practical guide for coding agents working in this repository.
+Practical operating guide for coding agents in this repository.
 
-## 1) Repository Overview
-- App type: Flutter mobile app (with Android-focused native integration).
-- Dart SDK constraint: `^3.8.1` (`pubspec.yaml`).
-- Lint baseline: `flutter_lints` via `analysis_options.yaml`.
-- Data storage: `SharedPreferences` in `lib/repositories/todo_repository.dart`.
-- JSON model generation: `json_serializable` + `build_runner`.
-- Main model pair: `lib/models/todo_model.dart` and `lib/models/todo_model.g.dart`.
-- Native bridge channel: `app_blocker/permissions`.
-- Dart channel client: `lib/services/permission_service.dart`.
-- Android channel host: `android/app/src/main/kotlin/com/example/todolist/MainActivity.kt`.
+## 1) Scope and Project Snapshot
+- Project type: Flutter app with Android-native integration.
+- Primary focus: Todo + intervention flow (app blocking with urgency-based policy).
+- Language/toolchain: Dart SDK `^3.8.1`, Flutter, Kotlin (Android host/service).
+- Persistence: `SharedPreferences` (`flutter.` prefix on Android native side).
+- Serialization: `json_serializable` + `build_runner`.
+- Main domain model: `lib/models/todo_model.dart` (`todo_model.g.dart` is generated).
+- MethodChannel: `app_blocker/permissions`.
+- Dart side channel client: `lib/services/permission_service.dart`.
+- Android side channel host: `android/app/src/main/kotlin/com/example/todolist/MainActivity.kt`.
+- Accessibility hard-block service: `android/app/src/main/kotlin/com/example/todolist/AppBlockerAccessibilityService.kt`.
 
-## 2) Build / Lint / Test Commands
-Run commands from repository root.
+## 2) Quick Start Commands
+Run all commands from repo root (`D:\Mikel Stuff\TA\todolist`) unless stated otherwise.
 
-### Environment setup
-- Install dependencies: `flutter pub get`
+### Dependency setup
+- Install packages: `flutter pub get`
 
 ### Run app
-- Default run: `flutter run`
-- Android target: `flutter run -d android`
-- Chrome target: `flutter run -d chrome`
+- Default: `flutter run`
+- Android device/emulator: `flutter run -d android`
+- Chrome (if needed): `flutter run -d chrome`
 
-### Lint and static analysis
-- Analyze project: `flutter analyze`
+### Static checks
+- Analyze: `flutter analyze`
+- Format all: `dart format .`
+- Format check only: `dart format --output=none --set-exit-if-changed .`
 
-### Formatting
-- Apply formatting: `dart format .`
-- Check only (CI style): `dart format --output=none --set-exit-if-changed .`
-
-### Tests
+### Tests (important)
 - Run all tests: `flutter test`
 - Run one file: `flutter test test/path/to/file_test.dart`
-- Run one test by exact name:
+- Run one exact test case:
   - `flutter test test/path/to/file_test.dart --plain-name "shows error when title is empty"`
-- Run tests by name pattern:
+- Run test(s) by name pattern:
   - `flutter test test/path/to/file_test.dart --name "title is empty"`
-Single-test workflow recommendation:
-1. Run one file while iterating.
-2. Narrow to one case with `--plain-name`.
-3. Run full `flutter test` before finishing.
-Current repo note: there is no committed `test/` directory yet.
+- Current repository note: `test/` may not exist yet; add tests under `test/` when introducing test coverage.
 
 ### Code generation
-- Generate once: `dart run build_runner build --delete-conflicting-outputs`
+- One-time generation: `dart run build_runner build --delete-conflicting-outputs`
 - Watch mode: `dart run build_runner watch --delete-conflicting-outputs`
 - Derry alias: `dart run derry build`
-`derry build` currently does:
-1. `flutter clean`
-2. `dart pub get`
-3. `dart run build_runner build --delete-conflicting-outputs`
+  - Current sequence in `derry build`:
+    1. `flutter clean`
+    2. `dart pub get`
+    3. `dart run build_runner build --delete-conflicting-outputs`
 
-### Other useful commands
+### Useful maintenance
 - Clean artifacts: `flutter clean`
 - Regenerate launcher icon: `dart run flutter_launcher_icons`
 
-## 3) Code Style Guidelines
-Follow existing conventions in `lib/` and Android Kotlin sources.
+## 3) Single-Test Workflow (Recommended)
+1. Run one changed file first (`flutter test test/that_file_test.dart`).
+2. Narrow to one exact case with `--plain-name` while iterating.
+3. Re-run changed file after fix.
+4. Run full `flutter test` before finalizing.
+5. Always run `flutter analyze` + `dart format .` before handoff.
+
+## 4) Code Style Rules (Dart/Flutter)
 
 ### Imports
-- Use import order: `dart:` -> `package:` -> relative project imports.
-- Keep one blank line between import groups.
-- Prefer relative imports for app-local modules (current project convention).
-- Avoid unused imports; keep imports minimal and explicit.
+- Order groups: `dart:` -> `package:` -> relative project imports.
+- Keep one blank line between groups.
+- Prefer relative imports for app-local modules.
+- Remove unused imports.
 
 ### Formatting and structure
-- Use `dart format` as source of truth.
+- `dart format` is source of truth.
 - Use 2-space indentation.
-- Keep trailing commas in multiline widget/argument lists.
-- Break large `build()` methods into small private widget builders.
-- Keep comments short and only for non-obvious logic.
+- Keep trailing commas in multiline widget and parameter lists.
+- Break large widgets into small private builders.
+- Keep comments minimal; only explain non-obvious intent.
 
-### Types and null safety
-- Prefer explicit types on public methods, fields, and return values.
-- Use `final` for immutable references and `const` wherever possible.
-- Avoid `dynamic` unless required at JSON/plugin boundaries.
-- Use nullable types deliberately (`Type?`) and guard before dereference.
-- Prefer typed callbacks (`VoidCallback`, `ValueChanged<T>`) over broad `Function`.
+### Types and null-safety
+- Use explicit types for public APIs and important state fields.
+- Prefer `final`, and `const` where possible.
+- Avoid `dynamic` except at plugin/channel boundaries.
+- Guard nullable usage intentionally (`Type?` + checks).
+- Prefer typed callbacks (`VoidCallback`, `ValueChanged<T>`).
 
 ### Naming conventions
 - Files: `snake_case.dart`.
-- Classes and enums: `PascalCase`.
-- Variables, fields, methods: `lowerCamelCase`.
-- Private members: leading underscore (`_loadData`, `_isLoading`).
-- Keep constants as `const`; private constants should use leading underscore.
+- Classes/enums: `PascalCase`.
+- Members/locals/functions: `lowerCamelCase`.
+- Private members: prefix with `_`.
+- Constants: `const`; private constants should also be private by naming.
 
-### State and widget patterns
-- Current UI state style is `StatefulWidget` + `setState`; keep this unless asked to refactor.
-- After `await`, verify `mounted` before navigation, dialogs, snackbar, or `setState`.
+### Stateful UI and async flow
+- Existing pattern is `StatefulWidget` + `setState`; follow it unless refactor is requested.
+- After `await`, check `mounted` before:
+  - `setState`
+  - navigation
+  - showing dialogs/snackbars
 - Dispose controllers/listeners in `dispose()`.
-- Keep user feedback with `ScaffoldMessenger` for important actions.
+- Use `ScaffoldMessenger` for user feedback.
 
-### Error handling
-- Wrap platform/storage calls in `try/catch` (`MethodChannel`, `SharedPreferences`).
-- Do not silently swallow errors; at least log with `debugPrint`.
-- Use safe fallback behavior on failures (for example empty data or false permissions).
-- Reset loading flags in `finally` blocks where relevant.
-- Keep user-facing errors concise and actionable.
+### Error handling and logging
+- Wrap platform/storage calls in `try/catch`.
+- Never silently swallow errors; log them.
+- Prefer `AppLogger` for structured logging in app code.
+- Provide safe fallback behavior (empty list/false/null) on failures.
+- Keep user-facing error messages concise and actionable.
 
-### Data and serialization
-- Do not edit generated files (`*.g.dart`) manually.
-- Change annotated model source files, then re-run build_runner.
-- Keep storage key strings centralized as `static const` fields.
-- Preserve JSON compatibility unless a migration is intentional.
+## 5) Android/Kotlin Interop Rules
+- Keep channel name/method strings identical across Dart and Kotlin.
+- If adding a channel method, update both:
+  - `PermissionService` (Dart)
+  - `MainActivity` method handler (Kotlin)
+- Keep `AndroidManifest.xml` permissions/queries aligned with feature behavior.
+- Preserve hard-block behavior in accessibility service unless explicitly changing product behavior.
 
-### Navigation and async flow
-- Existing pattern: `Navigator.push(...)` and inspect return value (`result == true`) to refresh.
-- Keep confirmation dialogs before destructive actions.
-- Keep custom transitions consistent in screens already using `PageRouteBuilder`.
+## 6) Intervention and Blocking Domain Conventions
+- Block toggles are stored as `block_<packageName>`.
+- Always-allow whitelist keys use `allow_<packageName>`.
+- Urgency windows are stored as hour values:
+  - `intervention_window_low_hours`
+  - `intervention_window_medium_hours`
+  - `intervention_window_high_hours`
+- Current defaults:
+  - Low: `2` hours
+  - Medium: `8` hours
+  - High: `24` hours
+- Whitelist overrides blocking (if app is whitelisted, do not block).
+- Do not introduce conflicting key names; reuse centralized constants in `AppBlockerService`.
 
-### Android native interoperability
-- Keep MethodChannel name and method strings identical in Dart and Kotlin.
-- For new channel methods, update both Dart service and `MainActivity` handler.
-- Keep Android manifest/service permissions aligned with native + Dart behavior.
+## 7) Data and Generated Files
+- Do not edit generated files manually (`*.g.dart`).
+- Update annotated source files and rerun build_runner.
+- Preserve JSON compatibility unless migration is intentional and documented.
 
-## 4) Repository Layout Conventions
-- `lib/models/`: serializable domain models.
-- `lib/repositories/`: persistence and data access.
-- `lib/services/`: platform and app services.
-- `lib/screens/`: UI screens and feature widgets.
-- `android/app/src/main/kotlin/...`: native Android integration.
-When adding files, place them in the nearest matching feature folder.
+## 8) Repository Layout Guidance
+- `lib/models/`: models and value types.
+- `lib/repositories/`: persistence/data access.
+- `lib/services/`: platform services and app-level logic.
+- `lib/screens/`: UI screens and view composition.
+- `android/app/src/main/kotlin/...`: Android host/native services.
+- Put new files in the nearest feature folder (prefer cohesion over broad shared dumping).
 
-## 5) Done Checklist For Agents
-Before finalizing non-trivial code changes:
+## 9) Cursor / Copilot Rules
+- Checked paths:
+  - `.cursor/rules/`
+  - `.cursorrules`
+  - `.github/copilot-instructions.md`
+- Result: no repository-specific Cursor/Copilot instruction files were found.
+- Therefore, follow this `AGENTS.md` and existing in-code conventions as the primary agent policy.
+
+## 10) Completion Checklist for Agents
+Before finalizing non-trivial changes:
 1. `dart format .`
 2. `flutter analyze`
-3. `flutter test` (or targeted test command while iterating)
-4. `dart run build_runner build --delete-conflicting-outputs` if models changed
-5. Optional smoke test with `flutter run` for UI/platform work
-If local tooling is unavailable in the execution environment, still provide exact commands and expected checks.
+3. `flutter test` (or targeted test + full suite if tests exist)
+4. `dart run build_runner build --delete-conflicting-outputs` (if model/serialization changed)
+5. Optional smoke run on Android for UI/native-interaction changes
 
-## 6) Test Authoring Notes
-- Place tests under `test/` and mirror source structure where practical.
-- Use `*_test.dart` suffix for all test files.
-- Keep unit tests deterministic; avoid time/network dependence.
-- For widget tests, use explicit pumps and clear `find` matchers.
-- Name tests with behavior-focused phrases (what should happen).
-- Prefer adding a focused regression test when fixing bugs.
-- During iteration, run only the changed file, then one case, then full suite.
+If a tool is unavailable locally, still provide exact commands and expected outcomes in your handoff.
