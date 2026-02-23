@@ -46,11 +46,20 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
   }
 
   Future<void> _selectDeadline() async {
+    final now = DateTime.now();
+    final firstDate = DateTime(now.year, now.month, now.day);
+    final lastDate = firstDate.add(const Duration(days: 365));
+    final initialDate = _selectedDeadline.isBefore(firstDate)
+        ? firstDate
+        : _selectedDeadline.isAfter(lastDate)
+        ? lastDate
+        : _selectedDeadline;
+
     final picked = await showDatePicker(
       context: context,
-      initialDate: _selectedDeadline,
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 365)),
+      initialDate: initialDate,
+      firstDate: firstDate,
+      lastDate: lastDate,
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
