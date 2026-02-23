@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 
+import '../models/installed_focus_app.dart';
 import 'app_logger.dart';
 
 class PermissionService {
@@ -78,5 +79,58 @@ class PermissionService {
     final bool accessibilityEnabled = await isAccessibilityServiceEnabled();
     final bool usageStatsGranted = await isUsageStatsPermissionGranted();
     return accessibilityEnabled && usageStatsGranted;
+  }
+
+  static Future<String?> consumeBlockedPackage() async {
+    try {
+      final String? packageName = await _channel.invokeMethod<String>(
+        'consumeBlockedPackage',
+      );
+      return packageName;
+    } on PlatformException catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to consume blocked package event.',
+        error: e.message ?? e,
+        stackTrace: stackTrace,
+      );
+      return null;
+    }
+  }
+
+  static Future<List<InstalledFocusApp>> getInstalledFocusApps() async {
+    try {
+      final List<dynamic>? rawApps = await _channel.invokeMethod<List<dynamic>>(
+        'getInstalledFocusApps',
+      );
+
+      if (rawApps == null) {
+        return [];
+      }
+
+      final apps = rawApps
+          .whereType<Map<dynamic, dynamic>>()
+          .map(InstalledFocusApp.fromMap)
+          .where((app) => app.packageName.isNotEmpty && app.appName.isNotEmpty)
+          .toList();
+
+      return apps;
+    } on PlatformException catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to fetch installed focus apps.',
+        error: e.message ?? e,
+        stackTrace: stackTrace,
+      );
+      return [];
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to parse installed focus apps.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return [];
+    }
   }
 }
