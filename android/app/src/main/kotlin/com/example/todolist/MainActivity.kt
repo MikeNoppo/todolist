@@ -15,6 +15,7 @@ import android.os.Bundle
 import android.os.Process
 import android.provider.Settings
 import android.text.TextUtils.SimpleStringSplitter
+import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
 import io.flutter.plugin.common.MethodChannel
@@ -23,10 +24,17 @@ import java.util.Locale
 
 class MainActivity : FlutterActivity() {
     companion object {
+        private const val TAG = "MainActivity"
         const val EXTRA_BLOCKED_PACKAGE = "blocked_package"
 
         @Volatile
         private var pendingBlockedPackage: String? = null
+
+        @JvmStatic
+        fun queueBlockedPackage(packageName: String) {
+            pendingBlockedPackage = packageName
+            Log.d(TAG, "Queued blocked package: package=$packageName")
+        }
     }
 
     private val CHANNEL = "app_blocker/permissions"
@@ -47,6 +55,7 @@ class MainActivity : FlutterActivity() {
         "pinterest",
         "linkedin",
         "youtube",
+        "brave",
         "viber",
         "signal",
         "zalo",
@@ -106,7 +115,26 @@ class MainActivity : FlutterActivity() {
                 "consumeBlockedPackage" -> {
                     val blockedPackage = pendingBlockedPackage
                     pendingBlockedPackage = null
+                    Log.d(TAG, "consumeBlockedPackage called: package=$blockedPackage")
                     result.success(blockedPackage)
+                }
+                "peekBlockedPackage" -> {
+                    Log.d(TAG, "peekBlockedPackage called: package=$pendingBlockedPackage")
+                    result.success(pendingBlockedPackage)
+                }
+                "acknowledgeBlockedPackage" -> {
+                    val packageName = call.argument<String>("packageName")
+                    val acknowledged = !packageName.isNullOrBlank() &&
+                        packageName == pendingBlockedPackage
+                    if (acknowledged) {
+                        pendingBlockedPackage = null
+                    }
+
+                    Log.d(
+                        TAG,
+                        "acknowledgeBlockedPackage called: package=$packageName acknowledged=$acknowledged"
+                    )
+                    result.success(acknowledged)
                 }
                 "getInstalledFocusApps" -> {
                     result.success(getInstalledFocusApps())
@@ -121,7 +149,8 @@ class MainActivity : FlutterActivity() {
     private fun consumeBlockedPackageFromIntent(intent: Intent?) {
         val blockedPackage = intent?.getStringExtra(EXTRA_BLOCKED_PACKAGE)
         if (!blockedPackage.isNullOrBlank()) {
-            pendingBlockedPackage = blockedPackage
+            queueBlockedPackage(blockedPackage)
+            Log.d(TAG, "Received blocked package from intent: package=$blockedPackage")
         }
     }
 
