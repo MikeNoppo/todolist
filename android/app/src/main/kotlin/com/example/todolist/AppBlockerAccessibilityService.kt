@@ -9,6 +9,7 @@ import org.json.JSONArray
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import java.util.TimeZone
 
 class AppBlockerAccessibilityService : AccessibilityService() {
 
@@ -210,23 +211,42 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             return null
         }
 
+        val normalizedValue = normalizeIsoDate(value)
+
         val supportedPatterns = listOf(
             "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
             "yyyy-MM-dd'T'HH:mm:ssXXX",
             "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss'Z'"
+            "yyyy-MM-dd'T'HH:mm:ss'Z'",
+            "yyyy-MM-dd'T'HH:mm:ss.SSS",
+            "yyyy-MM-dd'T'HH:mm:ss"
         )
 
         for (pattern in supportedPatterns) {
             try {
                 val parser = SimpleDateFormat(pattern, Locale.US)
-                val date: Date = parser.parse(value) ?: continue
+                parser.isLenient = false
+                if (pattern.contains("'Z'")) {
+                    parser.timeZone = TimeZone.getTimeZone("UTC")
+                } else if (!pattern.contains("XXX")) {
+                    parser.timeZone = TimeZone.getDefault()
+                }
+
+                val date: Date = parser.parse(normalizedValue) ?: continue
                 return date.time
             } catch (_: Exception) {
             }
         }
 
         return null
+    }
+
+    private fun normalizeIsoDate(value: String): String {
+        val trimmed = value.trim()
+        return trimmed.replace(
+            Regex("(\\.\\d{3})\\d+(?=(Z|[+-]\\d{2}:?\\d{2})?$)"),
+            "$1"
+        )
     }
 
     private fun getStoredInt(
