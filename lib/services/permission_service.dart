@@ -81,6 +81,46 @@ class PermissionService {
     return accessibilityEnabled && usageStatsGranted;
   }
 
+  static Future<String?> peekBlockedPackage() async {
+    try {
+      final String? packageName = await _channel.invokeMethod<String>(
+        'peekBlockedPackage',
+      );
+      AppLogger.debug(_tag, 'Peek blocked package event: package=$packageName');
+      return packageName;
+    } on PlatformException catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to peek blocked package event.',
+        error: e.message ?? e,
+        stackTrace: stackTrace,
+      );
+      return null;
+    }
+  }
+
+  static Future<bool> acknowledgeBlockedPackage(String packageName) async {
+    try {
+      final bool? acknowledged = await _channel.invokeMethod<bool>(
+        'acknowledgeBlockedPackage',
+        <String, dynamic>{'packageName': packageName},
+      );
+      AppLogger.debug(
+        _tag,
+        'Acknowledge blocked package: package=$packageName acknowledged=$acknowledged',
+      );
+      return acknowledged ?? false;
+    } on PlatformException catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to acknowledge blocked package event.',
+        error: e.message ?? e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
+
   static Future<String?> consumeBlockedPackage() async {
     try {
       final String? packageName = await _channel.invokeMethod<String>(

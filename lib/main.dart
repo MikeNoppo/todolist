@@ -46,6 +46,8 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
 
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
   bool _isInterventionVisible = false;
+  bool _isPendingRetryScheduled = false;
+  String? _pendingBlockedPackage;
 
   @override
   void initState() {
@@ -75,13 +77,21 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
       return;
     }
 
-    final blockedPackage = await PermissionService.consumeBlockedPackage();
+    final blockedPackage =
+        _pendingBlockedPackage ?? await PermissionService.peekBlockedPackage();
     if (blockedPackage == null || blockedPackage.isEmpty) {
       return;
     }
 
+    _pendingBlockedPackage = blockedPackage;
+
     final navigator = _navigatorKey.currentState;
     if (navigator == null || !mounted) {
+      AppLogger.warn(
+        _tag,
+        'Navigator not ready yet; retrying intervention for package=$blockedPackage',
+      );
+      _schedulePendingInterventionRetry();
       return;
     }
 
@@ -91,14 +101,54 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     );
 
     _isInterventionVisible = true;
+    var shouldProcessNextPendingPackage = false;
     try {
       await AppBlockerService.showInterventionScreenWithNavigator(
         navigator,
         blockedPackage,
       );
+
+      final acknowledged = await PermissionService.acknowledgeBlockedPackage(
+        blockedPackage,
+      );
+      AppLogger.debug(
+        _tag,
+        'Intervention closed for package=$blockedPackage acknowledged=$acknowledged',
+      );
+
+      _pendingBlockedPackage = null;
+      shouldProcessNextPendingPackage = true;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to present intervention screen for package=$blockedPackage.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      _schedulePendingInterventionRetry();
     } finally {
       _isInterventionVisible = false;
     }
+
+    if (mounted && shouldProcessNextPendingPackage) {
+      await _consumeBlockedPackageAndPresent();
+    }
+  }
+
+  void _schedulePendingInterventionRetry() {
+    if (_isPendingRetryScheduled) {
+      return;
+    }
+
+    _isPendingRetryScheduled = true;
+    Future.delayed(const Duration(milliseconds: 300), () {
+      _isPendingRetryScheduled = false;
+      if (!mounted) {
+        return;
+      }
+
+      _consumeBlockedPackageAndPresent();
+    });
   }
 
   @override
