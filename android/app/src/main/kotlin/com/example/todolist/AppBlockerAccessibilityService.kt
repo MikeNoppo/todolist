@@ -4,6 +4,8 @@ import android.accessibilityservice.AccessibilityService
 import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.util.Log
 import org.json.JSONArray
@@ -327,20 +329,20 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
         val interventionIntent = buildInterventionIntent(packageName)
 
-        Log.d(TAG, "Prepared intervention intent for package=$packageName")
+        val homeActionSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
+        Log.d(
+            TAG,
+            "Prepared intervention intent for package=$packageName homeActionSucceeded=$homeActionSucceeded"
+        )
 
-        try {
-            startActivity(interventionIntent)
-            Log.d(TAG, "Requested intervention activity launch for package=$packageName")
-        } catch (error: Exception) {
-            Log.e(TAG, "Failed to launch intervention activity for package=$packageName", error)
-
-            val homeActionSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
-            Log.w(
-                TAG,
-                "Fallback home action executed after launch failure: package=$packageName homeActionSucceeded=$homeActionSucceeded"
-            )
-        }
+        Handler(Looper.getMainLooper()).postDelayed({
+            try {
+                startActivity(interventionIntent)
+                Log.d(TAG, "Requested intervention activity launch for package=$packageName")
+            } catch (error: Exception) {
+                Log.e(TAG, "Failed to launch intervention activity for package=$packageName", error)
+            }
+        }, 140L)
     }
 
     private fun buildInterventionIntent(packageName: String): Intent {
