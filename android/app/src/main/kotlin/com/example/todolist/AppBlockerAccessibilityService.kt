@@ -18,6 +18,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         private const val KEY_LOW_WINDOW_HOURS = "flutter.intervention_window_low_hours"
         private const val KEY_MEDIUM_WINDOW_HOURS = "flutter.intervention_window_medium_hours"
         private const val KEY_HIGH_WINDOW_HOURS = "flutter.intervention_window_high_hours"
+        private const val KEY_BLOCK_PREFIX = "flutter.block_"
+        private const val KEY_ALLOW_PREFIX = "flutter.allow_"
         private const val KEY_LAST_BLOCKED_PACKAGE = "flutter.debug_last_blocked_package"
         private const val KEY_LAST_BLOCKED_PRIORITY = "flutter.debug_last_blocked_priority"
         private const val KEY_LAST_BLOCKED_TASK_TITLE = "flutter.debug_last_blocked_task_title"
@@ -128,12 +130,17 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         prefs: android.content.SharedPreferences,
         packageName: String
     ): Boolean {
+        val isAlwaysAllowed = prefs.getBoolean("$KEY_ALLOW_PREFIX$packageName", false)
+        if (isAlwaysAllowed) {
+            return false
+        }
+
         val hasAnyUserBlockConfig = prefs.all.keys.any { key ->
-            key.startsWith("flutter.block_")
+            key.startsWith(KEY_BLOCK_PREFIX)
         }
 
         return if (hasAnyUserBlockConfig) {
-            prefs.getBoolean("flutter.block_$packageName", false)
+            prefs.getBoolean("$KEY_BLOCK_PREFIX$packageName", false)
         } else {
             DEFAULT_BLOCKED_APPS.contains(packageName)
         }
