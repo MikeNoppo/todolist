@@ -11,6 +11,9 @@ class DashboardOverviewCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final cardPadding = AppSizeTokens.space16;
+    final titleToGridSpacing = AppSizeTokens.space2;
+
     final completedTasks = todos.where((todo) => todo.isCompleted).length;
     final totalTasks = todos.length;
     final todayTasks = todos.where((todo) {
@@ -51,7 +54,7 @@ class DashboardOverviewCard extends StatelessWidget {
         AppSizeTokens.pagePadding,
         0,
       ),
-      padding: EdgeInsets.all(AppSizeTokens.cardPadding),
+      padding: EdgeInsets.all(cardPadding),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(AppSizeTokens.radius16),
@@ -74,7 +77,7 @@ class DashboardOverviewCard extends StatelessWidget {
               color: Colors.black87,
             ),
           ),
-          SizedBox(height: AppSizeTokens.space16),
+          SizedBox(height: titleToGridSpacing),
           Builder(
             builder: (context) {
               final textScale = MediaQuery.textScalerOf(context).scale(1);
