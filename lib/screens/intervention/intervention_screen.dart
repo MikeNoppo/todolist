@@ -61,6 +61,10 @@ class _InterventionScreenState extends State<InterventionScreen>
     super.initState();
     _initializeAnimations();
     _urgentTask = widget.currentHighPriorityTask;
+    AppLogger.info(
+      _tag,
+      'Intervention screen opened: blockedApp=${widget.blockedAppName}',
+    );
     if (_urgentTask == null || _urgentTask!.isEmpty) {
       _loadUrgentTask();
     }
@@ -133,6 +137,7 @@ class _InterventionScreenState extends State<InterventionScreen>
   @override
   void dispose() {
     _animationController.dispose();
+    AppLogger.info(_tag, 'Intervention screen disposed.');
     super.dispose();
   }
 
@@ -345,6 +350,8 @@ class _InterventionScreenState extends State<InterventionScreen>
   void _handleBackToWork() {
     // Add haptic feedback
     HapticFeedback.lightImpact();
+
+    AppLogger.info(_tag, 'User dismissed intervention screen.');
 
     // Close the intervention screen
     Navigator.of(context).pop();
