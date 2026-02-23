@@ -1,6 +1,7 @@
 package com.example.todolist
 
 import android.accessibilityservice.AccessibilityService
+import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
@@ -33,7 +34,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         private const val DEFAULT_MEDIUM_WINDOW_HOURS = 8
         private const val DEFAULT_HIGH_WINDOW_HOURS = 24
         private const val MILLIS_PER_HOUR = 60L * 60L * 1000L
-        private const val COOLDOWN_MILLIS = 10_000L
+        private const val REENTRY_GUARD_MILLIS = 1_200L
 
         private val DEFAULT_BLOCKED_APPS = setOf(
             "com.facebook.katana",
@@ -50,10 +51,10 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             private set
 
         @Volatile
-        private var lastBlockedPackage: String? = null
+        private var lastTriggeredPackage: String? = null
 
         @Volatile
-        private var lastBlockedAtMillis: Long = 0L
+        private var lastTriggeredAtMillis: Long = 0L
     }
 
     private data class BlockingReason(
@@ -70,7 +71,9 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
-        if (event.eventType != AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED) {
+        val isWindowEvent = event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
+            event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+        if (!isWindowEvent) {
             return
         }
 
@@ -79,11 +82,20 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             return
         }
 
-        if (isInCooldown(currentPackageName)) {
+        if (isInReentryGuard(currentPackageName)) {
+            Log.d(TAG, "Skipping package due reentry guard: package=$currentPackageName")
             return
         }
 
+        Log.d(TAG, "Evaluating package for hard block: package=$currentPackageName")
+
         val blockingReason = getBlockingReasonForPackage(currentPackageName) ?: return
+        Log.d(
+            TAG,
+            "Hard block eligible: package=$currentPackageName task=${blockingReason.taskTitle} " +
+                "priority=${blockingReason.priority} remainingMinutes=${blockingReason.remainingMinutes} " +
+                "windowHours=${blockingReason.windowHours}"
+        )
         triggerHardBlock(currentPackageName, blockingReason)
     }
 
@@ -99,32 +111,43 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
     private fun shouldEvaluatePackage(packageName: String): Boolean {
         if (packageName == this.packageName) {
+            Log.d(TAG, "Skipping own package event: package=$packageName")
             return false
         }
 
         if (packageName.startsWith("com.android.systemui")) {
+            Log.d(TAG, "Skipping system ui package event: package=$packageName")
             return false
         }
 
         if (packageName.startsWith("com.android.launcher")) {
+            Log.d(TAG, "Skipping launcher package event: package=$packageName")
+            return false
+        }
+
+        if (packageName.startsWith("com.miui.home") ||
+            packageName.startsWith("com.mi.android.globallauncher")
+        ) {
+            Log.d(TAG, "Skipping MIUI launcher package event: package=$packageName")
             return false
         }
 
         return true
     }
 
-    private fun isInCooldown(packageName: String): Boolean {
-        val now = System.currentTimeMillis()
-        return packageName == lastBlockedPackage && now - lastBlockedAtMillis < COOLDOWN_MILLIS
-    }
-
     private fun getBlockingReasonForPackage(packageName: String): BlockingReason? {
         val prefs = getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
         if (!isPackageBlockedByUserPolicy(prefs, packageName)) {
+            Log.d(TAG, "Package is not blocked by user policy: package=$packageName")
             return null
         }
 
-        return findBlockingReason(prefs)
+        val reason = findBlockingReason(prefs)
+        if (reason == null) {
+            Log.d(TAG, "No urgent task candidate found for package=$packageName")
+        }
+
+        return reason
     }
 
     private fun isPackageBlockedByUserPolicy(
@@ -133,6 +156,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     ): Boolean {
         val isAlwaysAllowed = prefs.getBoolean("$KEY_ALLOW_PREFIX$packageName", false)
         if (isAlwaysAllowed) {
+            Log.d(TAG, "Package is whitelisted (always allow): package=$packageName")
             return false
         }
 
@@ -140,17 +164,28 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             key.startsWith(KEY_BLOCK_PREFIX)
         }
 
-        return if (hasAnyUserBlockConfig) {
+        val isBlocked = if (hasAnyUserBlockConfig) {
             prefs.getBoolean("$KEY_BLOCK_PREFIX$packageName", false)
         } else {
             DEFAULT_BLOCKED_APPS.contains(packageName)
         }
+
+        Log.d(
+            TAG,
+            "User policy evaluation: package=$packageName hasUserConfig=$hasAnyUserBlockConfig blocked=$isBlocked"
+        )
+        return isBlocked
     }
 
     private fun findBlockingReason(
         prefs: android.content.SharedPreferences
     ): BlockingReason? {
-        val todosJson = prefs.getString("flutter.todos", null) ?: return null
+        val todosJson = prefs.getString("flutter.todos", null)
+        if (todosJson.isNullOrBlank()) {
+            Log.d(TAG, "No todos found in shared preferences; skipping hard block")
+            return null
+        }
+
         val lowWindowHours = getStoredInt(prefs, KEY_LOW_WINDOW_HOURS, DEFAULT_LOW_WINDOW_HOURS)
         val mediumWindowHours = getStoredInt(
             prefs,
@@ -160,15 +195,24 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         val highWindowHours = getStoredInt(prefs, KEY_HIGH_WINDOW_HOURS, DEFAULT_HIGH_WINDOW_HOURS)
         val now = System.currentTimeMillis()
 
+        Log.d(
+            TAG,
+            "Evaluating todo urgency windows: low=${lowWindowHours}h medium=${mediumWindowHours}h high=${highWindowHours}h"
+        )
+
         return try {
             var selectedReason: BlockingReason? = null
             var selectedDeltaMillis = Long.MAX_VALUE
             val todos = JSONArray(todosJson)
+            var evaluatedTodos = 0
+
             for (index in 0 until todos.length()) {
                 val todo = todos.optJSONObject(index) ?: continue
                 if (todo.optBoolean("isCompleted", false)) {
                     continue
                 }
+
+                evaluatedTodos += 1
 
                 val priority = todo.optString("priority", "").lowercase(Locale.US)
                 val deadlineIso = todo.optString("deadline", "")
@@ -197,6 +241,13 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                         )
                     }
                 }
+            }
+
+            if (selectedReason == null) {
+                Log.d(
+                    TAG,
+                    "No task falls inside intervention window. evaluatedTodos=$evaluatedTodos"
+                )
             }
 
             selectedReason
@@ -238,6 +289,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             }
         }
 
+        Log.w(TAG, "Unable to parse todo deadline value: $value")
+
         return null
     }
 
@@ -266,24 +319,58 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     }
 
     private fun triggerHardBlock(packageName: String, reason: BlockingReason) {
-        lastBlockedPackage = packageName
-        lastBlockedAtMillis = System.currentTimeMillis()
+        lastTriggeredPackage = packageName
+        lastTriggeredAtMillis = System.currentTimeMillis()
 
         saveLastBlockedDebugInfo(packageName, reason)
+        MainActivity.queueBlockedPackage(packageName)
 
-        Log.d(TAG, "Hard block triggered for package=$packageName")
-        performGlobalAction(GLOBAL_ACTION_HOME)
+        val interventionIntent = buildInterventionIntent(packageName)
 
-        val interventionIntent = Intent(this, MainActivity::class.java).apply {
+        Log.d(TAG, "Prepared intervention intent for package=$packageName")
+
+        try {
+            startActivity(interventionIntent)
+            Log.d(TAG, "Requested intervention activity launch for package=$packageName")
+        } catch (error: Exception) {
+            Log.e(TAG, "Failed to launch intervention activity for package=$packageName", error)
+
+            val homeActionSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
+            Log.w(
+                TAG,
+                "Fallback home action executed after launch failure: package=$packageName homeActionSucceeded=$homeActionSucceeded"
+            )
+        }
+    }
+
+    private fun buildInterventionIntent(packageName: String): Intent {
+        val launchIntent = packageManager.getLaunchIntentForPackage(this.packageName)
+
+        val baseIntent = launchIntent ?: Intent(this, MainActivity::class.java).apply {
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
+        }
+
+        return baseIntent.apply {
+            component = ComponentName(this@AppBlockerAccessibilityService, MainActivity::class.java)
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
             )
             putExtra(MainActivity.EXTRA_BLOCKED_PACKAGE, packageName)
         }
+    }
 
-        startActivity(interventionIntent)
+    private fun isInReentryGuard(packageName: String): Boolean {
+        val lastPackage = lastTriggeredPackage ?: return false
+        if (lastPackage != packageName) {
+            return false
+        }
+
+        val elapsedMillis = System.currentTimeMillis() - lastTriggeredAtMillis
+        return elapsedMillis in 0 until REENTRY_GUARD_MILLIS
     }
 
     private fun saveLastBlockedDebugInfo(packageName: String, reason: BlockingReason) {
