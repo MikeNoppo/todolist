@@ -38,6 +38,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private val CHANNEL = "app_blocker/permissions"
+    private var methodChannel: MethodChannel? = null
     private val socialKeywords = listOf(
         "facebook",
         "instagram",
@@ -96,7 +97,10 @@ class MainActivity : FlutterActivity() {
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
-        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL).setMethodCallHandler { call, result ->
+        val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        methodChannel = channel
+
+        channel.setMethodCallHandler { call, result ->
             when (call.method) {
                 "isAccessibilityServiceEnabled" -> {
                     result.success(isAccessibilityServiceEnabled())
@@ -144,6 +148,10 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+
+        pendingBlockedPackage?.let { packageName ->
+            notifyBlockedPackageQueued(packageName)
+        }
     }
 
     private fun consumeBlockedPackageFromIntent(intent: Intent?) {
@@ -151,6 +159,16 @@ class MainActivity : FlutterActivity() {
         if (!blockedPackage.isNullOrBlank()) {
             queueBlockedPackage(blockedPackage)
             Log.d(TAG, "Received blocked package from intent: package=$blockedPackage")
+            notifyBlockedPackageQueued(blockedPackage)
+        }
+    }
+
+    private fun notifyBlockedPackageQueued(packageName: String) {
+        try {
+            methodChannel?.invokeMethod("blockedPackageQueued", packageName)
+            Log.d(TAG, "Notified Flutter blocked package queued: package=$packageName")
+        } catch (error: Exception) {
+            Log.w(TAG, "Failed notifying Flutter blocked package queued: package=$packageName", error)
         }
     }
 
