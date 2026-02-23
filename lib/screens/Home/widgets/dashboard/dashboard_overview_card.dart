@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../../../core/ui/app_size_tokens.dart';
 import '../../../../models/todo_model.dart';
@@ -76,21 +75,19 @@ class DashboardOverviewCard extends StatelessWidget {
             ),
           ),
           SizedBox(height: AppSizeTokens.space16),
-          LayoutBuilder(
-            builder: (context, constraints) {
+          Builder(
+            builder: (context) {
               final textScale = MediaQuery.textScalerOf(context).scale(1);
-              final shouldUseTwoColumns =
-                  constraints.maxWidth < 330.w || textScale > 1.2;
 
               return GridView.builder(
                 shrinkWrap: true,
                 physics: const NeverScrollableScrollPhysics(),
                 itemCount: stats.length,
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                  crossAxisCount: shouldUseTwoColumns ? 2 : 3,
+                  crossAxisCount: 3,
                   crossAxisSpacing: AppSizeTokens.space12,
                   mainAxisSpacing: AppSizeTokens.space12,
-                  mainAxisExtent: textScale > 1.2 ? 112.h : 96.h,
+                  mainAxisExtent: textScale > 1.2 ? 148 : 132,
                 ),
                 itemBuilder: (context, index) {
                   final item = stats[index];
