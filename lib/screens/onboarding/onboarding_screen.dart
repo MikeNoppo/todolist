@@ -104,7 +104,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           'Accessibility permission still disabled after app resume.',
         );
         _showPermissionSnackBar(
-          message: 'Izin aksesibilitas belum aktif. Aktifkan dulu untuk lanjut.',
+          message:
+              'Izin aksesibilitas belum aktif. Aktifkan dulu untuk lanjut.',
         );
       }
       return;
