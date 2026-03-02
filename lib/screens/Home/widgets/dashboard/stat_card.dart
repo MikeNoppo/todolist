@@ -19,7 +19,10 @@ class StatCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: AppSizeTokens.space12, vertical: 8),
+      padding: EdgeInsets.symmetric(
+        horizontal: AppSizeTokens.space12,
+        vertical: 8,
+      ),
       decoration: BoxDecoration(
         color: Colors.grey[50],
         borderRadius: BorderRadius.circular(AppSizeTokens.radius12),
