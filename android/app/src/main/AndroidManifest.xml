@@ -29,12 +29,15 @@
             </intent-filter>
         </activity>
 
+        <!-- NativeInterventionActivity kept as fallback; primary blocking now uses TYPE_ACCESSIBILITY_OVERLAY -->
         <activity
             android:name=".NativeInterventionActivity"
             android:exported="false"
-            android:launchMode="singleTop"
+            android:launchMode="singleTask"
             android:excludeFromRecents="true"
-            android:taskAffinity="" />
+            android:noHistory="true"
+            android:taskAffinity=""
+            android:theme="@style/InterventionTheme" />
         
         <!-- Accessibility Service -->
         <service
