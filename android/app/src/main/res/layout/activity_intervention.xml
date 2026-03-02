@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical"
+    android:gravity="center"
+    android:padding="32dp"
+    android:background="#1A1A1A">
+
+    <ImageView
+        android:id="@+id/iconView"
+        android:layout_width="120dp"
+        android:layout_height="120dp"
+        android:layout_marginBottom="48dp"
+        android:src="@android:drawable/ic_dialog_alert"
+        android:background="#0DFFFFFF"
+        android:padding="24dp" />
+
+    <TextView
+        android:id="@+id/quoteText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="&quot;Setiap detik yang Anda fokus adalah investasi untuk masa depan yang lebih baik.&quot;"
+        android:textColor="#FFFFFF"
+        android:textSize="22sp"
+        android:gravity="center"
+        android:textAlignment="center"
+        android:lineSpacingExtra="4dp" />
+
+    <TextView
+        android:id="@+id/quoteAuthor"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="- Unknown"
+        android:textColor="#B3FFFFFF"
+        android:textSize="16sp"
+        android:textStyle="italic"
+        android:layout_marginTop="16dp"
+        android:layout_marginBottom="40dp" />
+
+    <LinearLayout
+        android:id="@+id/taskContainer"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical"
+        android:gravity="center"
+        android:background="#334A6FA5"
+        android:padding="16dp"
+        android:layout_marginBottom="40dp">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tugas mendesak saat ini:"
+            android:textColor="#CCFFFFFF"
+            android:textSize="14sp"
+            android:layout_marginBottom="8dp" />
+
+        <TextView
+            android:id="@+id/taskTitleText"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Tugas"
+            android:textColor="#4A6FA5"
+            android:textSize="18sp"
+            android:textStyle="bold"
+            android:gravity="center" />
+    </LinearLayout>
+
+    <Button
+        android:id="@+id/backToWorkButton"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Kembali Bekerja"
+        android:textColor="#FFFFFF"
+        android:textSize="18sp"
+        android:backgroundTint="#4A6FA5"
+        android:paddingLeft="32dp"
+        android:paddingTop="16dp"
+        android:paddingRight="32dp"
+        android:paddingBottom="16dp"
+        android:layout_marginBottom="20dp" />
+
+    <TextView
+        android:id="@+id/blockedAppText"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Akses ke Aplikasi diblokir"
+        android:textColor="#80FFFFFF"
+        android:textSize="14sp"
+        android:textAlignment="center" />
+
+</LinearLayout>

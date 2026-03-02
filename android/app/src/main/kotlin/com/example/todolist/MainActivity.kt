@@ -35,6 +35,17 @@ class MainActivity : FlutterActivity() {
             pendingBlockedPackage = packageName
             Log.d(TAG, "Queued blocked package: package=$packageName")
         }
+
+        @JvmStatic
+        fun acknowledgeQueuedBlockedPackage(packageName: String?): Boolean {
+            val acknowledged = !packageName.isNullOrBlank() &&
+                packageName == pendingBlockedPackage
+            if (acknowledged) {
+                pendingBlockedPackage = null
+            }
+            Log.d(TAG, "acknowledgeQueuedBlockedPackage called: package=$packageName acknowledged=$acknowledged")
+            return acknowledged
+        }
     }
 
     private val CHANNEL = "app_blocker/permissions"

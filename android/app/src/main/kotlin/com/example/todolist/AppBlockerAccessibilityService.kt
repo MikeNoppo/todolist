@@ -1,7 +1,6 @@
 package com.example.todolist
 
 import android.accessibilityservice.AccessibilityService
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.os.Handler
@@ -327,7 +326,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         saveLastBlockedDebugInfo(packageName, reason)
         MainActivity.queueBlockedPackage(packageName)
 
-        val interventionIntent = buildInterventionIntent(packageName)
+        val interventionIntent = buildInterventionIntent(packageName, reason)
 
         val homeActionSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
         Log.d(
@@ -341,20 +340,42 @@ class AppBlockerAccessibilityService : AccessibilityService() {
                 Log.d(TAG, "Requested intervention activity launch for package=$packageName")
             } catch (error: Exception) {
                 Log.e(TAG, "Failed to launch intervention activity for package=$packageName", error)
+                try {
+                    startActivity(buildMainActivityFallbackIntent(packageName))
+                    Log.d(TAG, "Fallback launch to MainActivity succeeded for package=$packageName")
+                } catch (fallbackError: Exception) {
+                    Log.e(
+                        TAG,
+                        "Fallback launch to MainActivity failed for package=$packageName",
+                        fallbackError
+                    )
+                }
             }
         }, 140L)
     }
 
-    private fun buildInterventionIntent(packageName: String): Intent {
-        val launchIntent = packageManager.getLaunchIntentForPackage(this.packageName)
-
-        val baseIntent = launchIntent ?: Intent(this, MainActivity::class.java).apply {
+    private fun buildInterventionIntent(packageName: String, reason: BlockingReason): Intent {
+        return Intent(this, NativeInterventionActivity::class.java).apply {
             action = Intent.ACTION_MAIN
             addCategory(Intent.CATEGORY_LAUNCHER)
+            addFlags(
+                Intent.FLAG_ACTIVITY_NEW_TASK or
+                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
+                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
+                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
+            )
+            putExtra(NativeInterventionActivity.EXTRA_BLOCKED_PACKAGE, packageName)
+            putExtra(NativeInterventionActivity.EXTRA_BLOCKING_TASK_TITLE, reason.taskTitle)
+            putExtra(NativeInterventionActivity.EXTRA_BLOCKING_PRIORITY, reason.priority)
+            putExtra(NativeInterventionActivity.EXTRA_BLOCKING_REMAINING_MINUTES, reason.remainingMinutes)
+            putExtra(NativeInterventionActivity.EXTRA_BLOCKING_WINDOW_HOURS, reason.windowHours)
         }
+    }
 
-        return baseIntent.apply {
-            component = ComponentName(this@AppBlockerAccessibilityService, MainActivity::class.java)
+    private fun buildMainActivityFallbackIntent(packageName: String): Intent {
+        return Intent(this, MainActivity::class.java).apply {
+            action = Intent.ACTION_MAIN
+            addCategory(Intent.CATEGORY_LAUNCHER)
             addFlags(
                 Intent.FLAG_ACTIVITY_NEW_TASK or
                     Intent.FLAG_ACTIVITY_SINGLE_TOP or
