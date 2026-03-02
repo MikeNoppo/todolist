@@ -1,206 +1,41 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-class OnboardingPage3 extends StatefulWidget {
+import 'onboarding_permission_page.dart';
+
+class OnboardingPage3 extends StatelessWidget {
   final VoidCallback onReadComplete;
 
   const OnboardingPage3({super.key, required this.onReadComplete});
 
   @override
-  State<OnboardingPage3> createState() => _OnboardingPage3State();
-}
-
-class _OnboardingPage3State extends State<OnboardingPage3> {
-  final ScrollController _scrollController = ScrollController();
-  bool _hasReachedBottom = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!_hasReachedBottom && _scrollController.hasClients) {
-      final maxScroll = _scrollController.position.maxScrollExtent;
-      final currentScroll = _scrollController.position.pixels;
-      final threshold = maxScroll * 0.95; // 95% of the way down
-
-      if (currentScroll >= threshold) {
-        setState(() {
-          _hasReachedBottom = true;
-        });
-        widget.onReadComplete();
-      }
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final horizontalPadding = 0.08.sw;
-    final availableHeight = 0.75.sh;
-    final iconSize = (0.1.sh).clamp(50.w, 100.w).toDouble();
-    final titleSize = 24.sp.clamp(20.sp, 30.sp).toDouble();
-    final subtitleSize = 14.sp.clamp(12.sp, 18.sp).toDouble();
-    final permissionTitleSize = 14.sp.clamp(12.sp, 18.sp).toDouble();
-    final permissionSubtitleSize = 12.sp.clamp(11.sp, 16.sp).toDouble();
-    final disclaimerSize = 12.sp.clamp(11.sp, 16.sp).toDouble();
-    final permissionIconSize = (0.025.sh).clamp(16.sp, 32.sp).toDouble();
-
-    double spacingPage3(double ratio) {
-      return (ScreenUtil().screenHeight * ratio).clamp(4.h, 100.h).toDouble();
-    }
-
-    return Padding(
-      padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
-      child: SingleChildScrollView(
-        controller: _scrollController,
-        child: ConstrainedBox(
-          constraints: BoxConstraints(minHeight: availableHeight),
-          child: Column(
-            children: [
-              SizedBox(height: spacingPage3(0.02)),
-              Container(
-                width: iconSize,
-                height: iconSize,
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  shape: BoxShape.circle,
-                ),
-                child: Icon(
-                  Icons.accessibility_new_outlined,
-                  size: iconSize * 0.5,
-                  color: const Color(0xFF4A6FA5),
-                ),
-              ),
-              SizedBox(height: spacingPage3(0.03)),
-              Text(
-                'Izin\nAksesibilitas',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: titleSize,
-                  fontWeight: FontWeight.w300,
-                  color: Colors.black87,
-                  height: 1.2,
-                ),
-              ),
-              SizedBox(height: spacingPage3(0.015)),
-              Text(
-                'Untuk memblokir aplikasi pengganggu secara real-time, aktifkan layanan aksesibilitas myTask di perangkat Anda.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: subtitleSize,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black54,
-                  height: 1.4,
-                ),
-              ),
-              SizedBox(height: spacingPage3(0.03)),
-              Container(
-                padding: EdgeInsets.all(spacingPage3(0.02)),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  borderRadius: BorderRadius.circular(16.r),
-                  border: Border.all(color: Colors.grey[200]!),
-                ),
-                child: Column(
-                  children: [
-                    _buildPermissionItem(
-                      Icons.visibility_outlined,
-                      'Mendeteksi Aplikasi Aktif',
-                      'Membaca perubahan aplikasi yang sedang dibuka',
-                      permissionIconSize,
-                      permissionTitleSize,
-                      permissionSubtitleSize,
-                      spacingPage3,
-                    ),
-                    SizedBox(height: spacingPage3(0.015)),
-                    _buildPermissionItem(
-                      Icons.block_outlined,
-                      'Intervensi Langsung',
-                      'Menampilkan layar blokir saat distraksi dibuka',
-                      permissionIconSize,
-                      permissionTitleSize,
-                      permissionSubtitleSize,
-                      spacingPage3,
-                    ),
-                    SizedBox(height: spacingPage3(0.015)),
-                    _buildPermissionItem(
-                      Icons.lock_outline,
-                      'Tetap Aman',
-                      'Layanan hanya dipakai untuk fitur fokus',
-                      permissionIconSize,
-                      permissionTitleSize,
-                      permissionSubtitleSize,
-                      spacingPage3,
-                    ),
-                  ],
-                ),
-              ),
-              SizedBox(height: spacingPage3(0.02)),
-              Text(
-                'Layanan aksesibilitas tidak dipakai untuk membaca isi chat atau data pribadi Anda.',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  fontSize: disclaimerSize,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black45,
-                  height: 1.3,
-                ),
-              ),
-              SizedBox(height: spacingPage3(0.04)),
-            ],
-          ),
+    return OnboardingPermissionPage(
+      onReadComplete: onReadComplete,
+      headerIcon: Icons.accessibility_new_outlined,
+      title: 'Izin\nAksesibilitas',
+      subtitle:
+          'Untuk memblokir aplikasi pengganggu secara real-time, aktifkan '
+          'layanan aksesibilitas myTask di perangkat Anda.',
+      items: const [
+        PermissionItem(
+          icon: Icons.visibility_outlined,
+          title: 'Mendeteksi Aplikasi Aktif',
+          subtitle: 'Membaca perubahan aplikasi yang sedang dibuka',
         ),
-      ),
-    );
-  }
-
-  Widget _buildPermissionItem(
-    IconData icon,
-    String title,
-    String subtitle,
-    double permissionIconSize,
-    double permissionTitleSize,
-    double permissionSubtitleSize,
-    double Function(double ratio) spacingPage3,
-  ) {
-    return Row(
-      children: [
-        Icon(icon, size: permissionIconSize, color: const Color(0xFF4A6FA5)),
-        SizedBox(width: spacingPage3(0.015)),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  fontSize: permissionTitleSize,
-                  fontWeight: FontWeight.w500,
-                  color: Colors.black87,
-                ),
-              ),
-              SizedBox(height: spacingPage3(0.002)),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  fontSize: permissionSubtitleSize,
-                  fontWeight: FontWeight.w400,
-                  color: Colors.black54,
-                ),
-              ),
-            ],
-          ),
+        PermissionItem(
+          icon: Icons.block_outlined,
+          title: 'Intervensi Langsung',
+          subtitle: 'Menampilkan layar blokir saat distraksi dibuka',
+        ),
+        PermissionItem(
+          icon: Icons.lock_outline,
+          title: 'Tetap Aman',
+          subtitle: 'Layanan hanya dipakai untuk fitur fokus',
         ),
       ],
+      disclaimer:
+          'Layanan aksesibilitas tidak dipakai untuk membaca isi chat atau '
+          'data pribadi Anda.',
     );
   }
 }
