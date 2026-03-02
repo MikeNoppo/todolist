@@ -1,16 +1,16 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-class OnboardingPage3 extends StatefulWidget {
+class OnboardingPage4 extends StatefulWidget {
   final VoidCallback onReadComplete;
 
-  const OnboardingPage3({super.key, required this.onReadComplete});
+  const OnboardingPage4({super.key, required this.onReadComplete});
 
   @override
-  State<OnboardingPage3> createState() => _OnboardingPage3State();
+  State<OnboardingPage4> createState() => _OnboardingPage4State();
 }
 
-class _OnboardingPage3State extends State<OnboardingPage3> {
+class _OnboardingPage4State extends State<OnboardingPage4> {
   final ScrollController _scrollController = ScrollController();
   bool _hasReachedBottom = false;
 
@@ -31,7 +31,7 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
     if (!_hasReachedBottom && _scrollController.hasClients) {
       final maxScroll = _scrollController.position.maxScrollExtent;
       final currentScroll = _scrollController.position.pixels;
-      final threshold = maxScroll * 0.95; // 95% of the way down
+      final threshold = maxScroll * 0.95;
 
       if (currentScroll >= threshold) {
         setState(() {
@@ -54,7 +54,7 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
     final disclaimerSize = 12.sp.clamp(11.sp, 16.sp).toDouble();
     final permissionIconSize = (0.025.sh).clamp(16.sp, 32.sp).toDouble();
 
-    double spacingPage3(double ratio) {
+    double spacingPage4(double ratio) {
       return (ScreenUtil().screenHeight * ratio).clamp(4.h, 100.h).toDouble();
     }
 
@@ -66,7 +66,7 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
           constraints: BoxConstraints(minHeight: availableHeight),
           child: Column(
             children: [
-              SizedBox(height: spacingPage3(0.02)),
+              SizedBox(height: spacingPage4(0.02)),
               Container(
                 width: iconSize,
                 height: iconSize,
@@ -75,14 +75,14 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  Icons.accessibility_new_outlined,
+                  Icons.query_stats_outlined,
                   size: iconSize * 0.5,
                   color: const Color(0xFF4A6FA5),
                 ),
               ),
-              SizedBox(height: spacingPage3(0.03)),
+              SizedBox(height: spacingPage4(0.03)),
               Text(
-                'Izin\nAksesibilitas',
+                'Izin Statistik\nPenggunaan',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: titleSize,
@@ -91,9 +91,9 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
                   height: 1.2,
                 ),
               ),
-              SizedBox(height: spacingPage3(0.015)),
+              SizedBox(height: spacingPage4(0.015)),
               Text(
-                'Untuk memblokir aplikasi pengganggu secara real-time, aktifkan layanan aksesibilitas myTask di perangkat Anda.',
+                'Agar myTask bisa menilai penggunaan aplikasi dan menjalankan aturan blokir, aktifkan akses statistik penggunaan.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: subtitleSize,
@@ -102,9 +102,9 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
                   height: 1.4,
                 ),
               ),
-              SizedBox(height: spacingPage3(0.03)),
+              SizedBox(height: spacingPage4(0.03)),
               Container(
-                padding: EdgeInsets.all(spacingPage3(0.02)),
+                padding: EdgeInsets.all(spacingPage4(0.02)),
                 decoration: BoxDecoration(
                   color: Colors.grey[50],
                   borderRadius: BorderRadius.circular(16.r),
@@ -113,40 +113,40 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
                 child: Column(
                   children: [
                     _buildPermissionItem(
-                      Icons.visibility_outlined,
-                      'Mendeteksi Aplikasi Aktif',
-                      'Membaca perubahan aplikasi yang sedang dibuka',
+                      Icons.timeline_outlined,
+                      'Memantau Pola Penggunaan',
+                      'Melihat aplikasi aktif dan durasi penggunaan',
                       permissionIconSize,
                       permissionTitleSize,
                       permissionSubtitleSize,
-                      spacingPage3,
+                      spacingPage4,
                     ),
-                    SizedBox(height: spacingPage3(0.015)),
+                    SizedBox(height: spacingPage4(0.015)),
                     _buildPermissionItem(
-                      Icons.block_outlined,
-                      'Intervensi Langsung',
-                      'Menampilkan layar blokir saat distraksi dibuka',
+                      Icons.rule_outlined,
+                      'Menjalankan Aturan Blokir',
+                      'Menentukan kapan intervensi harus muncul',
                       permissionIconSize,
                       permissionTitleSize,
                       permissionSubtitleSize,
-                      spacingPage3,
+                      spacingPage4,
                     ),
-                    SizedBox(height: spacingPage3(0.015)),
+                    SizedBox(height: spacingPage4(0.015)),
                     _buildPermissionItem(
                       Icons.lock_outline,
-                      'Tetap Aman',
-                      'Layanan hanya dipakai untuk fitur fokus',
+                      'Privasi Tetap Terkontrol',
+                      'Data penggunaan tetap berada di perangkat',
                       permissionIconSize,
                       permissionTitleSize,
                       permissionSubtitleSize,
-                      spacingPage3,
+                      spacingPage4,
                     ),
                   ],
                 ),
               ),
-              SizedBox(height: spacingPage3(0.02)),
+              SizedBox(height: spacingPage4(0.02)),
               Text(
-                'Layanan aksesibilitas tidak dipakai untuk membaca isi chat atau data pribadi Anda.',
+                'Data statistik penggunaan tidak dikirim ke server eksternal.',
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: disclaimerSize,
@@ -155,7 +155,7 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
                   height: 1.3,
                 ),
               ),
-              SizedBox(height: spacingPage3(0.04)),
+              SizedBox(height: spacingPage4(0.04)),
             ],
           ),
         ),
@@ -170,12 +170,12 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
     double permissionIconSize,
     double permissionTitleSize,
     double permissionSubtitleSize,
-    double Function(double ratio) spacingPage3,
+    double Function(double ratio) spacingPage4,
   ) {
     return Row(
       children: [
         Icon(icon, size: permissionIconSize, color: const Color(0xFF4A6FA5)),
-        SizedBox(width: spacingPage3(0.015)),
+        SizedBox(width: spacingPage4(0.015)),
         Expanded(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -188,7 +188,7 @@ class _OnboardingPage3State extends State<OnboardingPage3> {
                   color: Colors.black87,
                 ),
               ),
-              SizedBox(height: spacingPage3(0.002)),
+              SizedBox(height: spacingPage4(0.002)),
               Text(
                 subtitle,
                 style: TextStyle(

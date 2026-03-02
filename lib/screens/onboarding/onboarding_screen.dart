@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import '../Home/home_screen.dart';
+
 import '../../repositories/todo_repository.dart';
 import '../../services/app_logger.dart';
 import '../../services/permission_service.dart';
+import '../Home/home_screen.dart';
 import 'pages/onboarding_page_1.dart';
 import 'pages/onboarding_page_2.dart';
 import 'pages/onboarding_page_3.dart';
+import 'pages/onboarding_page_4.dart';
 
 class OnboardingScreen extends StatefulWidget {
   const OnboardingScreen({super.key});
@@ -18,11 +20,18 @@ class OnboardingScreen extends StatefulWidget {
 class _OnboardingScreenState extends State<OnboardingScreen>
     with WidgetsBindingObserver {
   static const String _tag = 'OnboardingScreen';
+  static const int _introPageCount = 2;
+  static const int _accessibilityPageIndex = 2;
+  static const int _usageStatsPageIndex = 3;
+  static const int _totalPages = 4;
 
   final PageController _pageController = PageController();
   final TodoRepository _todoRepository = TodoRepository();
   int _currentPage = 0;
-  bool _hasReadPage3 = false; // Track if user has read page 3 completely
+  bool _hasReadAccessibilityStep = false;
+  bool _hasReadUsageStatsStep = false;
+  bool _isAccessibilityGranted = false;
+  bool _isUsageStatsGranted = false;
   bool _isReturningFromPermissionSettings = false;
 
   // Define accent color - muted blue
@@ -31,13 +40,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
-    // Add observer to listen to app lifecycle changes
     WidgetsBinding.instance.addObserver(this);
+    _refreshPermissionState();
   }
 
   @override
   void dispose() {
-    // Remove observer when widget is disposed
     WidgetsBinding.instance.removeObserver(this);
     _pageController.dispose();
     super.dispose();
@@ -46,46 +54,116 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     super.didChangeAppLifecycleState(state);
-    // Check permissions when app resumes from background
     if (state == AppLifecycleState.resumed &&
-        _currentPage == 2 &&
         _isReturningFromPermissionSettings) {
       _isReturningFromPermissionSettings = false;
       _checkPermissionsAfterResume();
     }
   }
 
-  void _checkPermissionsAfterResume() async {
-    // Wait a bit for the system to update permission status
-    await Future.delayed(const Duration(milliseconds: 500));
+  Future<({bool accessibilityEnabled, bool usageStatsGranted})>
+  _refreshPermissionState() async {
+    final accessibilityEnabled =
+        await PermissionService.isAccessibilityServiceEnabled();
+    final usageStatsGranted =
+        await PermissionService.isUsageStatsPermissionGranted();
 
-    bool allPermissionsGranted =
-        await PermissionService.areAllPermissionsGranted();
+    if (mounted) {
+      setState(() {
+        _isAccessibilityGranted = accessibilityEnabled;
+        _isUsageStatsGranted = usageStatsGranted;
+      });
+    }
+
+    return (
+      accessibilityEnabled: accessibilityEnabled,
+      usageStatsGranted: usageStatsGranted,
+    );
+  }
+
+  Future<void> _checkPermissionsAfterResume() async {
+    await Future.delayed(const Duration(milliseconds: 500));
+    final permissionState = await _refreshPermissionState();
 
     if (!mounted) return;
 
-    if (allPermissionsGranted) {
-      AppLogger.info(_tag, 'All permissions granted after app resume.');
-
-      // Show success message and navigate to home
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Semua izin berhasil diaktifkan!'),
-          backgroundColor: Colors.green,
-          duration: Duration(seconds: 2),
-        ),
-      );
-
-      // Navigate to home after a short delay
-      Future.delayed(const Duration(seconds: 2), () async {
-        if (mounted) {
-          await _navigateToHome();
-        }
-      });
-    } else {
-      AppLogger.debug(_tag, 'Permissions still incomplete after app resume.');
-      await _showIncompletePermissionDialog();
+    if (_currentPage == _accessibilityPageIndex) {
+      if (permissionState.accessibilityEnabled) {
+        AppLogger.info(
+          _tag,
+          'Accessibility permission granted after app resume. Moving to usage stats step.',
+        );
+        _showPermissionSnackBar(
+          message: 'Izin aksesibilitas aktif. Lanjut ke izin berikutnya.',
+          isSuccess: true,
+        );
+        _goToUsageStatsStep();
+      } else {
+        AppLogger.debug(
+          _tag,
+          'Accessibility permission still disabled after app resume.',
+        );
+        _showPermissionSnackBar(
+          message:
+              'Izin aksesibilitas belum aktif. Aktifkan dulu untuk lanjut.',
+        );
+      }
+      return;
     }
+
+    if (_currentPage != _usageStatsPageIndex) {
+      return;
+    }
+
+    if (!permissionState.accessibilityEnabled) {
+      AppLogger.warn(
+        _tag,
+        'Accessibility permission disabled while on usage stats step. Returning to accessibility step.',
+      );
+      _showPermissionSnackBar(
+        message: 'Aksesibilitas harus aktif terlebih dahulu.',
+      );
+      _goToAccessibilityStep();
+      return;
+    }
+
+    if (permissionState.usageStatsGranted) {
+      AppLogger.info(
+        _tag,
+        'All required permissions granted after app resume.',
+      );
+      _showPermissionSnackBar(
+        message: 'Semua izin berhasil diaktifkan!',
+        isSuccess: true,
+      );
+      await _navigateToHome();
+      return;
+    }
+
+    AppLogger.debug(
+      _tag,
+      'Usage stats permission still disabled after app resume.',
+    );
+    _showPermissionSnackBar(
+      message: 'Izin statistik penggunaan belum aktif. Aktifkan untuk lanjut.',
+    );
+  }
+
+  void _showPermissionSnackBar({
+    required String message,
+    bool isSuccess = false,
+  }) {
+    if (!mounted) {
+      return;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: isSuccess ? Colors.green : Colors.orange,
+        duration: const Duration(seconds: 2),
+      ),
+    );
   }
 
   @override
@@ -109,9 +187,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       padding: EdgeInsets.all(20.0.r),
       child: Align(
         alignment: Alignment.centerRight,
-        child: _currentPage < 2
+        child: _currentPage < _introPageCount
             ? TextButton(
-                onPressed: () => _skipToEnd(),
+                onPressed: _skipToPermissionStep,
                 child: Text(
                   'Lewati',
                   style: TextStyle(
@@ -131,6 +209,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: PageView(
         controller: _pageController,
         onPageChanged: (index) {
+          if (index == _usageStatsPageIndex && !_isAccessibilityGranted) {
+            _showPermissionSnackBar(
+              message: 'Aktifkan aksesibilitas terlebih dahulu.',
+            );
+            _goToAccessibilityStep();
+            return;
+          }
+
           setState(() {
             _currentPage = index;
           });
@@ -141,7 +227,14 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           OnboardingPage3(
             onReadComplete: () {
               setState(() {
-                _hasReadPage3 = true;
+                _hasReadAccessibilityStep = true;
+              });
+            },
+          ),
+          OnboardingPage4(
+            onReadComplete: () {
+              setState(() {
+                _hasReadUsageStatsStep = true;
               });
             },
           ),
@@ -167,7 +260,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: List.generate(
-        3,
+        _totalPages,
         (index) => Container(
           margin: EdgeInsets.symmetric(horizontal: 4.w),
           width: _currentPage == index ? 24 : 8,
@@ -182,17 +275,19 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Widget _buildNavigationButton() {
+    final isCurrentPermissionStepReadable = _isCurrentPermissionStepReadable();
+
     return SizedBox(
       width: double.infinity,
       height: 56,
       child: ElevatedButton(
-        onPressed: _currentPage < 2
-            ? _nextPage
-            : (_hasReadPage3 ? _requestPermission : null),
+        onPressed: isCurrentPermissionStepReadable
+            ? _handlePrimaryAction
+            : null,
         style: ElevatedButton.styleFrom(
-          backgroundColor: (_currentPage == 2 && !_hasReadPage3)
-              ? Colors.grey[400]
-              : accentColor,
+          backgroundColor: isCurrentPermissionStepReadable
+              ? accentColor
+              : Colors.grey[400],
           foregroundColor: Colors.white,
           elevation: 0,
           shape: RoundedRectangleBorder(
@@ -200,13 +295,60 @@ class _OnboardingScreenState extends State<OnboardingScreen>
           ),
         ),
         child: Text(
-          _currentPage < 2
-              ? 'Lanjutkan'
-              : (_hasReadPage3 ? 'Berikan Izin Akses' : 'Baca Hingga Selesai'),
+          _navigationButtonLabel(),
           style: TextStyle(fontSize: 16.sp, fontWeight: FontWeight.w500),
         ),
       ),
     );
+  }
+
+  bool _isCurrentPermissionStepReadable() {
+    if (_currentPage == _accessibilityPageIndex) {
+      return _hasReadAccessibilityStep;
+    }
+
+    if (_currentPage == _usageStatsPageIndex) {
+      return _hasReadUsageStatsStep;
+    }
+
+    return true;
+  }
+
+  String _navigationButtonLabel() {
+    if (_currentPage < _accessibilityPageIndex) {
+      return 'Lanjutkan';
+    }
+
+    if (_currentPage == _accessibilityPageIndex) {
+      if (!_hasReadAccessibilityStep) {
+        return 'Baca Hingga Selesai';
+      }
+      return _isAccessibilityGranted
+          ? 'Lanjut ke Izin Statistik'
+          : 'Aktifkan Aksesibilitas';
+    }
+
+    if (!_hasReadUsageStatsStep) {
+      return 'Baca Hingga Selesai';
+    }
+
+    return _isUsageStatsGranted
+        ? 'Mulai Aplikasi'
+        : 'Aktifkan Statistik Penggunaan';
+  }
+
+  void _handlePrimaryAction() {
+    if (_currentPage < _accessibilityPageIndex) {
+      _nextPage();
+      return;
+    }
+
+    if (_currentPage == _accessibilityPageIndex) {
+      _handleAccessibilityStep();
+      return;
+    }
+
+    _handleUsageStatsStep();
   }
 
   void _nextPage() {
@@ -216,57 +358,74 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  void _skipToEnd() {
+  void _skipToPermissionStep() {
     _pageController.animateToPage(
-      2,
+      _accessibilityPageIndex,
       duration: const Duration(milliseconds: 300),
       curve: Curves.easeInOut,
     );
   }
 
-  void _requestPermission() async {
-    // Check if all permissions are already granted
-    bool allPermissionsGranted =
-        await PermissionService.areAllPermissionsGranted();
+  void _goToAccessibilityStep() {
+    _pageController.animateToPage(
+      _accessibilityPageIndex,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  void _goToUsageStatsStep() {
+    _pageController.animateToPage(
+      _usageStatsPageIndex,
+      duration: const Duration(milliseconds: 300),
+      curve: Curves.easeInOut,
+    );
+  }
+
+  Future<void> _handleAccessibilityStep() async {
+    final permissionState = await _refreshPermissionState();
 
     if (!mounted) return;
 
-    if (allPermissionsGranted) {
+    if (permissionState.accessibilityEnabled) {
       AppLogger.info(
         _tag,
-        'All required permissions already granted. Navigating to home.',
+        'Accessibility permission already granted. Moving to usage stats step.',
       );
+      _goToUsageStatsStep();
+      return;
+    }
 
-      // If all permissions are granted, go to home screen
+    await _showAccessibilityInstructions();
+  }
+
+  Future<void> _handleUsageStatsStep() async {
+    final permissionState = await _refreshPermissionState();
+
+    if (!mounted) return;
+
+    if (!permissionState.accessibilityEnabled) {
+      AppLogger.warn(
+        _tag,
+        'Usage stats step requested before accessibility permission is enabled.',
+      );
+      _showPermissionSnackBar(
+        message: 'Aktifkan aksesibilitas terlebih dahulu.',
+      );
+      _goToAccessibilityStep();
+      return;
+    }
+
+    if (permissionState.usageStatsGranted) {
+      AppLogger.info(
+        _tag,
+        'Usage stats permission granted. Navigating to home.',
+      );
       await _navigateToHome();
       return;
     }
 
-    // Check individual permissions and show appropriate dialog
-    bool accessibilityEnabled =
-        await PermissionService.isAccessibilityServiceEnabled();
-    bool usageStatsGranted =
-        await PermissionService.isUsageStatsPermissionGranted();
-
-    if (!mounted) return;
-
-    if (!accessibilityEnabled) {
-      AppLogger.warn(_tag, 'Accessibility permission is not enabled.');
-
-      // Show accessibility instructions if not enabled
-      await _showAccessibilityInstructions();
-    } else if (!usageStatsGranted) {
-      AppLogger.warn(_tag, 'Usage stats permission is not granted.');
-
-      // Skip accessibility and go directly to usage stats if accessibility is already enabled
-      await _showUsageStatsInstructions();
-    } else {
-      AppLogger.info(
-        _tag,
-        'Individual permission checks passed. Navigating to home.',
-      );
-      await _navigateToHome();
-    }
+    await _showUsageStatsInstructions();
   }
 
   Future<void> _showAccessibilityInstructions() async {
@@ -324,7 +483,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                     '3. Aktifkan toggle "Izinkan akses statistik penggunaan"',
                   ),
                   SizedBox(height: 12.h),
-                  Text('Setelah kedua izin aktif, kembali ke aplikasi.'),
+                  Text('Setelah izin statistik aktif, kembali ke aplikasi.'),
                 ],
               ),
             ),
@@ -344,43 +503,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         },
       );
     }
-  }
-
-  Future<void> _showIncompletePermissionDialog() async {
-    if (!mounted) {
-      return;
-    }
-
-    AppLogger.warn(_tag, 'Showing incomplete permission dialog.');
-
-    return showDialog<void>(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: Text('Izin Belum Lengkap'),
-          content: Text(
-            'Beberapa izin belum diaktifkan. Aplikasi mungkin tidak berfungsi dengan optimal.\n\n'
-            'Anda dapat mengaktifkan izin nanti melalui pengaturan aplikasi.',
-          ),
-          actions: <Widget>[
-            TextButton(
-              child: Text('Coba Lagi'),
-              onPressed: () {
-                Navigator.of(context).pop();
-                _requestPermission();
-              },
-            ),
-            ElevatedButton(
-              child: Text('Lanjutkan'),
-              onPressed: () async {
-                Navigator.of(context).pop();
-                await _navigateToHome();
-              },
-            ),
-          ],
-        );
-      },
-    );
   }
 
   Future<void> _navigateToHome() async {
