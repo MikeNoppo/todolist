@@ -425,6 +425,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   Future<void> _showAccessibilityInstructions() async {
+    if (!mounted) return;
+
     return showDialog<void>(
       context: context,
       builder: (BuildContext context) {
