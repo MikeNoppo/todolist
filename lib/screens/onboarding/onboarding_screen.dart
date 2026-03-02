@@ -209,6 +209,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
       child: PageView(
         controller: _pageController,
         onPageChanged: (index) {
+          // Always update _currentPage first so indicators and buttons
+          // reflect the actual page position during any animation.
+          setState(() {
+            _currentPage = index;
+          });
+
           if (index == _usageStatsPageIndex && !_isAccessibilityGranted) {
             _showPermissionSnackBar(
               message: 'Aktifkan aksesibilitas terlebih dahulu.',
@@ -216,10 +222,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
             _goToAccessibilityStep();
             return;
           }
-
-          setState(() {
-            _currentPage = index;
-          });
         },
         children: [
           const OnboardingPage1(),
@@ -358,13 +360,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     );
   }
 
-  void _skipToPermissionStep() {
-    _pageController.animateToPage(
-      _accessibilityPageIndex,
-      duration: const Duration(milliseconds: 300),
-      curve: Curves.easeInOut,
-    );
-  }
+  void _skipToPermissionStep() => _goToAccessibilityStep();
 
   void _goToAccessibilityStep() {
     _pageController.animateToPage(
