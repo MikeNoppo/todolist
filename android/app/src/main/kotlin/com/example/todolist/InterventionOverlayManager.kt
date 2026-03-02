@@ -1,7 +1,6 @@
 package com.example.todolist
 
 import android.content.Context
-import android.content.Intent
 import android.graphics.PixelFormat
 import android.os.Handler
 import android.os.Looper
@@ -127,7 +126,6 @@ class InterventionOverlayManager(private val context: Context) {
             btn.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             Log.d(TAG, "User tapped Kembali Bekerja: package=$blockedPackage")
             dismiss()
-            openMainApp()
         }
 
         Log.d(TAG, "Overlay views bound: package=$blockedPackage appLabel=$appLabel task=$taskTitle")
@@ -149,25 +147,6 @@ class InterventionOverlayManager(private val context: Context) {
         } finally {
             overlayView = null
             isShowing = false
-        }
-    }
-
-    private fun openMainApp() {
-        try {
-            val launchIntent = context.packageManager
-                .getLaunchIntentForPackage(context.packageName)
-                ?: Intent(context, MainActivity::class.java)
-
-            launchIntent.addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP
-            )
-
-            context.startActivity(launchIntent)
-            Log.d(TAG, "Opened main app from overlay")
-        } catch (error: Exception) {
-            Log.e(TAG, "Failed to open main app from overlay", error)
         }
     }
 
