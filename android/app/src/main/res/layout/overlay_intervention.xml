@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="#F01A1A1A"
+    android:clickable="true"
+    android:focusable="true">
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"
+        android:fillViewport="true">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center_horizontal"
+            android:paddingLeft="32dp"
+            android:paddingTop="80dp"
+            android:paddingRight="32dp"
+            android:paddingBottom="60dp"
+            android:minHeight="600dp">
+
+            <!-- Shield / Block Icon Circle -->
+            <FrameLayout
+                android:layout_width="120dp"
+                android:layout_height="120dp"
+                android:layout_marginBottom="48dp"
+                android:background="@drawable/circle_overlay_bg">
+
+                <ImageView
+                    android:layout_width="60dp"
+                    android:layout_height="60dp"
+                    android:layout_gravity="center"
+                    android:src="@android:drawable/ic_lock_lock"
+                    android:tint="#AAFFFFFF" />
+            </FrameLayout>
+
+            <!-- Quote Text -->
+            <TextView
+                android:id="@+id/overlayQuoteText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#FFFFFF"
+                android:textSize="20sp"
+                android:gravity="center"
+                android:textAlignment="center"
+                android:lineSpacingMultiplier="1.4"
+                android:layout_marginBottom="12dp" />
+
+            <!-- Quote Author -->
+            <TextView
+                android:id="@+id/overlayQuoteAuthor"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#B3FFFFFF"
+                android:textSize="15sp"
+                android:textStyle="italic"
+                android:gravity="center"
+                android:textAlignment="center"
+                android:layout_marginBottom="40dp" />
+
+            <!-- Task Container -->
+            <LinearLayout
+                android:id="@+id/overlayTaskContainer"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:gravity="center"
+                android:background="@drawable/task_container_bg"
+                android:padding="16dp"
+                android:layout_marginBottom="48dp"
+                android:visibility="gone">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Tugas mendesak saat ini:"
+                    android:textColor="#CCFFFFFF"
+                    android:textSize="13sp"
+                    android:layout_marginBottom="8dp" />
+
+                <TextView
+                    android:id="@+id/overlayTaskTitleText"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:textColor="#7AA7E0"
+                    android:textSize="17sp"
+                    android:textStyle="bold"
+                    android:gravity="center"
+                    android:textAlignment="center" />
+            </LinearLayout>
+
+            <!-- Back To Work Button -->
+            <TextView
+                android:id="@+id/overlayBackToWorkButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Kembali Bekerja"
+                android:textColor="#FFFFFF"
+                android:textSize="17sp"
+                android:textStyle="bold"
+                android:background="@drawable/cta_button_bg"
+                android:paddingLeft="40dp"
+                android:paddingTop="14dp"
+                android:paddingRight="40dp"
+                android:paddingBottom="14dp"
+                android:layout_marginBottom="20dp"
+                android:clickable="true"
+                android:focusable="true" />
+
+            <!-- Blocked App Info -->
+            <TextView
+                android:id="@+id/overlayBlockedAppText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textColor="#80FFFFFF"
+                android:textSize="13sp"
+                android:gravity="center"
+                android:textAlignment="center"
+                android:layout_marginTop="8dp" />
+
+        </LinearLayout>
+    </ScrollView>
+
+</FrameLayout>
