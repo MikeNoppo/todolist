@@ -2,9 +2,6 @@ package com.example.todolist
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
-import android.content.Intent
-import android.os.Handler
-import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
 import android.util.Log
 import org.json.JSONArray
@@ -65,10 +62,14 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         val windowHours: Int
     )
 
+    // Overlay manager - created once and reused
+    private var overlayManager: InterventionOverlayManager? = null
+
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        Log.d(TAG, "Accessibility Service connected")
+        overlayManager = InterventionOverlayManager(this)
+        Log.d(TAG, "Accessibility Service connected; overlay manager ready")
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
@@ -80,6 +81,12 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
         val currentPackageName = event.packageName?.toString() ?: return
         if (!shouldEvaluatePackage(currentPackageName)) {
+            return
+        }
+
+        // If our own overlay is showing, don't re-trigger
+        if (overlayManager?.isOverlayShowing == true) {
+            Log.d(TAG, "Overlay already visible; skip evaluation for package=$currentPackageName")
             return
         }
 
@@ -106,30 +113,28 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         super.onDestroy()
+        overlayManager?.dismiss()
+        overlayManager = null
         instance = null
         Log.d(TAG, "Accessibility Service destroyed")
     }
 
     private fun shouldEvaluatePackage(packageName: String): Boolean {
         if (packageName == this.packageName) {
-            Log.d(TAG, "Skipping own package event: package=$packageName")
             return false
         }
 
         if (packageName.startsWith("com.android.systemui")) {
-            Log.d(TAG, "Skipping system ui package event: package=$packageName")
             return false
         }
 
         if (packageName.startsWith("com.android.launcher")) {
-            Log.d(TAG, "Skipping launcher package event: package=$packageName")
             return false
         }
 
         if (packageName.startsWith("com.miui.home") ||
             packageName.startsWith("com.mi.android.globallauncher")
         ) {
-            Log.d(TAG, "Skipping MIUI launcher package event: package=$packageName")
             return false
         }
 
@@ -324,66 +329,21 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         lastTriggeredAtMillis = System.currentTimeMillis()
 
         saveLastBlockedDebugInfo(packageName, reason)
-        MainActivity.queueBlockedPackage(packageName)
 
-        val interventionIntent = buildInterventionIntent(packageName, reason)
-
-        val homeActionSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
+        // Step 1: Show overlay IMMEDIATELY - this bypasses Android's background
+        // startActivity restriction entirely because TYPE_ACCESSIBILITY_OVERLAY
+        // is drawn directly by the Accessibility Service.
         Log.d(
             TAG,
-            "Prepared intervention intent for package=$packageName homeActionSucceeded=$homeActionSucceeded"
+            "Showing overlay for package=$packageName task=${reason.taskTitle} " +
+                "priority=${reason.priority} remainingMinutes=${reason.remainingMinutes}"
         )
+        overlayManager?.show(packageName, reason.taskTitle)
 
-        Handler(Looper.getMainLooper()).postDelayed({
-            try {
-                startActivity(interventionIntent)
-                Log.d(TAG, "Requested intervention activity launch for package=$packageName")
-            } catch (error: Exception) {
-                Log.e(TAG, "Failed to launch intervention activity for package=$packageName", error)
-                try {
-                    startActivity(buildMainActivityFallbackIntent(packageName))
-                    Log.d(TAG, "Fallback launch to MainActivity succeeded for package=$packageName")
-                } catch (fallbackError: Exception) {
-                    Log.e(
-                        TAG,
-                        "Fallback launch to MainActivity failed for package=$packageName",
-                        fallbackError
-                    )
-                }
-            }
-        }, 140L)
-    }
-
-    private fun buildInterventionIntent(packageName: String, reason: BlockingReason): Intent {
-        return Intent(this, NativeInterventionActivity::class.java).apply {
-            action = Intent.ACTION_MAIN
-            addCategory(Intent.CATEGORY_LAUNCHER)
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-            )
-            putExtra(NativeInterventionActivity.EXTRA_BLOCKED_PACKAGE, packageName)
-            putExtra(NativeInterventionActivity.EXTRA_BLOCKING_TASK_TITLE, reason.taskTitle)
-            putExtra(NativeInterventionActivity.EXTRA_BLOCKING_PRIORITY, reason.priority)
-            putExtra(NativeInterventionActivity.EXTRA_BLOCKING_REMAINING_MINUTES, reason.remainingMinutes)
-            putExtra(NativeInterventionActivity.EXTRA_BLOCKING_WINDOW_HOURS, reason.windowHours)
-        }
-    }
-
-    private fun buildMainActivityFallbackIntent(packageName: String): Intent {
-        return Intent(this, MainActivity::class.java).apply {
-            action = Intent.ACTION_MAIN
-            addCategory(Intent.CATEGORY_LAUNCHER)
-            addFlags(
-                Intent.FLAG_ACTIVITY_NEW_TASK or
-                    Intent.FLAG_ACTIVITY_SINGLE_TOP or
-                    Intent.FLAG_ACTIVITY_CLEAR_TOP or
-                    Intent.FLAG_ACTIVITY_REORDER_TO_FRONT
-            )
-            putExtra(MainActivity.EXTRA_BLOCKED_PACKAGE, packageName)
-        }
+        // Step 2: Send blocked app to home in the background, so it stops running.
+        // This is safe AFTER the overlay is already on screen.
+        val homeSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
+        Log.d(TAG, "Home action sent: homeSucceeded=$homeSucceeded package=$packageName")
     }
 
     private fun isInReentryGuard(packageName: String): Boolean {
