@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/ui/app_size_tokens.dart';
 import '../../repositories/todo_repository.dart';
 import '../../services/app_logger.dart';
+import '../../services/notification_service.dart';
 import 'app_blocker_settings_screen.dart';
 import 'debug_settings_screen.dart';
 import 'intervention_rules_settings_screen.dart';
@@ -73,7 +74,19 @@ class _SettingsScreenState extends State<SettingsScreen> {
 
       HapticFeedback.lightImpact();
 
+      // Wire to NotificationService: reschedule or cancel all notifications
+      final notificationService = NotificationService();
+      if (value) {
+        // Request permission first (Android 13+)
+        await notificationService.requestPermission();
+        await notificationService.rescheduleAllNotifications();
+      } else {
+        await notificationService.cancelAllNotifications();
+      }
+
       AppLogger.info(_tag, 'Notification setting updated: enabled=$value');
+
+      if (!mounted) return;
 
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
