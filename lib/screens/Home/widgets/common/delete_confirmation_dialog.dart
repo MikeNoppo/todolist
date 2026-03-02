@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../../../models/todo_model.dart';
 import '../../../../repositories/todo_repository.dart';
 import '../../../../services/app_logger.dart';
+import '../../../../services/notification_service.dart';
 
 class DeleteConfirmationDialog extends StatelessWidget {
   static const String _tag = 'DeleteConfirmationDialog';
@@ -51,6 +52,9 @@ class DeleteConfirmationDialog extends StatelessWidget {
 
             try {
               await repository.deleteTodo(todo.id);
+
+              // Cancel notifications for deleted todo
+              await NotificationService().cancelNotificationsForTodo(todo.id);
 
               if (!context.mounted) return;
 

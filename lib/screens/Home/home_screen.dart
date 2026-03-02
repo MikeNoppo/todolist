@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../models/todo_model.dart';
 import '../../repositories/todo_repository.dart';
 import '../../services/app_logger.dart';
+import '../../services/notification_service.dart';
 import '../add_edit_task_screen.dart';
 import 'widgets/widgets.dart';
 
@@ -82,6 +83,18 @@ class _HomeScreenState extends State<HomeScreen> {
     try {
       await _todoRepository.toggleTodoComplete(todoId);
       AppLogger.info(_tag, 'Toggled task completion: id=$todoId');
+
+      // Update notifications: find the updated todo state
+      final todos = await _todoRepository.getTodos();
+      final updatedTodo = todos.where((t) => t.id == todoId).firstOrNull;
+      if (updatedTodo != null) {
+        if (updatedTodo.isCompleted) {
+          await NotificationService().cancelNotificationsForTodo(todoId);
+        } else {
+          await NotificationService().scheduleNotificationsForTodo(updatedTodo);
+        }
+      }
+
       await _loadData();
     } catch (e, stackTrace) {
       AppLogger.error(
@@ -115,6 +128,10 @@ class _HomeScreenState extends State<HomeScreen> {
       );
 
       await _todoRepository.addTodo(newTodo);
+
+      // Schedule notifications for duplicated todo
+      await NotificationService().scheduleNotificationsForTodo(newTodo);
+
       AppLogger.info(_tag, 'Duplicated task: sourceId=${todo.id}');
       await _loadData();
 
@@ -161,6 +178,8 @@ class _HomeScreenState extends State<HomeScreen> {
             for (final todo in selectedTodos) {
               if (!todo.isCompleted) {
                 await _todoRepository.toggleTodoComplete(todo.id);
+                // Cancel notifications for completed todos
+                await NotificationService().cancelNotificationsForTodo(todo.id);
                 updatedCount++;
               }
             }
@@ -200,6 +219,19 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             }
 
+            // Reschedule notifications for todos marked incomplete
+            final updatedTodos = await _todoRepository.getTodos();
+            for (final todo in selectedTodos) {
+              final updated = updatedTodos
+                  .where((t) => t.id == todo.id)
+                  .firstOrNull;
+              if (updated != null && !updated.isCompleted) {
+                await NotificationService().scheduleNotificationsForTodo(
+                  updated,
+                );
+              }
+            }
+
             AppLogger.info(
               _tag,
               'Bulk mark incomplete finished: updated=$updatedCount selected=${selectedTodos.length}',
@@ -230,6 +262,8 @@ class _HomeScreenState extends State<HomeScreen> {
             int deletedCount = 0;
             for (final todo in selectedTodos) {
               await _todoRepository.deleteTodo(todo.id);
+              // Cancel notifications for deleted todos
+              await NotificationService().cancelNotificationsForTodo(todo.id);
               deletedCount++;
             }
 

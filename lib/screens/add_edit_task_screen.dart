@@ -3,6 +3,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../models/todo_model.dart';
 import '../repositories/todo_repository.dart';
 import '../services/app_logger.dart';
+import '../services/notification_service.dart';
 
 class AddEditTaskScreen extends StatefulWidget {
   final TodoModel? todo;
@@ -113,6 +114,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
           updatedAt: DateTime.now(),
         );
         await _todoRepository.updateTodo(updatedTodo);
+
+        // Reschedule notifications for updated todo
+        await NotificationService().scheduleNotificationsForTodo(updatedTodo);
       } else {
         final newTodo = TodoModel(
           id: DateTime.now().millisecondsSinceEpoch.toString(),
@@ -123,6 +127,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
           createdAt: DateTime.now(),
         );
         await _todoRepository.addTodo(newTodo);
+
+        // Schedule notifications for new todo
+        await NotificationService().scheduleNotificationsForTodo(newTodo);
       }
 
       AppLogger.info(
@@ -185,6 +192,9 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
     setState(() => _isLoading = true);
     try {
       await _todoRepository.deleteTodo(widget.todo!.id);
+
+      // Cancel notifications for deleted todo
+      await NotificationService().cancelNotificationsForTodo(widget.todo!.id);
 
       AppLogger.info(_tag, 'Task deleted successfully.');
 
