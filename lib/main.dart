@@ -5,10 +5,11 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import 'services/app_blocker_service.dart';
 import 'services/app_logger.dart';
+import 'services/notification_service.dart';
 import 'services/permission_service.dart';
 import 'screens/splash_screen.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   FlutterError.onError = (FlutterErrorDetails details) {
@@ -30,6 +31,9 @@ void main() {
     );
     return true;
   };
+
+  // Initialize notification plugin (no user-facing dialog, safe to await).
+  await NotificationService().initialize();
 
   runApp(const MainApp());
 }
@@ -63,7 +67,27 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     });
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _consumeBlockedPackageAndPresent();
+      // Request permission and reschedule notifications after UI is visible,
+      // so the permission dialog does not block app startup.
+      _initNotificationsPostStartup();
     });
+  }
+
+  /// Request notification permission and reschedule all notifications.
+  /// Runs after the first frame so the user sees UI before any permission dialog.
+  Future<void> _initNotificationsPostStartup() async {
+    try {
+      final notificationService = NotificationService();
+      await notificationService.requestPermission();
+      await notificationService.rescheduleAllNotifications();
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Post-startup notification initialization failed.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   @override
