@@ -2,6 +2,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:mytask/models/todo_model.dart';
+import 'package:mytask/repositories/todo_repository.dart';
 import 'package:mytask/services/notification_service.dart';
 
 /// Replicates the private [NotificationService._notificationIdForTodo] logic
@@ -218,37 +219,171 @@ void main() {
     });
   });
 
-  group('NotificationService.isEnabled', () {
+  group('NotificationService settings', () {
     setUp(() {
       SharedPreferences.setMockInitialValues({});
+      NotificationService().debugResetForTesting();
     });
 
-    test('returns true when not explicitly set (default)', () async {
+    tearDown(() {
+      NotificationService().debugResetForTesting();
+    });
+
+    test('defaults task notifications to true on fresh install', () async {
       final service = NotificationService();
-      final enabled = await service.isEnabled();
+      final enabled = await service.isTaskNotificationsEnabled();
       expect(enabled, true);
     });
 
-    test('returns true when explicitly enabled', () async {
+    test('defaults daily reminder to true on fresh install', () async {
+      final service = NotificationService();
+      final enabled = await service.isDailyReminderEnabled();
+      expect(enabled, true);
+    });
+
+    test('migrates legacy enabled setting to both toggles', () async {
       SharedPreferences.setMockInitialValues({'notifications_enabled': true});
       final service = NotificationService();
-      final enabled = await service.isEnabled();
-      expect(enabled, true);
+      final taskEnabled = await service.isTaskNotificationsEnabled();
+      final dailyEnabled = await service.isDailyReminderEnabled();
+
+      expect(taskEnabled, true);
+      expect(dailyEnabled, true);
     });
 
-    test('returns false when explicitly disabled', () async {
+    test('migrates legacy disabled setting to both toggles', () async {
       SharedPreferences.setMockInitialValues({'notifications_enabled': false});
       final service = NotificationService();
+      final taskEnabled = await service.isTaskNotificationsEnabled();
+      final dailyEnabled = await service.isDailyReminderEnabled();
+
+      expect(taskEnabled, false);
+      expect(dailyEnabled, false);
+    });
+
+    test('isEnabled stays aligned with task notifications', () async {
+      SharedPreferences.setMockInitialValues({
+        'task_notifications_enabled': false,
+        'daily_reminder_enabled': true,
+        'notification_settings_migrated_v2': true,
+      });
+
+      final service = NotificationService();
       final enabled = await service.isEnabled();
+
       expect(enabled, false);
     });
+
+    test(
+      'areAnyNotificationsEnabled returns false when both are disabled',
+      () async {
+        SharedPreferences.setMockInitialValues({
+          'task_notifications_enabled': false,
+          'daily_reminder_enabled': false,
+          'notification_settings_migrated_v2': true,
+        });
+
+        final service = NotificationService();
+        final enabled = await service.areAnyNotificationsEnabled();
+
+        expect(enabled, false);
+      },
+    );
+
+    test('setTaskNotificationsEnabled persists the value', () async {
+      final service = NotificationService();
+
+      await service.setTaskNotificationsEnabled(false);
+
+      expect(await service.isTaskNotificationsEnabled(), false);
+    });
+
+    test('setDailyReminderEnabled persists the value', () async {
+      final service = NotificationService();
+
+      await service.setDailyReminderEnabled(false);
+
+      expect(await service.isDailyReminderEnabled(), false);
+    });
+
+    test('daily reminder time falls back to default values', () async {
+      final service = NotificationService();
+
+      expect(
+        await service.getDailyReminderHour(),
+        NotificationService.defaultDailyReminderHour,
+      );
+      expect(
+        await service.getDailyReminderMinute(),
+        NotificationService.defaultDailyReminderMinute,
+      );
+    });
+
+    test('setDailyReminderTime persists hour and minute', () async {
+      final service = NotificationService();
+
+      await service.setDailyReminderTime(hour: 9, minute: 30);
+
+      expect(await service.getDailyReminderHour(), 9);
+      expect(await service.getDailyReminderMinute(), 30);
+    });
+
+    test(
+      'cancelAllTaskNotifications returns false when initialization fails',
+      () async {
+        final service = NotificationService();
+        service.debugSetInitializationState(
+          isInitialized: false,
+          initAttempts: 3,
+        );
+
+        final result = await service.cancelAllTaskNotifications();
+
+        expect(result, false);
+      },
+    );
+
+    test(
+      'syncDailyReminderState returns failed when scheduling throws',
+      () async {
+        final service = NotificationService();
+        service.debugSetInitializationState(isInitialized: true);
+        service.debugSetDailyReminderSchedulerForTesting((
+          pendingCount,
+          hour,
+          minute,
+        ) async {
+          throw StateError('schedule failed');
+        });
+
+        await TodoRepository().addTodo(createTodo());
+
+        final result = await service.syncDailyReminderState();
+
+        expect(result, DailyReminderSyncResult.failed);
+      },
+    );
   });
 
   group('SharedPreferences key constants', () {
-    test('notificationsEnabledKey matches expected value', () {
+    test('legacyNotificationsEnabledKey matches expected value', () {
       expect(
-        NotificationService.notificationsEnabledKey,
+        NotificationService.legacyNotificationsEnabledKey,
         'notifications_enabled',
+      );
+    });
+
+    test('taskNotificationsEnabledKey matches expected value', () {
+      expect(
+        NotificationService.taskNotificationsEnabledKey,
+        'task_notifications_enabled',
+      );
+    });
+
+    test('dailyReminderEnabledKey matches expected value', () {
+      expect(
+        NotificationService.dailyReminderEnabledKey,
+        'daily_reminder_enabled',
       );
     });
 
