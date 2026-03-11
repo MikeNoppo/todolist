@@ -78,7 +78,9 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   Future<void> _initNotificationsPostStartup() async {
     try {
       final notificationService = NotificationService();
-      await notificationService.requestPermission();
+      if (await notificationService.areAnyNotificationsEnabled()) {
+        await notificationService.requestPermission();
+      }
       await notificationService.rescheduleAllNotifications();
     } catch (e, stackTrace) {
       AppLogger.error(
