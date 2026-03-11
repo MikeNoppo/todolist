@@ -55,6 +55,7 @@ class DeleteConfirmationDialog extends StatelessWidget {
 
               // Cancel notifications for deleted todo
               await NotificationService().cancelNotificationsForTodo(todo.id);
+              await NotificationService().syncDailyReminderState();
 
               if (!context.mounted) return;
 

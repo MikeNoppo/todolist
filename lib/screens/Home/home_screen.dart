@@ -94,6 +94,7 @@ class _HomeScreenState extends State<HomeScreen> {
           await NotificationService().scheduleNotificationsForTodo(updatedTodo);
         }
       }
+      await NotificationService().syncDailyReminderState();
 
       await _loadData();
     } catch (e, stackTrace) {
@@ -131,6 +132,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
       // Schedule notifications for duplicated todo
       await NotificationService().scheduleNotificationsForTodo(newTodo);
+      await NotificationService().syncDailyReminderState();
 
       AppLogger.info(_tag, 'Duplicated task: sourceId=${todo.id}');
       await _loadData();
@@ -184,6 +186,8 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             }
 
+            await NotificationService().syncDailyReminderState();
+
             AppLogger.info(
               _tag,
               'Bulk mark complete finished: updated=$updatedCount selected=${selectedTodos.length}',
@@ -232,6 +236,8 @@ class _HomeScreenState extends State<HomeScreen> {
               }
             }
 
+            await NotificationService().syncDailyReminderState();
+
             AppLogger.info(
               _tag,
               'Bulk mark incomplete finished: updated=$updatedCount selected=${selectedTodos.length}',
@@ -266,6 +272,8 @@ class _HomeScreenState extends State<HomeScreen> {
               await NotificationService().cancelNotificationsForTodo(todo.id);
               deletedCount++;
             }
+
+            await NotificationService().syncDailyReminderState();
 
             AppLogger.info(
               _tag,

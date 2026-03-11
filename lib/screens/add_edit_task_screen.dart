@@ -132,6 +132,8 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
         await NotificationService().scheduleNotificationsForTodo(newTodo);
       }
 
+      await NotificationService().syncDailyReminderState();
+
       AppLogger.info(
         _tag,
         _isEditing
@@ -195,6 +197,7 @@ class _AddEditTaskScreenState extends State<AddEditTaskScreen> {
 
       // Cancel notifications for deleted todo
       await NotificationService().cancelNotificationsForTodo(widget.todo!.id);
+      await NotificationService().syncDailyReminderState();
 
       AppLogger.info(_tag, 'Task deleted successfully.');
 
