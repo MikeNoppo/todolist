@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:timezone/data/latest_all.dart' as tz;
@@ -7,6 +8,17 @@ import 'package:flutter_timezone/flutter_timezone.dart';
 import '../models/todo_model.dart';
 import '../repositories/todo_repository.dart';
 import 'app_logger.dart';
+
+enum DailyReminderSyncResult { scheduled, noPendingTasks, disabled, failed }
+
+enum TaskNotificationSyncResult {
+  scheduled,
+  nothingToSchedule,
+  disabled,
+  failed,
+}
+
+enum NotificationPermissionStatus { granted, denied, failed }
 
 /// Callback yang dipanggil saat notifikasi ditekan (harus top-level function).
 @pragma('vm:entry-point')
@@ -26,6 +38,8 @@ class NotificationService {
 
   final FlutterLocalNotificationsPlugin _plugin =
       FlutterLocalNotificationsPlugin();
+  Future<void> Function(int pendingCount, int hour, int minute)?
+  _dailyReminderSchedulerOverrideForTesting;
 
   bool _isInitialized = false;
 
@@ -46,23 +60,30 @@ class NotificationService {
       'Notifikasi ringkasan tugas harian setiap pagi';
 
   // SharedPreferences keys
-  static const String notificationsEnabledKey = 'notifications_enabled';
+  static const String legacyNotificationsEnabledKey = 'notifications_enabled';
+  static const String taskNotificationsEnabledKey =
+      'task_notifications_enabled';
+  static const String dailyReminderEnabledKey = 'daily_reminder_enabled';
   static const String dailyReminderHourKey = 'daily_reminder_hour';
   static const String dailyReminderMinuteKey = 'daily_reminder_minute';
+  static const String _settingsMigrationCompletedKey =
+      'notification_settings_migrated_v2';
 
   // Notification ID scheme:
   // Todo IDs are millisecondsSinceEpoch strings (e.g. "1735689600000").
   // We parse the numeric ID, take a stable range, and multiply by 10
   // to reserve slots 0-4 for per-todo reminder offsets.
   // Daily summary uses a fixed ID.
+  static const int _debugTaskNotificationId = 999997;
+  static const int _debugDailyReminderNotificationId = 999998;
   static const int _dailySummaryNotificationId = 999999;
 
   // Max offset slots per todo (high priority has 4 reminders).
   static const int _maxOffsetsPerTodo = 5;
 
   // Default daily reminder time: 07:00
-  static const int _defaultDailyReminderHour = 7;
-  static const int _defaultDailyReminderMinute = 0;
+  static const int defaultDailyReminderHour = 7;
+  static const int defaultDailyReminderMinute = 0;
 
   // ─── Initialization ───
 
@@ -81,6 +102,8 @@ class NotificationService {
     _initAttempts++;
 
     try {
+      await _migrateSettingsIfNeeded();
+
       // Initialize timezone data
       tz.initializeTimeZones();
       final String timeZoneName = await FlutterTimezone.getLocalTimezone();
@@ -147,15 +170,121 @@ class NotificationService {
     return _isInitialized;
   }
 
-  /// Check if notifications are enabled in user settings.
-  Future<bool> isEnabled() async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getBool(notificationsEnabledKey) ?? true;
+  /// Ensure notification settings are migrated from the legacy single-toggle
+  /// format to the split task/daily reminder format.
+  Future<void> ensureSettingsMigrated() async {
+    await _migrateSettingsIfNeeded();
   }
 
-  /// Request notification permission (Android 13+).
-  Future<bool> requestPermission() async {
-    if (!await _ensureInitialized()) return false;
+  Future<void> _migrateSettingsIfNeeded() async {
+    final prefs = await SharedPreferences.getInstance();
+    final migrated = prefs.getBool(_settingsMigrationCompletedKey) ?? false;
+    if (migrated) {
+      return;
+    }
+
+    final legacyValue = prefs.getBool(legacyNotificationsEnabledKey);
+    final defaultValue = legacyValue ?? true;
+
+    if (!prefs.containsKey(taskNotificationsEnabledKey)) {
+      await prefs.setBool(taskNotificationsEnabledKey, defaultValue);
+    }
+
+    if (!prefs.containsKey(dailyReminderEnabledKey)) {
+      await prefs.setBool(dailyReminderEnabledKey, defaultValue);
+    }
+
+    await prefs.setBool(_settingsMigrationCompletedKey, true);
+  }
+
+  /// Backward-compatible alias for task reminder notifications.
+  Future<bool> isEnabled() async {
+    return isTaskNotificationsEnabled();
+  }
+
+  /// Check if per-task reminder notifications are enabled.
+  Future<bool> isTaskNotificationsEnabled() async {
+    await _migrateSettingsIfNeeded();
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(taskNotificationsEnabledKey) ?? true;
+  }
+
+  /// Check if the daily reminder notification is enabled.
+  Future<bool> isDailyReminderEnabled() async {
+    await _migrateSettingsIfNeeded();
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getBool(dailyReminderEnabledKey) ?? true;
+  }
+
+  /// Whether any notification type is enabled.
+  Future<bool> areAnyNotificationsEnabled() async {
+    final taskNotificationsEnabled = await isTaskNotificationsEnabled();
+    if (taskNotificationsEnabled) {
+      return true;
+    }
+
+    return isDailyReminderEnabled();
+  }
+
+  Future<int> getDailyReminderHour() async {
+    await _migrateSettingsIfNeeded();
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(dailyReminderHourKey) ?? defaultDailyReminderHour;
+  }
+
+  Future<int> getDailyReminderMinute() async {
+    await _migrateSettingsIfNeeded();
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getInt(dailyReminderMinuteKey) ?? defaultDailyReminderMinute;
+  }
+
+  Future<void> setTaskNotificationsEnabled(bool value) async {
+    await _migrateSettingsIfNeeded();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(taskNotificationsEnabledKey, value);
+  }
+
+  Future<void> setDailyReminderEnabled(bool value) async {
+    await _migrateSettingsIfNeeded();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setBool(dailyReminderEnabledKey, value);
+  }
+
+  Future<void> setDailyReminderTime({
+    required int hour,
+    required int minute,
+  }) async {
+    await _migrateSettingsIfNeeded();
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setInt(dailyReminderHourKey, hour);
+    await prefs.setInt(dailyReminderMinuteKey, minute);
+  }
+
+  @visibleForTesting
+  void debugSetInitializationState({
+    required bool isInitialized,
+    int initAttempts = 0,
+  }) {
+    _isInitialized = isInitialized;
+    _initAttempts = initAttempts;
+  }
+
+  @visibleForTesting
+  void debugSetDailyReminderSchedulerForTesting(
+    Future<void> Function(int pendingCount, int hour, int minute)? scheduler,
+  ) {
+    _dailyReminderSchedulerOverrideForTesting = scheduler;
+  }
+
+  @visibleForTesting
+  void debugResetForTesting() {
+    _isInitialized = false;
+    _initAttempts = 0;
+    _dailyReminderSchedulerOverrideForTesting = null;
+  }
+
+  Future<NotificationPermissionStatus> getNotificationPermissionStatus() async {
+    if (!await _ensureInitialized()) return NotificationPermissionStatus.failed;
 
     final androidPlugin = _plugin
         .resolvePlatformSpecificImplementation<
