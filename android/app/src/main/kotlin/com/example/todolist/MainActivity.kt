@@ -95,6 +95,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        InterventionPersistenceService.start(this, "main_activity_created")
         consumeBlockedPackageFromIntent(intent)
     }
 
