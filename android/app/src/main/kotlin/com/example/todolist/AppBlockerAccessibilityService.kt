@@ -2,6 +2,7 @@ package com.example.todolist
 
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
+import android.content.Intent
 import android.view.accessibility.AccessibilityEvent
 import android.util.Log
 import org.json.JSONArray
@@ -69,6 +70,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         super.onServiceConnected()
         instance = this
         overlayManager = InterventionOverlayManager(this)
+        InterventionRuntimeStore.touchAccessibilityHeartbeat(this)
+        InterventionPersistenceService.start(this, "accessibility_connected")
         Log.d(TAG, "Accessibility Service connected; overlay manager ready")
     }
 
@@ -80,6 +83,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         }
 
         val currentPackageName = event.packageName?.toString() ?: return
+        InterventionRuntimeStore.touchAccessibilityHeartbeat(this, currentPackageName)
         if (!shouldEvaluatePackage(currentPackageName)) {
             return
         }
@@ -108,10 +112,18 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     }
 
     override fun onInterrupt() {
+        InterventionRuntimeStore.touchAccessibilityHeartbeat(this)
         Log.d(TAG, "Accessibility Service interrupted")
     }
 
+    override fun onUnbind(intent: Intent?): Boolean {
+        InterventionRuntimeStore.markAccessibilityDisconnected(this)
+        Log.d(TAG, "Accessibility Service unbound")
+        return super.onUnbind(intent)
+    }
+
     override fun onDestroy() {
+        InterventionRuntimeStore.markAccessibilityDisconnected(this)
         super.onDestroy()
         overlayManager?.dismiss()
         overlayManager = null
