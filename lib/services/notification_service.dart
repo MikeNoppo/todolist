@@ -754,71 +754,118 @@ class NotificationService {
   // ─── Daily Summary Reminder ───
 
   /// Schedule a daily reminder notification that shows a summary of pending tasks.
-  Future<void> scheduleDailyReminder() async {
-    if (!await _ensureInitialized()) return;
-
-    final enabled = await isEnabled();
-    if (!enabled) return;
-
-    await _scheduleDailyReminderInternal();
+  Future<DailyReminderSyncResult> scheduleDailyReminder() async {
+    return syncDailyReminderState();
   }
 
-  /// Internal daily reminder scheduling that skips the isEnabled() check.
-  /// Used by [rescheduleAllNotifications] which already checked once.
-  Future<void> _scheduleDailyReminderInternal() async {
+  /// Ensure the daily reminder matches the current todo state.
+  Future<DailyReminderSyncResult> syncDailyReminderState() async {
+    if (!await _ensureInitialized()) return DailyReminderSyncResult.failed;
+
     try {
-      // Cancel previous daily reminder
-      await _plugin.cancel(_dailySummaryNotificationId);
-
-      final prefs = await SharedPreferences.getInstance();
-      final hour =
-          prefs.getInt(dailyReminderHourKey) ?? _defaultDailyReminderHour;
-      final minute =
-          prefs.getInt(dailyReminderMinuteKey) ?? _defaultDailyReminderMinute;
-
-      // Schedule daily repeating notification
-      final now = tz.TZDateTime.now(tz.local);
-      var scheduledDate = tz.TZDateTime(
-        tz.local,
-        now.year,
-        now.month,
-        now.day,
-        hour,
-        minute,
+      final todos = await TodoRepository().getTodos();
+      return _syncDailyReminderStateForTodos(todos);
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to sync daily reminder state.',
+        error: e,
+        stackTrace: stackTrace,
       );
+      return DailyReminderSyncResult.failed;
+    }
+  }
 
-      // If time already passed today, schedule for tomorrow
-      if (scheduledDate.isBefore(now)) {
-        scheduledDate = scheduledDate.add(const Duration(days: 1));
-      }
+  Future<DailyReminderSyncResult> _syncDailyReminderStateForTodos(
+    List<TodoModel> todos,
+  ) async {
+    final dailyReminderEnabled = await isDailyReminderEnabled();
+    if (!dailyReminderEnabled) {
+      await cancelDailyReminder();
+      return DailyReminderSyncResult.disabled;
+    }
 
-      await _plugin.zonedSchedule(
-        _dailySummaryNotificationId,
-        'Ringkasan Tugas Hari Ini',
-        'Kamu punya tugas yang belum selesai. Buka myTask untuk cek!',
-        scheduledDate,
-        const NotificationDetails(
-          android: AndroidNotificationDetails(
-            _dailySummaryChannelId,
-            _dailySummaryChannelName,
-            channelDescription: _dailySummaryChannelDesc,
-            importance: Importance.defaultImportance,
-            priority: Priority.defaultPriority,
-            category: AndroidNotificationCategory.reminder,
+    final pendingCount = todos.where((todo) => !todo.isCompleted).length;
+    if (pendingCount == 0) {
+      await cancelDailyReminder();
+      AppLogger.info(
+        _tag,
+        'Daily reminder skipped because there are no pending tasks.',
+      );
+      return DailyReminderSyncResult.noPendingTasks;
+    }
+
+    final scheduleSucceeded = await _scheduleDailyReminderInternal(
+      pendingCount: pendingCount,
+    );
+    if (!scheduleSucceeded) {
+      return DailyReminderSyncResult.failed;
+    }
+
+    return DailyReminderSyncResult.scheduled;
+  }
+
+  /// Internal daily reminder scheduling.
+  Future<bool> _scheduleDailyReminderInternal({
+    required int pendingCount,
+  }) async {
+    try {
+      final hour = await getDailyReminderHour();
+      final minute = await getDailyReminderMinute();
+
+      final scheduleOverride = _dailyReminderSchedulerOverrideForTesting;
+      if (scheduleOverride != null) {
+        await scheduleOverride(pendingCount, hour, minute);
+      } else {
+        // Cancel previous daily reminder
+        await _plugin.cancel(_dailySummaryNotificationId);
+
+        // Schedule daily repeating notification
+        final now = tz.TZDateTime.now(tz.local);
+        var scheduledDate = tz.TZDateTime(
+          tz.local,
+          now.year,
+          now.month,
+          now.day,
+          hour,
+          minute,
+        );
+
+        // If time already passed today, schedule for tomorrow
+        if (scheduledDate.isBefore(now)) {
+          scheduledDate = scheduledDate.add(const Duration(days: 1));
+        }
+
+        await _plugin.zonedSchedule(
+          _dailySummaryNotificationId,
+          'Ringkasan Tugas Hari Ini',
+          _buildDailyReminderBody(pendingCount),
+          scheduledDate,
+          const NotificationDetails(
+            android: AndroidNotificationDetails(
+              _dailySummaryChannelId,
+              _dailySummaryChannelName,
+              channelDescription: _dailySummaryChannelDesc,
+              importance: Importance.defaultImportance,
+              priority: Priority.defaultPriority,
+              category: AndroidNotificationCategory.reminder,
+            ),
           ),
-        ),
-        androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-        uiLocalNotificationDateInterpretation:
-            UILocalNotificationDateInterpretation.absoluteTime,
-        payload: 'daily_summary',
-        matchDateTimeComponents: DateTimeComponents.time,
-      );
+          androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
+          uiLocalNotificationDateInterpretation:
+              UILocalNotificationDateInterpretation.absoluteTime,
+          payload: 'daily_summary',
+          matchDateTimeComponents: DateTimeComponents.time,
+        );
+      }
 
       AppLogger.info(
         _tag,
         'Daily reminder scheduled at '
-        '$hour:${minute.toString().padLeft(2, '0')}.',
+        '$hour:${minute.toString().padLeft(2, '0')} '
+        'for $pendingCount pending tasks.',
       );
+      return true;
     } catch (e, stackTrace) {
       AppLogger.error(
         _tag,
@@ -826,6 +873,7 @@ class NotificationService {
         error: e,
         stackTrace: stackTrace,
       );
+      return false;
     }
   }
 
@@ -834,6 +882,13 @@ class NotificationService {
     if (!await _ensureInitialized()) return;
     await _plugin.cancel(_dailySummaryNotificationId);
     AppLogger.info(_tag, 'Daily reminder cancelled.');
+  }
+
+  String _buildDailyReminderBody(int pendingCount) {
+    final taskLabel = pendingCount == 1
+        ? '1 tugas belum selesai'
+        : '$pendingCount tugas belum selesai';
+    return 'Kamu punya $taskLabel. Buka myTask untuk cek!';
   }
 
   // ─── Helpers ───
