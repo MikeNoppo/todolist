@@ -292,15 +292,171 @@ class NotificationService {
         >();
 
     if (androidPlugin != null) {
-      final granted = await androidPlugin.requestNotificationsPermission();
-      AppLogger.info(
-        _tag,
-        'Notification permission request result: granted=$granted',
-      );
-      return granted ?? false;
+      try {
+        final enabled = await androidPlugin.areNotificationsEnabled();
+        return enabled == false
+            ? NotificationPermissionStatus.denied
+            : NotificationPermissionStatus.granted;
+      } catch (e, stackTrace) {
+        AppLogger.error(
+          _tag,
+          'Failed to read notification permission state.',
+          error: e,
+          stackTrace: stackTrace,
+        );
+        return NotificationPermissionStatus.failed;
+      }
     }
 
-    return true;
+    return NotificationPermissionStatus.granted;
+  }
+
+  /// Request notification permission (Android 13+).
+  Future<NotificationPermissionStatus> requestNotificationPermission() async {
+    final currentStatus = await getNotificationPermissionStatus();
+    if (currentStatus != NotificationPermissionStatus.denied) {
+      AppLogger.info(
+        _tag,
+        'Notification permission request skipped: status=${currentStatus.name}',
+      );
+      return currentStatus;
+    }
+
+    final androidPlugin = _plugin
+        .resolvePlatformSpecificImplementation<
+          AndroidFlutterLocalNotificationsPlugin
+        >();
+
+    if (androidPlugin == null) {
+      return NotificationPermissionStatus.granted;
+    }
+
+    try {
+      final granted = await androidPlugin.requestNotificationsPermission();
+      final updatedStatus = await getNotificationPermissionStatus();
+      AppLogger.info(
+        _tag,
+        'Notification permission request result: '
+        'granted=$granted status=${updatedStatus.name}',
+      );
+      return updatedStatus;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to request notification permission.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return NotificationPermissionStatus.failed;
+    }
+  }
+
+  /// Backward-compatible bool wrapper for callers that only need success.
+  Future<bool> requestPermission() async {
+    return await requestNotificationPermission() ==
+        NotificationPermissionStatus.granted;
+  }
+
+  Future<NotificationPermissionStatus> showDebugTaskNotificationNow() async {
+    if (!await _ensureInitialized()) return NotificationPermissionStatus.failed;
+
+    final permissionStatus = await getNotificationPermissionStatus();
+    if (permissionStatus != NotificationPermissionStatus.granted) {
+      AppLogger.warn(
+        _tag,
+        'Skipping debug task notification: permission=${permissionStatus.name}',
+      );
+      return permissionStatus;
+    }
+
+    try {
+      final todo = await TodoRepository().getHighestPriorityTodo();
+      final title = todo != null
+          ? 'Pengingat: ${todo.title}'
+          : 'Preview Notifikasi Tugas';
+      final body = todo != null
+          ? 'Preview debug untuk tugas "${todo.title}". '
+                'Prioritas: ${_priorityLabel(todo.priority)}'
+          : 'Preview debug untuk notifikasi tugas berbasis deadline.';
+
+      await _plugin.show(
+        _debugTaskNotificationId,
+        title,
+        body,
+        NotificationDetails(
+          android: AndroidNotificationDetails(
+            _taskReminderChannelId,
+            _taskReminderChannelName,
+            channelDescription: _taskReminderChannelDesc,
+            importance: Importance.high,
+            priority: Priority.high,
+            styleInformation: BigTextStyleInformation(body),
+            category: AndroidNotificationCategory.reminder,
+          ),
+        ),
+        payload: todo?.id ?? 'debug_task_notification',
+      );
+
+      AppLogger.info(_tag, 'Debug task notification shown successfully.');
+      return NotificationPermissionStatus.granted;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to show debug task notification.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return NotificationPermissionStatus.failed;
+    }
+  }
+
+  Future<NotificationPermissionStatus> showDebugDailyReminderNow() async {
+    if (!await _ensureInitialized()) return NotificationPermissionStatus.failed;
+
+    final permissionStatus = await getNotificationPermissionStatus();
+    if (permissionStatus != NotificationPermissionStatus.granted) {
+      AppLogger.warn(
+        _tag,
+        'Skipping debug daily reminder: permission=${permissionStatus.name}',
+      );
+      return permissionStatus;
+    }
+
+    try {
+      final todos = await TodoRepository().getTodos();
+      final pendingCount = todos.where((todo) => !todo.isCompleted).length;
+      final body = pendingCount > 0
+          ? _buildDailyReminderBody(pendingCount)
+          : 'Preview debug: saat ini belum ada tugas yang belum selesai.';
+
+      await _plugin.show(
+        _debugDailyReminderNotificationId,
+        'Ringkasan Tugas Hari Ini',
+        body,
+        const NotificationDetails(
+          android: AndroidNotificationDetails(
+            _dailySummaryChannelId,
+            _dailySummaryChannelName,
+            channelDescription: _dailySummaryChannelDesc,
+            importance: Importance.defaultImportance,
+            priority: Priority.defaultPriority,
+            category: AndroidNotificationCategory.reminder,
+          ),
+        ),
+        payload: 'debug_daily_summary',
+      );
+
+      AppLogger.info(_tag, 'Debug daily reminder shown successfully.');
+      return NotificationPermissionStatus.granted;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to show debug daily reminder.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return NotificationPermissionStatus.failed;
+    }
   }
 
   // ─── Notification Schedule Points Based on Priority ───
