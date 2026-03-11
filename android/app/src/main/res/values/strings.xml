@@ -2,4 +2,10 @@
 <resources>
     <string name="app_name">TodoList</string>
     <string name="accessibility_service_description">Layanan ini diperlukan untuk mendeteksi dan memblokir aplikasi yang mengganggu produktivitas Anda. Data tidak akan dibagikan ke pihak ketiga.</string>
+    <string name="intervention_guard_channel_name">Penjaga Intervensi</string>
+    <string name="intervention_guard_channel_description">Menjaga layanan intervensi tetap aktif meski aplikasi ditutup dari recent apps.</string>
+    <string name="intervention_guard_notification_title">Intervensi myTask tetap aktif</string>
+    <string name="intervention_guard_notification_active">Intervensi tetap berjaga walaupun aplikasi ditutup dari recent apps.</string>
+    <string name="intervention_guard_notification_waiting">Penjaga intervensi aktif dan menunggu layanan aksesibilitas tersambung.</string>
+    <string name="intervention_guard_notification_reconnecting">Penjaga intervensi aktif. Buka myTask jika layanan aksesibilitas perlu dipulihkan.</string>
 </resources>
