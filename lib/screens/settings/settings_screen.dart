@@ -1,7 +1,7 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'package:flutter/services.dart';
-import 'package:shared_preferences/shared_preferences.dart';
+import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../core/ui/app_size_tokens.dart';
 import '../../repositories/todo_repository.dart';
@@ -24,8 +24,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
   static const String _tag = 'SettingsScreen';
 
   final TodoRepository _todoRepository = TodoRepository();
+  final NotificationService _notificationService = NotificationService();
   String _userName = 'Pengguna';
-  bool _notificationsEnabled = true;
+  bool _taskNotificationsEnabled = true;
+  bool _dailyReminderEnabled = true;
+  int _dailyReminderHour = NotificationService.defaultDailyReminderHour;
+  int _dailyReminderMinute = NotificationService.defaultDailyReminderMinute;
   bool _isLoading = true;
 
   @override
@@ -37,14 +41,24 @@ class _SettingsScreenState extends State<SettingsScreen> {
   Future<void> _loadSettings() async {
     try {
       final userName = await _todoRepository.getUserName();
-      final prefs = await SharedPreferences.getInstance();
-      final notifications = prefs.getBool('notifications_enabled') ?? true;
+      await _notificationService.ensureSettingsMigrated();
+      final taskNotificationsEnabled = await _notificationService
+          .isTaskNotificationsEnabled();
+      final dailyReminderEnabled = await _notificationService
+          .isDailyReminderEnabled();
+      final dailyReminderHour = await _notificationService
+          .getDailyReminderHour();
+      final dailyReminderMinute = await _notificationService
+          .getDailyReminderMinute();
 
       if (!mounted) return;
 
       setState(() {
         _userName = userName ?? 'Pengguna';
-        _notificationsEnabled = notifications;
+        _taskNotificationsEnabled = taskNotificationsEnabled;
+        _dailyReminderEnabled = dailyReminderEnabled;
+        _dailyReminderHour = dailyReminderHour;
+        _dailyReminderMinute = dailyReminderMinute;
         _isLoading = false;
       });
     } catch (e, stackTrace) {
@@ -61,60 +75,309 @@ class _SettingsScreenState extends State<SettingsScreen> {
     }
   }
 
-  Future<void> _updateNotificationSetting(bool value) async {
+  Future<void> _updateTaskNotificationSetting(bool value) async {
     try {
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setBool('notifications_enabled', value);
+      await _notificationService.setTaskNotificationsEnabled(value);
 
       if (!mounted) return;
 
       setState(() {
-        _notificationsEnabled = value;
+        _taskNotificationsEnabled = value;
       });
 
       HapticFeedback.lightImpact();
 
-      // Wire to NotificationService: reschedule or cancel all notifications
-      final notificationService = NotificationService();
+      NotificationPermissionStatus permissionStatus =
+          NotificationPermissionStatus.granted;
+      TaskNotificationSyncResult syncResult =
+          TaskNotificationSyncResult.disabled;
+      bool cancelSucceeded = true;
       if (value) {
-        // Request permission first (Android 13+)
-        await notificationService.requestPermission();
-        await notificationService.rescheduleAllNotifications();
+        permissionStatus = await _notificationService
+            .requestNotificationPermission();
+        syncResult = await _notificationService.rescheduleTaskNotifications();
       } else {
-        await notificationService.cancelAllNotifications();
+        cancelSucceeded = await _notificationService
+            .cancelAllTaskNotifications();
       }
 
-      AppLogger.info(_tag, 'Notification setting updated: enabled=$value');
+      AppLogger.info(_tag, 'Task notification setting updated: enabled=$value');
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(
-            value ? 'Notifikasi diaktifkan' : 'Notifikasi dinonaktifkan',
-          ),
-          backgroundColor: const Color(0xFF4A6FA5),
-          duration: const Duration(seconds: 2),
-        ),
+      _showSettingsSnackBar(
+        value
+            ? _taskNotificationEnabledMessage(syncResult, permissionStatus)
+            : _taskNotificationDisabledMessage(cancelSucceeded),
+        backgroundColor: value
+            ? _taskNotificationMessageColor(syncResult, permissionStatus)
+            : _taskNotificationDisabledColor(cancelSucceeded),
       );
     } catch (e, stackTrace) {
       AppLogger.error(
         _tag,
-        'Failed to update notification setting.',
+        'Failed to update task notification setting.',
         error: e,
         stackTrace: stackTrace,
       );
 
       if (!mounted) return;
 
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Gagal memperbarui pengaturan notifikasi'),
-          backgroundColor: Colors.red,
-          duration: Duration(seconds: 2),
-        ),
+      _showSettingsSnackBar(
+        'Gagal memperbarui notifikasi tugas',
+        backgroundColor: Colors.red,
       );
     }
+  }
+
+  Future<void> _updateDailyReminderSetting(bool value) async {
+    try {
+      await _notificationService.setDailyReminderEnabled(value);
+
+      if (!mounted) return;
+
+      setState(() {
+        _dailyReminderEnabled = value;
+      });
+
+      HapticFeedback.lightImpact();
+
+      NotificationPermissionStatus permissionStatus =
+          NotificationPermissionStatus.granted;
+      DailyReminderSyncResult syncResult = DailyReminderSyncResult.disabled;
+      if (value) {
+        permissionStatus = await _notificationService
+            .requestNotificationPermission();
+        syncResult = await _notificationService.syncDailyReminderState();
+      } else {
+        await _notificationService.cancelDailyReminder();
+      }
+
+      AppLogger.info(_tag, 'Daily reminder setting updated: enabled=$value');
+
+      if (!mounted) return;
+
+      _showSettingsSnackBar(
+        value
+            ? _dailyReminderEnabledMessage(syncResult, permissionStatus)
+            : 'Reminder harian dinonaktifkan',
+        backgroundColor: value
+            ? _dailyReminderMessageColor(syncResult, permissionStatus)
+            : const Color(0xFF4A6FA5),
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to update daily reminder setting.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) return;
+
+      _showSettingsSnackBar(
+        'Gagal memperbarui reminder harian',
+        backgroundColor: Colors.red,
+      );
+    }
+  }
+
+  Future<void> _pickDailyReminderTime() async {
+    if (!_dailyReminderEnabled) return;
+
+    final selectedTime = await showTimePicker(
+      context: context,
+      initialTime: TimeOfDay(
+        hour: _dailyReminderHour,
+        minute: _dailyReminderMinute,
+      ),
+    );
+
+    if (selectedTime == null) return;
+
+    try {
+      await _notificationService.setDailyReminderTime(
+        hour: selectedTime.hour,
+        minute: selectedTime.minute,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _dailyReminderHour = selectedTime.hour;
+        _dailyReminderMinute = selectedTime.minute;
+      });
+
+      HapticFeedback.lightImpact();
+
+      final permissionStatus = await _notificationService
+          .getNotificationPermissionStatus();
+      final syncResult = await _notificationService.syncDailyReminderState();
+
+      AppLogger.info(
+        _tag,
+        'Daily reminder time updated: '
+        'hour=${selectedTime.hour} minute=${selectedTime.minute}',
+      );
+
+      if (!mounted) return;
+
+      _showSettingsSnackBar(
+        _dailyReminderTimeUpdatedMessage(syncResult, permissionStatus),
+        backgroundColor: _dailyReminderMessageColor(
+          syncResult,
+          permissionStatus,
+        ),
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to update daily reminder time.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) return;
+
+      _showSettingsSnackBar(
+        'Gagal memperbarui jam reminder harian',
+        backgroundColor: Colors.red,
+      );
+    }
+  }
+
+  void _showSettingsSnackBar(
+    String message, {
+    Color backgroundColor = const Color(0xFF4A6FA5),
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: backgroundColor,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  String _formatDailyReminderTime(BuildContext context) {
+    final localizations = MaterialLocalizations.of(context);
+    return localizations.formatTimeOfDay(
+      TimeOfDay(hour: _dailyReminderHour, minute: _dailyReminderMinute),
+      alwaysUse24HourFormat: MediaQuery.alwaysUse24HourFormatOf(context),
+    );
+  }
+
+  String _taskNotificationEnabledMessage(
+    TaskNotificationSyncResult syncResult,
+    NotificationPermissionStatus permissionStatus,
+  ) {
+    if (permissionStatus == NotificationPermissionStatus.failed) {
+      return 'Notifikasi tugas belum berhasil disiapkan';
+    }
+
+    if (permissionStatus == NotificationPermissionStatus.denied) {
+      return 'Notifikasi tugas aktif, tapi izin notifikasi belum diberikan';
+    }
+
+    return switch (syncResult) {
+      TaskNotificationSyncResult.scheduled => 'Notifikasi tugas diaktifkan',
+      TaskNotificationSyncResult.nothingToSchedule =>
+        'Notifikasi tugas aktif saat ada deadline yang masih akan datang',
+      TaskNotificationSyncResult.disabled => 'Notifikasi tugas dinonaktifkan',
+      TaskNotificationSyncResult.failed =>
+        'Notifikasi tugas belum berhasil dijadwalkan',
+    };
+  }
+
+  Color _taskNotificationMessageColor(
+    TaskNotificationSyncResult syncResult,
+    NotificationPermissionStatus permissionStatus,
+  ) {
+    if (permissionStatus == NotificationPermissionStatus.failed ||
+        syncResult == TaskNotificationSyncResult.failed) {
+      return Colors.red;
+    }
+
+    if (permissionStatus == NotificationPermissionStatus.denied) {
+      return const Color(0xFFE58F1E);
+    }
+
+    return const Color(0xFF4A6FA5);
+  }
+
+  String _taskNotificationDisabledMessage(bool cancelSucceeded) {
+    return cancelSucceeded
+        ? 'Notifikasi tugas dinonaktifkan'
+        : 'Pengaturan disimpan, tapi pembatalan notifikasi tugas gagal';
+  }
+
+  Color _taskNotificationDisabledColor(bool cancelSucceeded) {
+    return cancelSucceeded ? const Color(0xFF4A6FA5) : Colors.red;
+  }
+
+  String _dailyReminderEnabledMessage(
+    DailyReminderSyncResult result,
+    NotificationPermissionStatus permissionStatus,
+  ) {
+    if (permissionStatus == NotificationPermissionStatus.failed) {
+      return 'Reminder harian belum berhasil disiapkan';
+    }
+
+    if (permissionStatus == NotificationPermissionStatus.denied) {
+      return 'Reminder harian aktif, tapi izin notifikasi belum diberikan';
+    }
+
+    return switch (result) {
+      DailyReminderSyncResult.scheduled => 'Reminder harian diaktifkan',
+      DailyReminderSyncResult.noPendingTasks =>
+        'Reminder harian aktif saat ada tugas yang belum selesai',
+      DailyReminderSyncResult.disabled => 'Reminder harian dinonaktifkan',
+      DailyReminderSyncResult.failed =>
+        'Reminder harian belum berhasil dijadwalkan',
+    };
+  }
+
+  String _dailyReminderTimeUpdatedMessage(
+    DailyReminderSyncResult result,
+    NotificationPermissionStatus permissionStatus,
+  ) {
+    if (permissionStatus == NotificationPermissionStatus.failed) {
+      return 'Jam disimpan, tapi reminder harian belum berhasil disiapkan';
+    }
+
+    if (permissionStatus == NotificationPermissionStatus.denied) {
+      return 'Jam disimpan, tapi izin notifikasi belum diberikan';
+    }
+
+    return switch (result) {
+      DailyReminderSyncResult.scheduled => 'Jam reminder harian diperbarui',
+      DailyReminderSyncResult.noPendingTasks =>
+        'Jam disimpan. Reminder aktif saat ada tugas yang belum selesai',
+      DailyReminderSyncResult.disabled =>
+        'Aktifkan reminder harian untuk menjadwalkan notifikasi',
+      DailyReminderSyncResult.failed =>
+        'Jam disimpan, tapi reminder harian belum berhasil dijadwalkan',
+    };
+  }
+
+  Color _dailyReminderMessageColor(
+    DailyReminderSyncResult result,
+    NotificationPermissionStatus permissionStatus,
+  ) {
+    if (permissionStatus == NotificationPermissionStatus.failed) {
+      return Colors.red;
+    }
+
+    if (permissionStatus == NotificationPermissionStatus.denied) {
+      return const Color(0xFFE58F1E);
+    }
+
+    return switch (result) {
+      DailyReminderSyncResult.failed => Colors.red,
+      DailyReminderSyncResult.scheduled ||
+      DailyReminderSyncResult.noPendingTasks ||
+      DailyReminderSyncResult.disabled => const Color(0xFF4A6FA5),
+    };
   }
 
   @override
@@ -197,33 +460,61 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
-                  _buildDivider(),
-                  _buildSettingItem(
-                    icon: Icons.bug_report_outlined,
-                    title: 'Debug',
-                    subtitle: 'Data policy hard block dan alasan blokir',
-                    onTap: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const DebugSettingsScreen(),
-                        ),
-                      );
-                    },
-                  ),
+                  if (!kReleaseMode) ...[
+                    _buildDivider(),
+                    _buildSettingItem(
+                      icon: Icons.bug_report_outlined,
+                      title: 'Debug',
+                      subtitle: 'Data policy hard block dan alasan blokir',
+                      onTap: () {
+                        Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (context) => const DebugSettingsScreen(),
+                          ),
+                        );
+                      },
+                    ),
+                  ],
                   _buildDivider(),
                   _buildSettingItem(
                     icon: Icons.notifications_outlined,
-                    title: 'Notifikasi',
-                    subtitle: 'Pengingat tugas dan deadline',
+                    title: 'Notifikasi Tugas',
+                    subtitle: 'Pengingat deadline berdasarkan prioritas tugas',
                     trailing: Switch.adaptive(
-                      value: _notificationsEnabled,
-                      onChanged: _updateNotificationSetting,
+                      value: _taskNotificationsEnabled,
+                      onChanged: _updateTaskNotificationSetting,
                       activeThumbColor: const Color(0xFF4A6FA5),
                       activeTrackColor: const Color(
                         0xFF4A6FA5,
                       ).withValues(alpha: 0.3),
                     ),
+                  ),
+                  _buildDivider(),
+                  _buildSettingItem(
+                    icon: Icons.today_outlined,
+                    title: 'Reminder Harian',
+                    subtitle: 'Ringkasan tugas aktif setiap hari',
+                    trailing: Switch.adaptive(
+                      value: _dailyReminderEnabled,
+                      onChanged: _updateDailyReminderSetting,
+                      activeThumbColor: const Color(0xFF4A6FA5),
+                      activeTrackColor: const Color(
+                        0xFF4A6FA5,
+                      ).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  _buildDivider(),
+                  _buildSettingItem(
+                    icon: Icons.schedule_outlined,
+                    title: 'Jam Reminder Harian',
+                    subtitle: _dailyReminderEnabled
+                        ? 'Setiap hari pukul ${_formatDailyReminderTime(context)}'
+                        : 'Aktifkan reminder harian untuk mengubah jam',
+                    trailing: _buildDailyReminderTimeTrailing(context),
+                    onTap: _dailyReminderEnabled
+                        ? _pickDailyReminderTime
+                        : null,
                   ),
                 ]),
 
@@ -440,6 +731,31 @@ class _SettingsScreenState extends State<SettingsScreen> {
     return Padding(
       padding: EdgeInsets.only(left: 80.w),
       child: Divider(height: 1, thickness: 1, color: Colors.grey[100]),
+    );
+  }
+
+  Widget _buildDailyReminderTimeTrailing(BuildContext context) {
+    final textColor = _dailyReminderEnabled ? Colors.black87 : Colors.grey[500];
+
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text(
+          _formatDailyReminderTime(context),
+          style: TextStyle(
+            fontSize: AppSizeTokens.text13,
+            fontWeight: FontWeight.w600,
+            color: textColor,
+          ),
+        ),
+        if (_dailyReminderEnabled) SizedBox(width: AppSizeTokens.space8),
+        if (_dailyReminderEnabled)
+          Icon(
+            Icons.chevron_right,
+            color: Colors.grey[400],
+            size: AppSizeTokens.icon20,
+          ),
+      ],
     );
   }
 
