@@ -509,21 +509,24 @@ class NotificationService {
   ///
   /// When called from [rescheduleAllNotifications], set [skipEnabledCheck]
   /// to `true` to avoid redundant SharedPreferences lookups.
-  Future<void> scheduleNotificationsForTodo(
+  Future<int> scheduleNotificationsForTodo(
     TodoModel todo, {
     bool skipEnabledCheck = false,
   }) async {
-    if (!await _ensureInitialized()) return;
+    if (!await _ensureInitialized()) return 0;
 
     if (!skipEnabledCheck) {
-      final enabled = await isEnabled();
-      if (!enabled) return;
+      final enabled = await isTaskNotificationsEnabled();
+      if (!enabled) {
+        await cancelNotificationsForTodo(todo.id);
+        return 0;
+      }
     }
 
     // Don't schedule for completed todos
     if (todo.isCompleted) {
       await cancelNotificationsForTodo(todo.id);
-      return;
+      return 0;
     }
 
     // Cancel existing notifications for this todo first
@@ -531,6 +534,7 @@ class NotificationService {
 
     final offsets = _getReminderOffsets(todo.priority);
     final now = tz.TZDateTime.now(tz.local);
+    int scheduledCount = 0;
 
     for (int i = 0; i < offsets.length; i++) {
       final offset = offsets[i];
@@ -588,6 +592,7 @@ class NotificationService {
           'at=$scheduledTime '
           'notifId=$notificationId',
         );
+        scheduledCount++;
       } catch (e, stackTrace) {
         AppLogger.error(
           _tag,
@@ -598,6 +603,8 @@ class NotificationService {
         );
       }
     }
+
+    return scheduledCount;
   }
 
   /// Cancel all notifications for a specific todo.
