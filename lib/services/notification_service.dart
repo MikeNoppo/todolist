@@ -627,39 +627,119 @@ class NotificationService {
     AppLogger.info(_tag, 'All notifications cancelled.');
   }
 
+  /// Cancel all scheduled task reminder notifications while preserving the
+  /// daily reminder.
+  Future<bool> cancelAllTaskNotifications() async {
+    if (!await _ensureInitialized()) return false;
+
+    try {
+      final todos = await TodoRepository().getTodos();
+      for (final todo in todos) {
+        await cancelNotificationsForTodo(todo.id);
+      }
+
+      AppLogger.info(
+        _tag,
+        'Cancelled task notifications for ${todos.length} todos.',
+      );
+      return true;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to cancel all task notifications.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
+
   // ─── Reschedule All Notifications ───
+
+  /// Reschedule notifications for all incomplete todos only.
+  Future<TaskNotificationSyncResult> rescheduleTaskNotifications() async {
+    if (!await _ensureInitialized()) return TaskNotificationSyncResult.failed;
+
+    try {
+      final todos = await TodoRepository().getTodos();
+      for (final todo in todos) {
+        await cancelNotificationsForTodo(todo.id);
+      }
+
+      final taskNotificationsEnabled = await isTaskNotificationsEnabled();
+      if (!taskNotificationsEnabled) {
+        AppLogger.info(
+          _tag,
+          'Task notifications disabled; skipping reschedule.',
+        );
+        return TaskNotificationSyncResult.disabled;
+      }
+
+      int scheduledTodos = 0;
+      int scheduledNotifications = 0;
+      for (final todo in todos) {
+        if (!todo.isCompleted) {
+          final scheduledForTodo = await scheduleNotificationsForTodo(
+            todo,
+            skipEnabledCheck: true,
+          );
+          if (scheduledForTodo > 0) {
+            scheduledTodos++;
+            scheduledNotifications += scheduledForTodo;
+          }
+        }
+      }
+
+      AppLogger.info(
+        _tag,
+        'Rescheduled task notifications for $scheduledTodos todos '
+        '($scheduledNotifications notifications).',
+      );
+      if (scheduledNotifications == 0) {
+        return TaskNotificationSyncResult.nothingToSchedule;
+      }
+
+      return TaskNotificationSyncResult.scheduled;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to reschedule task notifications.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return TaskNotificationSyncResult.failed;
+    }
+  }
 
   /// Reschedule notifications for all incomplete todos.
   /// Call this when the app starts, after settings change, or after boot.
   Future<void> rescheduleAllNotifications() async {
     if (!await _ensureInitialized()) return;
 
-    final enabled = await isEnabled();
-    if (!enabled) {
-      await cancelAllNotifications();
-      return;
-    }
-
     try {
-      // Cancel everything first
+      final todos = await TodoRepository().getTodos();
+
+      // Cancel everything first, then rebuild only what should exist.
       await cancelAllNotifications();
 
-      // Reschedule task reminders (skip per-todo isEnabled check)
-      final todos = await TodoRepository().getTodos();
+      final taskNotificationsEnabled = await isTaskNotificationsEnabled();
       int scheduledCount = 0;
-      for (final todo in todos) {
-        if (!todo.isCompleted) {
-          await scheduleNotificationsForTodo(todo, skipEnabledCheck: true);
-          scheduledCount++;
+      if (taskNotificationsEnabled) {
+        for (final todo in todos) {
+          if (!todo.isCompleted) {
+            await scheduleNotificationsForTodo(todo, skipEnabledCheck: true);
+            scheduledCount++;
+          }
         }
       }
 
-      // Reschedule daily summary (skip isEnabled check internally)
-      await _scheduleDailyReminderInternal();
+      final dailyReminderResult = await _syncDailyReminderStateForTodos(todos);
 
       AppLogger.info(
         _tag,
-        'Rescheduled notifications for $scheduledCount incomplete todos.',
+        'Rescheduled notifications: '
+        'taskTodos=$scheduledCount '
+        'dailyReminderResult=${dailyReminderResult.name}',
       );
     } catch (e, stackTrace) {
       AppLogger.error(
