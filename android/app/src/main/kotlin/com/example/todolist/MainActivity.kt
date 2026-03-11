@@ -2,7 +2,6 @@ package com.example.todolist
 
 import android.app.AppOpsManager
 import android.app.usage.UsageStatsManager
-import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.pm.ApplicationInfo
@@ -14,7 +13,6 @@ import android.os.Build
 import android.os.Bundle
 import android.os.Process
 import android.provider.Settings
-import android.text.TextUtils.SimpleStringSplitter
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
@@ -309,32 +307,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private fun isAccessibilityServiceEnabled(): Boolean {
-        val accessibilityEnabled = Settings.Secure.getInt(
-            contentResolver,
-            Settings.Secure.ACCESSIBILITY_ENABLED, 0
-        )
-        
-        if (accessibilityEnabled == 1) {
-            val settingValue = Settings.Secure.getString(
-                contentResolver,
-                Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
-            )
-            
-            if (settingValue != null) {
-                val splitter = SimpleStringSplitter(':')
-                splitter.setString(settingValue)
-                while (splitter.hasNext()) {
-                    val accessibilityService = splitter.next()
-                    if (accessibilityService.equals(
-                            ComponentName(this, AppBlockerAccessibilityService::class.java).flattenToString(),
-                            ignoreCase = true
-                        )) {
-                        return true
-                    }
-                }
-            }
-        }
-        return false
+        return AccessibilityServiceUtils.isAppBlockerServiceEnabled(this)
     }
 
     private fun openAccessibilitySettings() {
