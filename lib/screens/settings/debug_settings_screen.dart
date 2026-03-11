@@ -1,9 +1,12 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 import '../../models/todo_model.dart';
 import '../../services/app_blocker_service.dart';
 import '../../services/app_logger.dart';
+import '../../services/notification_service.dart';
 
 class DebugSettingsScreen extends StatefulWidget {
   const DebugSettingsScreen({super.key});
@@ -15,7 +18,10 @@ class DebugSettingsScreen extends StatefulWidget {
 class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
   static const String _tag = 'DebugSettingsScreen';
 
+  final NotificationService _notificationService = NotificationService();
   bool _isLoading = true;
+  bool _isTriggeringTaskNotification = false;
+  bool _isTriggeringDailyReminder = false;
   InterventionDebugInfo? _debugInfo;
 
   @override
@@ -46,6 +52,121 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _triggerTaskNotification(bool value) async {
+    if (!value || _isTriggeringTaskNotification) return;
+
+    setState(() {
+      _isTriggeringTaskNotification = true;
+    });
+    HapticFeedback.lightImpact();
+
+    try {
+      var permissionStatus = await _notificationService
+          .requestNotificationPermission();
+      if (permissionStatus == NotificationPermissionStatus.granted) {
+        permissionStatus = await _notificationService
+            .showDebugTaskNotificationNow();
+      }
+
+      if (!mounted) return;
+      _showNotificationSnackBar(
+        permissionStatus == NotificationPermissionStatus.granted
+            ? 'Preview notifikasi tugas dikirim'
+            : permissionStatus == NotificationPermissionStatus.denied
+            ? 'Izin notifikasi belum diberikan'
+            : 'Gagal menampilkan preview notifikasi tugas',
+        backgroundColor: _notificationStatusColor(permissionStatus),
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to trigger debug task notification.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) return;
+      _showNotificationSnackBar(
+        'Gagal menampilkan preview notifikasi tugas',
+        backgroundColor: Colors.red,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTriggeringTaskNotification = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _triggerDailyReminder(bool value) async {
+    if (!value || _isTriggeringDailyReminder) return;
+
+    setState(() {
+      _isTriggeringDailyReminder = true;
+    });
+    HapticFeedback.lightImpact();
+
+    try {
+      var permissionStatus = await _notificationService
+          .requestNotificationPermission();
+      if (permissionStatus == NotificationPermissionStatus.granted) {
+        permissionStatus = await _notificationService
+            .showDebugDailyReminderNow();
+      }
+
+      if (!mounted) return;
+      _showNotificationSnackBar(
+        permissionStatus == NotificationPermissionStatus.granted
+            ? 'Preview reminder harian dikirim'
+            : permissionStatus == NotificationPermissionStatus.denied
+            ? 'Izin notifikasi belum diberikan'
+            : 'Gagal menampilkan preview reminder harian',
+        backgroundColor: _notificationStatusColor(permissionStatus),
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to trigger debug daily reminder.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) return;
+      _showNotificationSnackBar(
+        'Gagal menampilkan preview reminder harian',
+        backgroundColor: Colors.red,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isTriggeringDailyReminder = false;
+        });
+      }
+    }
+  }
+
+  void _showNotificationSnackBar(
+    String message, {
+    required Color backgroundColor,
+  }) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(message),
+        backgroundColor: backgroundColor,
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
+
+  Color _notificationStatusColor(NotificationPermissionStatus status) {
+    return switch (status) {
+      NotificationPermissionStatus.granted => const Color(0xFF4A6FA5),
+      NotificationPermissionStatus.denied => const Color(0xFFE58F1E),
+      NotificationPermissionStatus.failed => Colors.red,
+    };
   }
 
   @override
@@ -94,6 +215,10 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
           : ListView(
               padding: EdgeInsets.all(20.r),
               children: [
+                if (!kReleaseMode) ...[
+                  _buildNotificationTestCard(),
+                  SizedBox(height: 12.h),
+                ],
                 _buildDebugCard(
                   title: 'Intervensi Terakhir',
                   rows: [
@@ -203,6 +328,94 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
           ...rows.map((row) => _buildDebugInfoRow(row.$1, row.$2)),
         ],
       ),
+    );
+  }
+
+  Widget _buildNotificationTestCard() {
+    return Container(
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Tes Notifikasi',
+            style: TextStyle(
+              fontSize: 15.sp,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          SizedBox(height: 4.h),
+          Text(
+            'Hanya tampil di build debug/dev untuk preview cepat.',
+            style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+          ),
+          SizedBox(height: 12.h),
+          _buildNotificationTriggerRow(
+            title: 'Trigger Notifikasi Tugas',
+            subtitle: 'Kirim preview notifikasi deadline secara langsung',
+            value: _isTriggeringTaskNotification,
+            onChanged: _triggerTaskNotification,
+          ),
+          Divider(height: 20.h, color: Colors.grey[100]),
+          _buildNotificationTriggerRow(
+            title: 'Trigger Reminder Harian',
+            subtitle: 'Kirim preview ringkasan harian secara langsung',
+            value: _isTriggeringDailyReminder,
+            onChanged: _triggerDailyReminder,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNotificationTriggerRow({
+    required String title,
+    required String subtitle,
+    required bool value,
+    required ValueChanged<bool> onChanged,
+  }) {
+    return Row(
+      children: [
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  fontSize: 14.sp,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.black87,
+                ),
+              ),
+              SizedBox(height: 4.h),
+              Text(
+                subtitle,
+                style: TextStyle(fontSize: 12.sp, color: Colors.grey[600]),
+              ),
+            ],
+          ),
+        ),
+        SizedBox(width: 12.w),
+        Switch.adaptive(
+          value: value,
+          onChanged: value ? null : onChanged,
+          activeThumbColor: const Color(0xFF4A6FA5),
+          activeTrackColor: const Color(0xFF4A6FA5).withValues(alpha: 0.3),
+        ),
+      ],
     );
   }
 
