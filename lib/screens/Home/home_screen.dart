@@ -4,7 +4,9 @@ import '../../models/todo_model.dart';
 import '../../repositories/todo_repository.dart';
 import '../../services/app_logger.dart';
 import '../../services/notification_service.dart';
+import '../../services/permission_service.dart';
 import '../add_edit_task_screen.dart';
+import '../onboarding/onboarding_screen.dart';
 import 'widgets/widgets.dart';
 
 class HomeScreen extends StatefulWidget {
@@ -14,7 +16,7 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   static const String _tag = 'HomeScreen';
 
   final TodoRepository _todoRepository = TodoRepository();
@@ -22,20 +24,64 @@ class _HomeScreenState extends State<HomeScreen> {
   List<TodoModel> _todos = [];
   String _userName = 'Pengguna';
   bool _isLoading = true;
+  bool _isPermissionRecoveryInProgress = false;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadData();
+    _ensureRequiredPermissions();
     _selectionManager.addListener(() {
       setState(() {});
     });
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _ensureRequiredPermissions();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _selectionManager.dispose();
     super.dispose();
+  }
+
+  Future<void> _ensureRequiredPermissions() async {
+    if (_isPermissionRecoveryInProgress || !mounted) {
+      return;
+    }
+
+    final accessibilityEnabled =
+        await PermissionService.isAccessibilityServiceEnabled();
+    final usageStatsGranted =
+        await PermissionService.isUsageStatsPermissionGranted();
+
+    if (!mounted || (accessibilityEnabled && usageStatsGranted)) {
+      return;
+    }
+
+    _isPermissionRecoveryInProgress = true;
+    final initialPage = accessibilityEnabled
+        ? OnboardingScreen.usageStatsStepIndex
+        : OnboardingScreen.accessibilityStepIndex;
+
+    AppLogger.warn(
+      _tag,
+      'Required permissions missing; redirecting to permission recovery. '
+      'accessibilityEnabled=$accessibilityEnabled usageStatsGranted=$usageStatsGranted',
+    );
+
+    await Navigator.of(context).pushReplacement(
+      MaterialPageRoute<void>(
+        builder: (context) => OnboardingScreen(initialPage: initialPage),
+      ),
+    );
   }
 
   Future<void> _loadData() async {

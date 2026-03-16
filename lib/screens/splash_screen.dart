@@ -5,6 +5,7 @@ import 'onboarding/onboarding_screen.dart';
 import 'Home/home_screen.dart';
 import '../repositories/todo_repository.dart';
 import '../services/app_logger.dart';
+import '../services/permission_service.dart';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
@@ -102,17 +103,28 @@ class _SplashScreenState extends State<SplashScreen>
           .hasCompletedOnboarding();
       final userName = await _todoRepository.getUserName();
       final hasLegacyOnboarding = userName != null && userName.isNotEmpty;
-      final shouldNavigateToHome =
-          hasCompletedOnboarding || hasLegacyOnboarding;
+      final hasCompletedSetup = hasCompletedOnboarding || hasLegacyOnboarding;
 
       if (hasLegacyOnboarding && !hasCompletedOnboarding) {
         await _todoRepository.setOnboardingCompleted(true);
       }
 
+      final accessibilityEnabled =
+          await PermissionService.isAccessibilityServiceEnabled();
+      final usageStatsGranted =
+          await PermissionService.isUsageStatsPermissionGranted();
+      final hasRequiredPermissions =
+          accessibilityEnabled && usageStatsGranted;
+
+      final shouldNavigateToHome = hasCompletedSetup && hasRequiredPermissions;
+      final needsPermissionRecovery = hasCompletedSetup && !hasRequiredPermissions;
+
       AppLogger.info(
         _tag,
         shouldNavigateToHome
-            ? 'Onboarding complete, navigating to home.'
+            ? 'Onboarding complete and permissions active, navigating to home.'
+            : needsPermissionRecovery
+            ? 'Onboarding complete but permissions missing, routing to permission recovery.'
             : 'Onboarding incomplete, navigating to onboarding.',
       );
 
@@ -120,7 +132,11 @@ class _SplashScreenState extends State<SplashScreen>
         if (shouldNavigateToHome) {
           _navigateToHome();
         } else {
-          _navigateToOnboarding();
+          _navigateToOnboardingWithPage(
+            initialPage: accessibilityEnabled
+                ? OnboardingScreen.usageStatsStepIndex
+                : OnboardingScreen.accessibilityStepIndex,
+          );
         }
       }
     } catch (e, stackTrace) {
@@ -165,11 +181,15 @@ class _SplashScreenState extends State<SplashScreen>
   }
 
   void _navigateToOnboarding() {
+    _navigateToOnboardingWithPage();
+  }
+
+  void _navigateToOnboardingWithPage({int initialPage = 0}) {
     Navigator.pushReplacement(
       context,
       PageRouteBuilder(
         pageBuilder: (context, animation, secondaryAnimation) =>
-            const OnboardingScreen(),
+            OnboardingScreen(initialPage: initialPage),
         transitionsBuilder: (context, animation, secondaryAnimation, child) {
           const begin = Offset(1.0, 0.0);
           const end = Offset.zero;

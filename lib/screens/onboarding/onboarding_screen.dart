@@ -11,7 +11,12 @@ import 'pages/onboarding_page_3.dart';
 import 'pages/onboarding_page_4.dart';
 
 class OnboardingScreen extends StatefulWidget {
-  const OnboardingScreen({super.key});
+  const OnboardingScreen({super.key, this.initialPage = 0});
+
+  static const int accessibilityStepIndex = 2;
+  static const int usageStatsStepIndex = 3;
+
+  final int initialPage;
 
   @override
   State<OnboardingScreen> createState() => _OnboardingScreenState();
@@ -25,7 +30,7 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   static const int _usageStatsPageIndex = 3;
   static const int _totalPages = 4;
 
-  final PageController _pageController = PageController();
+  late final PageController _pageController;
   final TodoRepository _todoRepository = TodoRepository();
   int _currentPage = 0;
   bool _hasReadAccessibilityStep = false;
@@ -40,6 +45,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   @override
   void initState() {
     super.initState();
+    _currentPage = widget.initialPage.clamp(0, _totalPages - 1);
+    _pageController = PageController(initialPage: _currentPage);
     WidgetsBinding.instance.addObserver(this);
     _refreshPermissionState();
   }
