@@ -12,7 +12,10 @@ import android.view.WindowManager
 import android.widget.LinearLayout
 import android.widget.TextView
 
-class InterventionOverlayManager(private val context: Context) {
+class InterventionOverlayManager(
+    private val context: Context,
+    private val onBackToWorkTapped: (String) -> Unit
+) {
 
     companion object {
         private const val TAG = "InterventionOverlay"
@@ -125,6 +128,7 @@ class InterventionOverlayManager(private val context: Context) {
         backToWorkButton.setOnClickListener { btn ->
             btn.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             Log.d(TAG, "User tapped Kembali Bekerja: package=$blockedPackage")
+            onBackToWorkTapped(blockedPackage)
             dismiss()
         }
 

@@ -3,7 +3,10 @@ package com.example.todolist
 import android.accessibilityservice.AccessibilityService
 import android.content.Context
 import android.content.Intent
+import android.os.Handler
+import android.os.Looper
 import android.view.accessibility.AccessibilityEvent
+import android.view.accessibility.AccessibilityWindowInfo
 import android.util.Log
 import org.json.JSONArray
 import java.text.SimpleDateFormat
@@ -33,7 +36,9 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         private const val DEFAULT_MEDIUM_WINDOW_HOURS = 8
         private const val DEFAULT_HIGH_WINDOW_HOURS = 24
         private const val MILLIS_PER_HOUR = 60L * 60L * 1000L
-        private const val REENTRY_GUARD_MILLIS = 1_200L
+        private const val REENTRY_GUARD_MILLIS = 300L
+        private const val POST_DISMISS_WATCH_DURATION_MILLIS = 15_000L
+        private const val POST_DISMISS_WATCH_INTERVAL_MILLIS = 250L
 
         private val DEFAULT_BLOCKED_APPS = setOf(
             "com.facebook.katana",
@@ -65,11 +70,46 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
     // Overlay manager - created once and reused
     private var overlayManager: InterventionOverlayManager? = null
+    private val mainHandler = Handler(Looper.getMainLooper())
+    private var watchedBlockedPackage: String? = null
+    private var watchBlockedPackageUntilMillis: Long = 0L
+    private val blockedPackageWatchRunnable = object : Runnable {
+        override fun run() {
+            val watchedPackage = watchedBlockedPackage
+            if (watchedPackage.isNullOrBlank()) {
+                return
+            }
+
+            if (System.currentTimeMillis() >= watchBlockedPackageUntilMillis) {
+                stopBlockedPackageWatch("expired")
+                return
+            }
+
+            if (overlayManager?.isOverlayShowing == true) {
+                mainHandler.postDelayed(this, POST_DISMISS_WATCH_INTERVAL_MILLIS)
+                return
+            }
+
+            val activePackageName = getActivePackageName()
+            if (activePackageName == watchedPackage && !isInReentryGuard(activePackageName)) {
+                val blockingReason = getBlockingReasonForPackage(activePackageName)
+                if (blockingReason != null) {
+                    Log.d(
+                        TAG,
+                        "Watchdog re-blocking active package=$activePackageName after overlay dismiss"
+                    )
+                    triggerHardBlock(activePackageName, blockingReason)
+                }
+            }
+
+            mainHandler.postDelayed(this, POST_DISMISS_WATCH_INTERVAL_MILLIS)
+        }
+    }
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        overlayManager = InterventionOverlayManager(this)
+        overlayManager = InterventionOverlayManager(this, ::handleBackToWorkTapped)
         InterventionRuntimeStore.touchAccessibilityHeartbeat(this)
         InterventionPersistenceService.start(this, "accessibility_connected")
         Log.d(TAG, "Accessibility Service connected; overlay manager ready")
@@ -77,7 +117,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
     override fun onAccessibilityEvent(event: AccessibilityEvent) {
         val isWindowEvent = event.eventType == AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED ||
-            event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED
+            event.eventType == AccessibilityEvent.TYPE_WINDOWS_CHANGED ||
+            event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
         if (!isWindowEvent) {
             return
         }
@@ -124,6 +165,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
     override fun onDestroy() {
         InterventionRuntimeStore.markAccessibilityDisconnected(this)
+        stopBlockedPackageWatch("service_destroyed")
         super.onDestroy()
         overlayManager?.dismiss()
         overlayManager = null
@@ -356,6 +398,48 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         // This is safe AFTER the overlay is already on screen.
         val homeSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
         Log.d(TAG, "Home action sent: homeSucceeded=$homeSucceeded package=$packageName")
+    }
+
+    private fun handleBackToWorkTapped(packageName: String) {
+        val homeSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
+        Log.d(
+            TAG,
+            "Back to work tapped; forcing home before watch: package=$packageName homeSucceeded=$homeSucceeded"
+        )
+        startBlockedPackageWatch(packageName)
+    }
+
+    private fun startBlockedPackageWatch(packageName: String) {
+        watchedBlockedPackage = packageName
+        watchBlockedPackageUntilMillis =
+            System.currentTimeMillis() + POST_DISMISS_WATCH_DURATION_MILLIS
+        mainHandler.removeCallbacks(blockedPackageWatchRunnable)
+        mainHandler.postDelayed(blockedPackageWatchRunnable, POST_DISMISS_WATCH_INTERVAL_MILLIS)
+        Log.d(
+            TAG,
+            "Started blocked package watch: package=$packageName durationMillis=$POST_DISMISS_WATCH_DURATION_MILLIS"
+        )
+    }
+
+    private fun stopBlockedPackageWatch(reason: String) {
+        mainHandler.removeCallbacks(blockedPackageWatchRunnable)
+        watchedBlockedPackage = null
+        watchBlockedPackageUntilMillis = 0L
+        Log.d(TAG, "Stopped blocked package watch: reason=$reason")
+    }
+
+    private fun getActivePackageName(): String? {
+        val rootPackageName = rootInActiveWindow?.packageName?.toString()
+        if (!rootPackageName.isNullOrBlank()) {
+            return rootPackageName
+        }
+
+        val activeWindow = windows.firstOrNull { window ->
+            window.type == AccessibilityWindowInfo.TYPE_APPLICATION &&
+                (window.isActive || window.isFocused)
+        }
+
+        return activeWindow?.root?.packageName?.toString()
     }
 
     private fun isInReentryGuard(packageName: String): Boolean {
