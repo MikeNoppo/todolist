@@ -79,17 +79,6 @@ class AppBlockerService {
   static const int defaultMediumWindowHours = 8;
   static const int defaultHighWindowHours = 24;
 
-  static const List<String> _defaultBlockedApps = [
-    'com.facebook.katana',
-    'com.instagram.android',
-    'com.twitter.android',
-    'com.snapchat.android',
-    'com.zhiliaoapp.musically',
-    'com.google.android.youtube',
-    'com.spotify.music',
-    'com.netflix.mediaclient',
-  ];
-
   static const Map<String, String> _appNames = {
     'com.facebook.katana': 'Facebook',
     'com.instagram.android': 'Instagram',
@@ -216,14 +205,6 @@ class AppBlockerService {
         .map((key) => key.replaceFirst(blockKeyPrefix, ''))
         .toList();
 
-    final hasAnyUserBlockConfig = prefs.getKeys().any(
-      (key) => key.startsWith(blockKeyPrefix),
-    );
-
-    if (!hasAnyUserBlockConfig) {
-      blockedPackages = List<String>.from(_defaultBlockedApps);
-    }
-
     blockedPackages.sort();
 
     final alwaysAllowedPackages =
@@ -329,7 +310,7 @@ class AppBlockerService {
       return prefs.getBool('$blockKeyPrefix$packageName') ?? false;
     }
 
-    return _defaultBlockedApps.contains(packageName);
+    return false;
   }
 
   static Future<bool> _hasUrgentTaskWithinWindow(
@@ -419,11 +400,6 @@ class AppBlockerService {
   /// Get the display name for an app package
   static String getAppDisplayName(String packageName) {
     return _appNames[packageName] ?? packageName;
-  }
-
-  /// Get all default blocked apps
-  static List<String> getDefaultBlockedApps() {
-    return List.from(_defaultBlockedApps);
   }
 
   /// Get app names mapping
