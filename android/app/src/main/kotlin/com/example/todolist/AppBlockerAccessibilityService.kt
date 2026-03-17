@@ -35,17 +35,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         private const val POST_DISMISS_WATCH_DURATION_MILLIS = 15_000L
         private const val POST_DISMISS_WATCH_INTERVAL_MILLIS = 250L
 
-        private val DEFAULT_BLOCKED_APPS = setOf(
-            "com.facebook.katana",
-            "com.instagram.android",
-            "com.twitter.android",
-            "com.snapchat.android",
-            "com.zhiliaoapp.musically",
-            "com.google.android.youtube",
-            "com.spotify.music",
-            "com.netflix.mediaclient"
-        )
-
         var instance: AppBlockerAccessibilityService? = null
             private set
 

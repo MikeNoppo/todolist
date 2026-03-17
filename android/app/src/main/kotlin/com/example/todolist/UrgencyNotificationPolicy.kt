@@ -46,17 +46,6 @@ object UrgencyNotificationPolicy {
     private const val DEFAULT_HIGH_WINDOW_HOURS = 24
     private const val MILLIS_PER_HOUR = 60L * 60L * 1000L
 
-    private val defaultBlockedApps = setOf(
-        "com.facebook.katana",
-        "com.instagram.android",
-        "com.twitter.android",
-        "com.snapchat.android",
-        "com.zhiliaoapp.musically",
-        "com.google.android.youtube",
-        "com.spotify.music",
-        "com.netflix.mediaclient"
-    )
-
     fun prefs(context: Context): SharedPreferences {
         return context.getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
     }
@@ -130,7 +119,7 @@ object UrgencyNotificationPolicy {
         val isBlocked = if (hasAnyUserBlockConfig) {
             prefs.getBoolean("$KEY_BLOCK_PREFIX$packageName", false)
         } else {
-            defaultBlockedApps.contains(packageName)
+            false
         }
 
         Log.d(
