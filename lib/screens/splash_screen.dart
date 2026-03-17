@@ -113,11 +113,11 @@ class _SplashScreenState extends State<SplashScreen>
           await PermissionService.isAccessibilityServiceEnabled();
       final usageStatsGranted =
           await PermissionService.isUsageStatsPermissionGranted();
-      final hasRequiredPermissions =
-          accessibilityEnabled && usageStatsGranted;
+      final hasRequiredPermissions = accessibilityEnabled && usageStatsGranted;
 
       final shouldNavigateToHome = hasCompletedSetup && hasRequiredPermissions;
-      final needsPermissionRecovery = hasCompletedSetup && !hasRequiredPermissions;
+      final needsPermissionRecovery =
+          hasCompletedSetup && !hasRequiredPermissions;
 
       AppLogger.info(
         _tag,
