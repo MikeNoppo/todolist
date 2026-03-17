@@ -42,9 +42,6 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
       final hasAnyUserBlockConfig = prefs.getKeys().any(
         (key) => key.startsWith(AppBlockerService.blockKeyPrefix),
       );
-      final defaultBlockedApps = AppBlockerService.getDefaultBlockedApps()
-          .toSet();
-
       for (final app in installedApps) {
         final isAlwaysAllowed =
             prefs.getBool(
@@ -56,7 +53,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                     '${AppBlockerService.blockKeyPrefix}${app.packageName}',
                   ) ??
                   false
-            : defaultBlockedApps.contains(app.packageName);
+            : false;
         blockedApps[app.packageName] = isAlwaysAllowed ? false : isBlocked;
         alwaysAllowedApps[app.packageName] = isAlwaysAllowed;
       }

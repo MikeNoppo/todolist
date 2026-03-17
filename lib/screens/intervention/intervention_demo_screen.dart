@@ -7,7 +7,8 @@ class InterventionDemoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final blockedApps = AppBlockerService.getDefaultBlockedApps();
+    final demoApps = AppBlockerService.getAppNamesMapping().entries.toList()
+      ..sort((a, b) => a.value.compareTo(b.value));
 
     return Scaffold(
       backgroundColor: Colors.grey[50],
@@ -94,13 +95,11 @@ class InterventionDemoScreen extends StatelessWidget {
                     mainAxisExtent: cardHeight,
                   ),
                   delegate: SliverChildBuilderDelegate((context, index) {
-                    final packageName = blockedApps[index];
-                    final appName = AppBlockerService.getAppDisplayName(
-                      packageName,
-                    );
+                    final packageName = demoApps[index].key;
+                    final appName = demoApps[index].value;
 
                     return _buildAppCard(context, packageName, appName);
-                  }, childCount: blockedApps.length),
+                  }, childCount: demoApps.length),
                 ),
               ),
             ],
