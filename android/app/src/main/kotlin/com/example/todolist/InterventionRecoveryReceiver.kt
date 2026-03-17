@@ -26,7 +26,7 @@ class InterventionRecoveryReceiver : BroadcastReceiver() {
         val reason = intent?.getStringExtra(EXTRA_REASON)?.takeIf { it.isNotBlank() }
             ?: if (action.isBlank()) "broadcast_unknown" else "broadcast_$action"
 
-        InterventionPersistenceService.start(context, reason)
+        InterventionPersistenceService.refreshForPolicy(context, reason)
 
         when (action) {
             Intent.ACTION_LOCKED_BOOT_COMPLETED,

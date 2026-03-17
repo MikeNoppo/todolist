@@ -4,9 +4,11 @@ import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.content.BroadcastReceiver
 import android.app.Service
 import android.content.Context
 import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
 import android.os.Handler
 import android.os.IBinder
@@ -22,10 +24,12 @@ class InterventionPersistenceService : Service() {
         private const val NOTIFICATION_ID = 4107
         private const val ACTION_START = "com.example.todolist.action.START_INTERVENTION_KEEPER"
         private const val EXTRA_REASON = "reason"
+        private const val ACTION_NOTIFICATION_POLICY_ACCESS_GRANTED_CHANGED =
+            "android.app.action.NOTIFICATION_POLICY_ACCESS_GRANTED_CHANGED"
 
         fun start(context: Context, reason: String) {
-            if (!AccessibilityServiceUtils.isAppBlockerServiceEnabled(context)) {
-                Log.d(TAG, "Skip keeper start because accessibility is disabled: reason=$reason")
+            if (!UrgencyNotificationControlManager.requiresBackgroundSync(context)) {
+                Log.d(TAG, "Skip keeper start because background sync is not needed: reason=$reason")
                 return
             }
 
@@ -46,6 +50,20 @@ class InterventionPersistenceService : Service() {
                 Log.w(TAG, "Failed to start intervention persistence service: reason=$reason", error)
             }
         }
+
+        fun refreshForPolicy(context: Context, reason: String) {
+            if (UrgencyNotificationControlManager.requiresBackgroundSync(context)) {
+                start(context, reason)
+                return
+            }
+
+            try {
+                val stopped = context.stopService(Intent(context, InterventionPersistenceService::class.java))
+                Log.d(TAG, "Requested keeper stop: reason=$reason stopped=$stopped")
+            } catch (error: Exception) {
+                Log.w(TAG, "Failed to stop intervention persistence service: reason=$reason", error)
+            }
+        }
     }
 
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -60,21 +78,36 @@ class InterventionPersistenceService : Service() {
             }
         }
     }
+    private val notificationPolicyAccessReceiver = object : BroadcastReceiver() {
+        override fun onReceive(context: Context?, intent: Intent?) {
+            if (intent?.action != ACTION_NOTIFICATION_POLICY_ACCESS_GRANTED_CHANGED) {
+                return
+            }
+
+            val syncReason = "notification_policy_access_changed"
+            UrgencyNotificationControlManager.sync(this@InterventionPersistenceService, syncReason)
+            notificationManager.notify(NOTIFICATION_ID, buildNotification())
+            Log.d(TAG, "Handled DND policy access change broadcast")
+        }
+    }
+    private var notificationPolicyAccessReceiverRegistered = false
 
     override fun onCreate() {
         super.onCreate()
         ensureNotificationChannel()
+        registerNotificationPolicyAccessReceiverIfNeeded()
         Log.d(TAG, "Intervention persistence service created")
     }
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         val reason = intent?.getStringExtra(EXTRA_REASON).orEmpty()
-        if (!AccessibilityServiceUtils.isAppBlockerServiceEnabled(this)) {
-            Log.d(TAG, "Stopping keeper because accessibility is disabled")
+        if (!UrgencyNotificationControlManager.requiresBackgroundSync(this)) {
+            Log.d(TAG, "Stopping keeper because background sync is not needed")
             stopSelf()
             return START_NOT_STICKY
         }
 
+        UrgencyNotificationControlManager.sync(this, reason.ifBlank { "onStartCommand" })
         InterventionRuntimeStore.recordKeeperStart(this, reason.ifBlank { "onStartCommand" })
         startForeground(NOTIFICATION_ID, buildNotification())
 
@@ -87,6 +120,7 @@ class InterventionPersistenceService : Service() {
 
     override fun onDestroy() {
         mainHandler.removeCallbacks(refreshNotificationRunnable)
+        unregisterNotificationPolicyAccessReceiverIfNeeded()
         Log.d(TAG, "Intervention persistence service destroyed")
         super.onDestroy()
     }
@@ -94,12 +128,13 @@ class InterventionPersistenceService : Service() {
     override fun onBind(intent: Intent?): IBinder? = null
 
     private fun refreshNotification(): Boolean {
-        if (!AccessibilityServiceUtils.isAppBlockerServiceEnabled(this)) {
-            Log.d(TAG, "Stopping keeper during refresh because accessibility is disabled")
+        if (!UrgencyNotificationControlManager.requiresBackgroundSync(this)) {
+            Log.d(TAG, "Stopping keeper during refresh because background sync is not needed")
             stopSelf()
             return false
         }
 
+        UrgencyNotificationControlManager.sync(this, "keeper_refresh")
         notificationManager.notify(NOTIFICATION_ID, buildNotification())
         return true
     }
@@ -122,10 +157,20 @@ class InterventionPersistenceService : Service() {
         )
 
         val heartbeatAge = InterventionRuntimeStore.getAccessibilityHeartbeatAgeMillis(this)
-        val contentText = when {
-            heartbeatAge == null -> getString(R.string.intervention_guard_notification_waiting)
-            heartbeatAge > 90_000L -> getString(R.string.intervention_guard_notification_reconnecting)
-            else -> getString(R.string.intervention_guard_notification_active)
+        val dndModeEnabled = UrgencyNotificationPolicy.isDoNotDisturbModeEnabled(this)
+        val dndAccessGranted = UrgencyNotificationControlManager.hasDoNotDisturbAccess(this)
+        val contentText = if (!AccessibilityServiceUtils.isAppBlockerServiceEnabled(this) && dndModeEnabled) {
+            if (dndAccessGranted) {
+                getString(R.string.intervention_guard_notification_dnd)
+            } else {
+                getString(R.string.intervention_guard_notification_dnd_waiting_access)
+            }
+        } else {
+            when {
+                heartbeatAge == null -> getString(R.string.intervention_guard_notification_waiting)
+                heartbeatAge > 90_000L -> getString(R.string.intervention_guard_notification_reconnecting)
+                else -> getString(R.string.intervention_guard_notification_active)
+            }
         }
 
         return NotificationCompat.Builder(this, CHANNEL_ID)
@@ -157,5 +202,34 @@ class InterventionPersistenceService : Service() {
         }
 
         notificationManager.createNotificationChannel(channel)
+    }
+
+    private fun registerNotificationPolicyAccessReceiverIfNeeded() {
+        if (notificationPolicyAccessReceiverRegistered || Build.VERSION.SDK_INT < Build.VERSION_CODES.M) {
+            return
+        }
+
+        val filter = IntentFilter(ACTION_NOTIFICATION_POLICY_ACCESS_GRANTED_CHANGED)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+            registerReceiver(notificationPolicyAccessReceiver, filter, Context.RECEIVER_NOT_EXPORTED)
+        } else {
+            @Suppress("DEPRECATION")
+            registerReceiver(notificationPolicyAccessReceiver, filter)
+        }
+        notificationPolicyAccessReceiverRegistered = true
+    }
+
+    private fun unregisterNotificationPolicyAccessReceiverIfNeeded() {
+        if (!notificationPolicyAccessReceiverRegistered) {
+            return
+        }
+
+        try {
+            unregisterReceiver(notificationPolicyAccessReceiver)
+        } catch (error: Exception) {
+            Log.w(TAG, "Failed to unregister DND policy access receiver", error)
+        } finally {
+            notificationPolicyAccessReceiverRegistered = false
+        }
     }
 }
