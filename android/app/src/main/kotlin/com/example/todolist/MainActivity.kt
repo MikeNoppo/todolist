@@ -95,7 +95,7 @@ class MainActivity : FlutterActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-        InterventionPersistenceService.start(this, "main_activity_created")
+        InterventionPersistenceService.refreshForPolicy(this, "main_activity_created")
         consumeBlockedPackageFromIntent(intent)
     }
 
@@ -125,6 +125,31 @@ class MainActivity : FlutterActivity() {
                 "openUsageStatsSettings" -> {
                     openUsageStatsSettings()
                     result.success(null)
+                }
+                "isNotificationListenerAccessGranted" -> {
+                    result.success(UrgencyNotificationControlManager.hasNotificationListenerAccess(this))
+                }
+                "openNotificationListenerSettings" -> {
+                    openNotificationListenerSettings()
+                    result.success(null)
+                }
+                "isDoNotDisturbAccessGranted" -> {
+                    result.success(UrgencyNotificationControlManager.hasDoNotDisturbAccess(this))
+                }
+                "openDoNotDisturbSettings" -> {
+                    openDoNotDisturbSettings()
+                    result.success(null)
+                }
+                "syncNotificationInterruptionState" -> {
+                    val synced = UrgencyNotificationControlManager.sync(
+                        this,
+                        "method_channel_sync"
+                    )
+                    InterventionPersistenceService.refreshForPolicy(
+                        this,
+                        "method_channel_sync"
+                    )
+                    result.success(synced)
                 }
                 "consumeBlockedPackage" -> {
                     val blockedPackage = pendingBlockedPackage
@@ -354,6 +379,20 @@ class MainActivity : FlutterActivity() {
 
     private fun openUsageStatsSettings() {
         val intent = Intent(Settings.ACTION_USAGE_ACCESS_SETTINGS)
+        startActivity(intent)
+    }
+
+    private fun openNotificationListenerSettings() {
+        val intent = Intent(Settings.ACTION_NOTIFICATION_LISTENER_SETTINGS)
+        startActivity(intent)
+    }
+
+    private fun openDoNotDisturbSettings() {
+        val intent = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
+            Intent(Settings.ACTION_NOTIFICATION_POLICY_ACCESS_SETTINGS)
+        } else {
+            Intent(Settings.ACTION_SETTINGS)
+        }
         startActivity(intent)
     }
 }
