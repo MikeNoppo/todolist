@@ -159,7 +159,11 @@ class _SettingsScreenState extends State<SettingsScreen>
 
       if (nextMode == NotificationInterruptionMode.filterDistractingApps &&
           !notificationListenerAccessGranted) {
-        await PermissionService.openNotificationListenerSettings();
+        final shouldOpenSettings =
+            await _showNotificationListenerAccessDialog();
+        if (shouldOpenSettings) {
+          await PermissionService.openNotificationListenerSettings();
+        }
       }
 
       if (nextMode == NotificationInterruptionMode.dnd &&
@@ -210,6 +214,40 @@ class _SettingsScreenState extends State<SettingsScreen>
         ? NotificationInterruptionMode.dnd
         : NotificationInterruptionMode.off;
     await _updateNotificationInterruptionMode(nextMode);
+  }
+
+  Future<bool> _showNotificationListenerAccessDialog() async {
+    final shouldOpenSettings = await showDialog<bool>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Akses notifikasi dibutuhkan'),
+          content: const Text(
+            'Agar myTask bisa memfilter notifikasi dari app distraksi saat '
+            'urgency aktif, Anda perlu memberi izin akses notifikasi di '
+            'pengaturan sistem.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text(
+                'Nanti',
+                style: TextStyle(color: Color(0xFF6B7280)),
+              ),
+            ),
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text(
+                'Buka Pengaturan',
+                style: TextStyle(color: Color(0xFF4A6FA5)),
+              ),
+            ),
+          ],
+        );
+      },
+    );
+
+    return shouldOpenSettings ?? false;
   }
 
   Future<void> _updateTaskNotificationSetting(bool value) async {
