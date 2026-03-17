@@ -6,7 +6,9 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../core/ui/app_size_tokens.dart';
 import '../../repositories/todo_repository.dart';
 import '../../services/app_logger.dart';
+import '../../services/notification_interruption_service.dart';
 import '../../services/notification_service.dart';
+import '../../services/permission_service.dart';
 import 'app_blocker_settings_screen.dart';
 import 'debug_settings_screen.dart';
 import 'intervention_rules_settings_screen.dart';
@@ -20,22 +22,44 @@ class SettingsScreen extends StatefulWidget {
   State<SettingsScreen> createState() => _SettingsScreenState();
 }
 
-class _SettingsScreenState extends State<SettingsScreen> {
+class _SettingsScreenState extends State<SettingsScreen>
+    with WidgetsBindingObserver {
   static const String _tag = 'SettingsScreen';
 
   final TodoRepository _todoRepository = TodoRepository();
   final NotificationService _notificationService = NotificationService();
+  final NotificationInterruptionService _notificationInterruptionService =
+      NotificationInterruptionService();
   String _userName = 'Pengguna';
   bool _taskNotificationsEnabled = true;
   bool _dailyReminderEnabled = true;
   int _dailyReminderHour = NotificationService.defaultDailyReminderHour;
   int _dailyReminderMinute = NotificationService.defaultDailyReminderMinute;
+  NotificationInterruptionMode _notificationInterruptionMode =
+      NotificationInterruptionMode.off;
+  bool _notificationListenerAccessGranted = false;
+  bool _doNotDisturbAccessGranted = false;
   bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _loadSettings();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    if (state == AppLifecycleState.resumed) {
+      _refreshNotificationInterruptionStatus();
+    }
   }
 
   Future<void> _loadSettings() async {
@@ -50,6 +74,12 @@ class _SettingsScreenState extends State<SettingsScreen> {
           .getDailyReminderHour();
       final dailyReminderMinute = await _notificationService
           .getDailyReminderMinute();
+      final notificationInterruptionMode =
+          await _notificationInterruptionService.getMode();
+      final notificationListenerAccessGranted =
+          await PermissionService.isNotificationListenerAccessGranted();
+      final doNotDisturbAccessGranted =
+          await PermissionService.isDoNotDisturbAccessGranted();
 
       if (!mounted) return;
 
@@ -59,6 +89,9 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _dailyReminderEnabled = dailyReminderEnabled;
         _dailyReminderHour = dailyReminderHour;
         _dailyReminderMinute = dailyReminderMinute;
+        _notificationInterruptionMode = notificationInterruptionMode;
+        _notificationListenerAccessGranted = notificationListenerAccessGranted;
+        _doNotDisturbAccessGranted = doNotDisturbAccessGranted;
         _isLoading = false;
       });
     } catch (e, stackTrace) {
@@ -73,6 +106,110 @@ class _SettingsScreenState extends State<SettingsScreen> {
         _isLoading = false;
       });
     }
+  }
+
+  Future<void> _refreshNotificationInterruptionStatus() async {
+    try {
+      final notificationInterruptionMode =
+          await _notificationInterruptionService.getMode();
+      final notificationListenerAccessGranted =
+          await PermissionService.isNotificationListenerAccessGranted();
+      final doNotDisturbAccessGranted =
+          await PermissionService.isDoNotDisturbAccessGranted();
+
+      await _notificationInterruptionService.syncNativeState();
+
+      if (!mounted) return;
+
+      setState(() {
+        _notificationInterruptionMode = notificationInterruptionMode;
+        _notificationListenerAccessGranted = notificationListenerAccessGranted;
+        _doNotDisturbAccessGranted = doNotDisturbAccessGranted;
+      });
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to refresh notification interruption status.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  Future<void> _updateNotificationInterruptionMode(
+    NotificationInterruptionMode nextMode,
+  ) async {
+    try {
+      await _notificationInterruptionService.setMode(nextMode);
+
+      final notificationListenerAccessGranted =
+          await PermissionService.isNotificationListenerAccessGranted();
+      final doNotDisturbAccessGranted =
+          await PermissionService.isDoNotDisturbAccessGranted();
+
+      if (!mounted) return;
+
+      setState(() {
+        _notificationInterruptionMode = nextMode;
+        _notificationListenerAccessGranted = notificationListenerAccessGranted;
+        _doNotDisturbAccessGranted = doNotDisturbAccessGranted;
+      });
+
+      HapticFeedback.lightImpact();
+
+      if (nextMode == NotificationInterruptionMode.filterDistractingApps &&
+          !notificationListenerAccessGranted) {
+        await PermissionService.openNotificationListenerSettings();
+      }
+
+      if (nextMode == NotificationInterruptionMode.dnd &&
+          !doNotDisturbAccessGranted) {
+        await PermissionService.openDoNotDisturbSettings();
+      }
+
+      if (!mounted) return;
+
+      _showSettingsSnackBar(
+        _notificationInterruptionModeMessage(
+          nextMode,
+          notificationListenerAccessGranted: notificationListenerAccessGranted,
+          doNotDisturbAccessGranted: doNotDisturbAccessGranted,
+        ),
+        backgroundColor: _notificationInterruptionModeColor(
+          nextMode,
+          notificationListenerAccessGranted: notificationListenerAccessGranted,
+          doNotDisturbAccessGranted: doNotDisturbAccessGranted,
+        ),
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to update notification interruption mode.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+
+      if (!mounted) return;
+
+      _showSettingsSnackBar(
+        'Gagal memperbarui mode blok notifikasi',
+        backgroundColor: Colors.red,
+      );
+    }
+  }
+
+  Future<void> _updateNotificationFilterSetting(bool value) async {
+    final nextMode = value
+        ? NotificationInterruptionMode.filterDistractingApps
+        : NotificationInterruptionMode.off;
+    await _updateNotificationInterruptionMode(nextMode);
+  }
+
+  Future<void> _updateDoNotDisturbSetting(bool value) async {
+    final nextMode = value
+        ? NotificationInterruptionMode.dnd
+        : NotificationInterruptionMode.off;
+    await _updateNotificationInterruptionMode(nextMode);
   }
 
   Future<void> _updateTaskNotificationSetting(bool value) async {
@@ -380,6 +517,76 @@ class _SettingsScreenState extends State<SettingsScreen> {
     };
   }
 
+  String _notificationInterruptionModeMessage(
+    NotificationInterruptionMode mode, {
+    required bool notificationListenerAccessGranted,
+    required bool doNotDisturbAccessGranted,
+  }) {
+    return switch (mode) {
+      NotificationInterruptionMode.off =>
+        'Blok notifikasi saat urgency aktif dinonaktifkan',
+      NotificationInterruptionMode.filterDistractingApps =>
+        notificationListenerAccessGranted
+            ? 'Filter notifikasi app distraksi diaktifkan'
+            : 'Mode filter dipilih. Beri akses notifikasi agar fitur aktif',
+      NotificationInterruptionMode.dnd =>
+        doNotDisturbAccessGranted
+            ? 'Mode Jangan Ganggu diaktifkan saat urgency aktif'
+            : 'Mode Jangan Ganggu dipilih. Beri akses agar fitur aktif',
+    };
+  }
+
+  Color _notificationInterruptionModeColor(
+    NotificationInterruptionMode mode, {
+    required bool notificationListenerAccessGranted,
+    required bool doNotDisturbAccessGranted,
+  }) {
+    if (mode == NotificationInterruptionMode.filterDistractingApps &&
+        !notificationListenerAccessGranted) {
+      return const Color(0xFFE58F1E);
+    }
+
+    if (mode == NotificationInterruptionMode.dnd &&
+        !doNotDisturbAccessGranted) {
+      return const Color(0xFFE58F1E);
+    }
+
+    return const Color(0xFF4A6FA5);
+  }
+
+  String _notificationFilterSubtitle() {
+    if (_notificationInterruptionMode ==
+        NotificationInterruptionMode.filterDistractingApps) {
+      return _notificationListenerAccessGranted
+          ? 'Hanya app distraksi saat urgency aktif'
+          : 'Mode aktif, butuh akses notifikasi';
+    }
+
+    return 'Hanya app distraksi. Tidak bisa digabung dengan DND';
+  }
+
+  String _doNotDisturbSubtitle() {
+    if (_notificationInterruptionMode == NotificationInterruptionMode.dnd) {
+      return _doNotDisturbAccessGranted
+          ? 'Gunakan mode Jangan Ganggu sistem saat urgency aktif'
+          : 'Mode aktif, butuh akses Jangan Ganggu';
+    }
+
+    return 'Mode global sistem. Tidak bisa digabung dengan filter app';
+  }
+
+  String _notificationFilterAccessSubtitle() {
+    return _notificationListenerAccessGranted
+        ? 'Akses notifikasi sudah diizinkan'
+        : 'Tap untuk membuka pengaturan akses notifikasi';
+  }
+
+  String _doNotDisturbAccessSubtitle() {
+    return _doNotDisturbAccessGranted
+        ? 'Akses Jangan Ganggu sudah diizinkan'
+        : 'Tap untuk membuka pengaturan Jangan Ganggu';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -446,6 +653,62 @@ class _SettingsScreenState extends State<SettingsScreen> {
                       );
                     },
                   ),
+                  _buildDivider(),
+                  _buildSettingItem(
+                    icon: Icons.notifications_off_outlined,
+                    title: 'Filter Notifikasi Distraksi',
+                    subtitle: _notificationFilterSubtitle(),
+                    trailing: Switch.adaptive(
+                      value:
+                          _notificationInterruptionMode ==
+                          NotificationInterruptionMode.filterDistractingApps,
+                      onChanged: _updateNotificationFilterSetting,
+                      activeThumbColor: const Color(0xFF4A6FA5),
+                      activeTrackColor: const Color(
+                        0xFF4A6FA5,
+                      ).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  if (_notificationInterruptionMode ==
+                      NotificationInterruptionMode.filterDistractingApps) ...[
+                    _buildDivider(),
+                    _buildSettingItem(
+                      icon: Icons.admin_panel_settings_outlined,
+                      title: 'Akses Filter Notifikasi',
+                      subtitle: _notificationFilterAccessSubtitle(),
+                      onTap: () async {
+                        await PermissionService.openNotificationListenerSettings();
+                      },
+                    ),
+                  ],
+                  _buildDivider(),
+                  _buildSettingItem(
+                    icon: Icons.do_not_disturb_on_outlined,
+                    title: 'Gunakan Jangan Ganggu',
+                    subtitle: _doNotDisturbSubtitle(),
+                    trailing: Switch.adaptive(
+                      value:
+                          _notificationInterruptionMode ==
+                          NotificationInterruptionMode.dnd,
+                      onChanged: _updateDoNotDisturbSetting,
+                      activeThumbColor: const Color(0xFF4A6FA5),
+                      activeTrackColor: const Color(
+                        0xFF4A6FA5,
+                      ).withValues(alpha: 0.3),
+                    ),
+                  ),
+                  if (_notificationInterruptionMode ==
+                      NotificationInterruptionMode.dnd) ...[
+                    _buildDivider(),
+                    _buildSettingItem(
+                      icon: Icons.settings_suggest_outlined,
+                      title: 'Akses Jangan Ganggu',
+                      subtitle: _doNotDisturbAccessSubtitle(),
+                      onTap: () async {
+                        await PermissionService.openDoNotDisturbSettings();
+                      },
+                    ),
+                  ],
                   _buildDivider(),
                   _buildSettingItem(
                     icon: Icons.security_outlined,

@@ -6,6 +6,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import 'services/app_blocker_service.dart';
 import 'services/app_logger.dart';
 import 'services/notification_service.dart';
+import 'services/notification_interruption_service.dart';
 import 'services/permission_service.dart';
 import 'screens/splash_screen.dart';
 
@@ -82,6 +83,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
         await notificationService.requestPermission();
       }
       await notificationService.rescheduleAllNotifications();
+      await NotificationInterruptionService().syncNativeState();
     } catch (e, stackTrace) {
       AppLogger.error(
         _tag,
@@ -105,6 +107,7 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     AppLogger.debug(_tag, 'App lifecycle changed: state=$state');
     if (state == AppLifecycleState.resumed) {
       _consumeBlockedPackageAndPresent();
+      NotificationInterruptionService().syncNativeState();
     }
   }
 

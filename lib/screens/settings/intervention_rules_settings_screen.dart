@@ -5,6 +5,7 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 import '../../models/todo_model.dart';
 import '../../services/app_blocker_service.dart';
 import '../../services/app_logger.dart';
+import '../../services/notification_interruption_service.dart';
 
 class InterventionRulesSettingsScreen extends StatefulWidget {
   const InterventionRulesSettingsScreen({super.key});
@@ -18,6 +19,8 @@ class _InterventionRulesSettingsScreenState
     extends State<InterventionRulesSettingsScreen> {
   static const String _tag = 'InterventionRulesSettingsScreen';
 
+  final NotificationInterruptionService _notificationInterruptionService =
+      NotificationInterruptionService();
   bool _isLoading = true;
   int _lowHours = AppBlockerService.defaultLowWindowHours;
   int _mediumHours = AppBlockerService.defaultMediumWindowHours;
@@ -75,6 +78,7 @@ class _InterventionRulesSettingsScreenState
     }
 
     await AppBlockerService.saveInterventionWindow(priority, clamped);
+    await _notificationInterruptionService.syncNativeState();
 
     if (!mounted) return;
     setState(() {
@@ -107,6 +111,7 @@ class _InterventionRulesSettingsScreenState
       TodoPriority.high,
       AppBlockerService.defaultHighWindowHours,
     );
+    await _notificationInterruptionService.syncNativeState();
 
     if (!mounted) return;
     setState(() {

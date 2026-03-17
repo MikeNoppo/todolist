@@ -210,4 +210,119 @@ class PermissionService {
       return [];
     }
   }
+
+  static Future<bool> isNotificationListenerAccessGranted() async {
+    try {
+      final bool? isGranted = await _channel.invokeMethod<bool>(
+        'isNotificationListenerAccessGranted',
+      );
+      return isGranted ?? false;
+    } on PlatformException catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to check notification listener access.',
+        error: e.message ?? e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to check notification listener access.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
+
+  static Future<void> openNotificationListenerSettings() async {
+    try {
+      await _channel.invokeMethod('openNotificationListenerSettings');
+    } on PlatformException catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to open notification listener settings.',
+        error: e.message ?? e,
+        stackTrace: stackTrace,
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to open notification listener settings.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  static Future<bool> isDoNotDisturbAccessGranted() async {
+    try {
+      final bool? isGranted = await _channel.invokeMethod<bool>(
+        'isDoNotDisturbAccessGranted',
+      );
+      return isGranted ?? false;
+    } on PlatformException catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to check Do Not Disturb access.',
+        error: e.message ?? e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to check Do Not Disturb access.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
+  }
+
+  static Future<void> openDoNotDisturbSettings() async {
+    try {
+      await _channel.invokeMethod('openDoNotDisturbSettings');
+    } on PlatformException catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to open Do Not Disturb settings.',
+        error: e.message ?? e,
+        stackTrace: stackTrace,
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to open Do Not Disturb settings.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  static Future<void> syncNotificationInterruptionState() async {
+    try {
+      await _channel.invokeMethod('syncNotificationInterruptionState');
+    } on MissingPluginException {
+      AppLogger.debug(
+        _tag,
+        'Skipping notification interruption sync because native bridge is unavailable.',
+      );
+    } on PlatformException catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to sync notification interruption state.',
+        error: e.message ?? e,
+        stackTrace: stackTrace,
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to sync notification interruption state.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
 }

@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/todo_model.dart';
 import '../services/app_logger.dart';
+import '../services/notification_interruption_service.dart';
 
 class TodoRepository {
   static const String _tag = 'TodoRepository';
@@ -39,6 +40,7 @@ class TodoRepository {
       final prefs = await SharedPreferences.getInstance();
       final todosJson = jsonEncode(todos.map((todo) => todo.toJson()).toList());
       await prefs.setString(_todosKey, todosJson);
+      await NotificationInterruptionService().syncNativeState();
 
       AppLogger.debug(
         _tag,

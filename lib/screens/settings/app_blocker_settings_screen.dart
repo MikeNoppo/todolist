@@ -6,6 +6,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../../models/installed_focus_app.dart';
 import '../../services/app_blocker_service.dart';
 import '../../services/app_logger.dart';
+import '../../services/notification_interruption_service.dart';
 import '../../services/permission_service.dart';
 
 class AppBlockerSettingsScreen extends StatefulWidget {
@@ -19,6 +20,8 @@ class AppBlockerSettingsScreen extends StatefulWidget {
 class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
   static const String _tag = 'AppBlockerSettingsScreen';
 
+  final NotificationInterruptionService _notificationInterruptionService =
+      NotificationInterruptionService();
   List<InstalledFocusApp> _installedApps = [];
   Map<String, bool> _blockedApps = {};
   Map<String, bool> _alwaysAllowedApps = {};
@@ -109,6 +112,8 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
         );
       }
 
+      await _notificationInterruptionService.syncNativeState();
+
       if (!mounted) return;
 
       setState(() {
@@ -178,6 +183,8 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
           false,
         );
       }
+
+      await _notificationInterruptionService.syncNativeState();
 
       if (!mounted) return;
 
