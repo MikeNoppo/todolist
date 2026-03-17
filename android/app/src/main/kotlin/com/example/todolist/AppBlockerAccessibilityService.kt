@@ -5,14 +5,9 @@ import android.content.Context
 import android.content.Intent
 import android.os.Handler
 import android.os.Looper
-import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityWindowInfo
 import android.util.Log
-import org.json.JSONArray
-import java.text.SimpleDateFormat
-import java.util.Date
-import java.util.Locale
-import java.util.TimeZone
+import android.view.accessibility.AccessibilityEvent
 
 class AppBlockerAccessibilityService : AccessibilityService() {
 
@@ -61,13 +56,6 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         private var lastTriggeredAtMillis: Long = 0L
     }
 
-    private data class BlockingReason(
-        val taskTitle: String,
-        val priority: String,
-        val remainingMinutes: Int,
-        val windowHours: Int
-    )
-
     // Overlay manager - created once and reused
     private var overlayManager: InterventionOverlayManager? = null
     private val mainHandler = Handler(Looper.getMainLooper())
@@ -111,7 +99,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         instance = this
         overlayManager = InterventionOverlayManager(this, ::handleBackToWorkTapped)
         InterventionRuntimeStore.touchAccessibilityHeartbeat(this)
-        InterventionPersistenceService.start(this, "accessibility_connected")
+        InterventionPersistenceService.refreshForPolicy(this, "accessibility_connected")
         Log.d(TAG, "Accessibility Service connected; overlay manager ready")
     }
 
@@ -159,12 +147,14 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
     override fun onUnbind(intent: Intent?): Boolean {
         InterventionRuntimeStore.markAccessibilityDisconnected(this)
+        InterventionPersistenceService.refreshForPolicy(this, "accessibility_unbound")
         Log.d(TAG, "Accessibility Service unbound")
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         InterventionRuntimeStore.markAccessibilityDisconnected(this)
+        InterventionPersistenceService.refreshForPolicy(this, "accessibility_destroyed")
         stopBlockedPackageWatch("service_destroyed")
         super.onDestroy()
         overlayManager?.dismiss()
@@ -195,190 +185,11 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         return true
     }
 
-    private fun getBlockingReasonForPackage(packageName: String): BlockingReason? {
-        val prefs = getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
-        if (!isPackageBlockedByUserPolicy(prefs, packageName)) {
-            Log.d(TAG, "Package is not blocked by user policy: package=$packageName")
-            return null
-        }
-
-        val reason = findBlockingReason(prefs)
-        if (reason == null) {
-            Log.d(TAG, "No urgent task candidate found for package=$packageName")
-        }
-
-        return reason
+    private fun getBlockingReasonForPackage(packageName: String): UrgencyPolicyReason? {
+        return UrgencyNotificationPolicy.getBlockingReasonForPackage(this, packageName)
     }
 
-    private fun isPackageBlockedByUserPolicy(
-        prefs: android.content.SharedPreferences,
-        packageName: String
-    ): Boolean {
-        val isAlwaysAllowed = prefs.getBoolean("$KEY_ALLOW_PREFIX$packageName", false)
-        if (isAlwaysAllowed) {
-            Log.d(TAG, "Package is whitelisted (always allow): package=$packageName")
-            return false
-        }
-
-        val hasAnyUserBlockConfig = prefs.all.keys.any { key ->
-            key.startsWith(KEY_BLOCK_PREFIX)
-        }
-
-        val isBlocked = if (hasAnyUserBlockConfig) {
-            prefs.getBoolean("$KEY_BLOCK_PREFIX$packageName", false)
-        } else {
-            DEFAULT_BLOCKED_APPS.contains(packageName)
-        }
-
-        Log.d(
-            TAG,
-            "User policy evaluation: package=$packageName hasUserConfig=$hasAnyUserBlockConfig blocked=$isBlocked"
-        )
-        return isBlocked
-    }
-
-    private fun findBlockingReason(
-        prefs: android.content.SharedPreferences
-    ): BlockingReason? {
-        val todosJson = prefs.getString("flutter.todos", null)
-        if (todosJson.isNullOrBlank()) {
-            Log.d(TAG, "No todos found in shared preferences; skipping hard block")
-            return null
-        }
-
-        val lowWindowHours = getStoredInt(prefs, KEY_LOW_WINDOW_HOURS, DEFAULT_LOW_WINDOW_HOURS)
-        val mediumWindowHours = getStoredInt(
-            prefs,
-            KEY_MEDIUM_WINDOW_HOURS,
-            DEFAULT_MEDIUM_WINDOW_HOURS
-        )
-        val highWindowHours = getStoredInt(prefs, KEY_HIGH_WINDOW_HOURS, DEFAULT_HIGH_WINDOW_HOURS)
-        val now = System.currentTimeMillis()
-
-        Log.d(
-            TAG,
-            "Evaluating todo urgency windows: low=${lowWindowHours}h medium=${mediumWindowHours}h high=${highWindowHours}h"
-        )
-
-        return try {
-            var selectedReason: BlockingReason? = null
-            var selectedDeltaMillis = Long.MAX_VALUE
-            val todos = JSONArray(todosJson)
-            var evaluatedTodos = 0
-
-            for (index in 0 until todos.length()) {
-                val todo = todos.optJSONObject(index) ?: continue
-                if (todo.optBoolean("isCompleted", false)) {
-                    continue
-                }
-
-                evaluatedTodos += 1
-
-                val priority = todo.optString("priority", "").lowercase(Locale.US)
-                val deadlineIso = todo.optString("deadline", "")
-                val deadlineMillis = parseIsoDateToMillis(deadlineIso) ?: continue
-
-                val windowHours = when (priority) {
-                    "low" -> lowWindowHours
-                    "medium" -> mediumWindowHours
-                    "high" -> highWindowHours
-                    else -> 0
-                }
-
-                if (windowHours <= 0) {
-                    continue
-                }
-
-                val deadlineDeltaMillis = deadlineMillis - now
-                if (deadlineDeltaMillis <= windowHours * MILLIS_PER_HOUR) {
-                    if (deadlineDeltaMillis < selectedDeltaMillis) {
-                        selectedDeltaMillis = deadlineDeltaMillis
-                        selectedReason = BlockingReason(
-                            taskTitle = todo.optString("title", "Tugas tanpa judul"),
-                            priority = priority,
-                            remainingMinutes = (deadlineDeltaMillis / 60_000L).toInt(),
-                            windowHours = windowHours
-                        )
-                    }
-                }
-            }
-
-            if (selectedReason == null) {
-                Log.d(
-                    TAG,
-                    "No task falls inside intervention window. evaluatedTodos=$evaluatedTodos"
-                )
-            }
-
-            selectedReason
-        } catch (error: Exception) {
-            Log.e(TAG, "Failed to parse todos JSON for hard block policy", error)
-            null
-        }
-    }
-
-    private fun parseIsoDateToMillis(value: String): Long? {
-        if (value.isBlank()) {
-            return null
-        }
-
-        val normalizedValue = normalizeIsoDate(value)
-
-        val supportedPatterns = listOf(
-            "yyyy-MM-dd'T'HH:mm:ss.SSSXXX",
-            "yyyy-MM-dd'T'HH:mm:ssXXX",
-            "yyyy-MM-dd'T'HH:mm:ss.SSS'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss'Z'",
-            "yyyy-MM-dd'T'HH:mm:ss.SSS",
-            "yyyy-MM-dd'T'HH:mm:ss"
-        )
-
-        for (pattern in supportedPatterns) {
-            try {
-                val parser = SimpleDateFormat(pattern, Locale.US)
-                parser.isLenient = false
-                if (pattern.contains("'Z'")) {
-                    parser.timeZone = TimeZone.getTimeZone("UTC")
-                } else if (!pattern.contains("XXX")) {
-                    parser.timeZone = TimeZone.getDefault()
-                }
-
-                val date: Date = parser.parse(normalizedValue) ?: continue
-                return date.time
-            } catch (_: Exception) {
-            }
-        }
-
-        Log.w(TAG, "Unable to parse todo deadline value: $value")
-
-        return null
-    }
-
-    private fun normalizeIsoDate(value: String): String {
-        val trimmed = value.trim()
-        return trimmed.replace(
-            Regex("(\\.\\d{3})\\d+(?=(Z|[+-]\\d{2}:?\\d{2})?$)"),
-            "$1"
-        )
-    }
-
-    private fun getStoredInt(
-        prefs: android.content.SharedPreferences,
-        key: String,
-        defaultValue: Int
-    ): Int {
-        val rawValue = prefs.all[key] ?: return defaultValue
-        return when (rawValue) {
-            is Int -> rawValue
-            is Long -> rawValue.toInt()
-            is Float -> rawValue.toInt()
-            is Double -> rawValue.toInt()
-            is String -> rawValue.toIntOrNull() ?: defaultValue
-            else -> defaultValue
-        }
-    }
-
-    private fun triggerHardBlock(packageName: String, reason: BlockingReason) {
+    private fun triggerHardBlock(packageName: String, reason: UrgencyPolicyReason) {
         lastTriggeredPackage = packageName
         lastTriggeredAtMillis = System.currentTimeMillis()
 
@@ -452,7 +263,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         return elapsedMillis in 0 until REENTRY_GUARD_MILLIS
     }
 
-    private fun saveLastBlockedDebugInfo(packageName: String, reason: BlockingReason) {
+    private fun saveLastBlockedDebugInfo(packageName: String, reason: UrgencyPolicyReason) {
         val prefs = getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
         prefs.edit()
             .putString(KEY_LAST_BLOCKED_PACKAGE, packageName)
