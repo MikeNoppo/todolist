@@ -116,7 +116,7 @@ class NotificationService {
       const initSettings = InitializationSettings(android: androidSettings);
 
       await _plugin.initialize(
-        initSettings,
+        settings: initSettings,
         onDidReceiveNotificationResponse: onDidReceiveNotificationResponse,
       );
 
@@ -380,10 +380,10 @@ class NotificationService {
           : 'Preview debug untuk notifikasi tugas berbasis deadline.';
 
       await _plugin.show(
-        _debugTaskNotificationId,
-        title,
-        body,
-        NotificationDetails(
+        id: _debugTaskNotificationId,
+        title: title,
+        body: body,
+        notificationDetails: NotificationDetails(
           android: AndroidNotificationDetails(
             _taskReminderChannelId,
             _taskReminderChannelName,
@@ -430,10 +430,10 @@ class NotificationService {
           : 'Preview debug: saat ini belum ada tugas yang belum selesai.';
 
       await _plugin.show(
-        _debugDailyReminderNotificationId,
-        'Ringkasan Tugas Hari Ini',
-        body,
-        const NotificationDetails(
+        id: _debugDailyReminderNotificationId,
+        title: 'Ringkasan Tugas Hari Ini',
+        body: body,
+        notificationDetails: const NotificationDetails(
           android: AndroidNotificationDetails(
             _dailySummaryChannelId,
             _dailySummaryChannelName,
@@ -563,11 +563,11 @@ class NotificationService {
 
       try {
         await _plugin.zonedSchedule(
-          notificationId,
-          title,
-          body,
-          scheduledTime,
-          NotificationDetails(
+          id: notificationId,
+          title: title,
+          body: body,
+          scheduledDate: scheduledTime,
+          notificationDetails: NotificationDetails(
             android: AndroidNotificationDetails(
               _taskReminderChannelId,
               _taskReminderChannelName,
@@ -579,8 +579,6 @@ class NotificationService {
             ),
           ),
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
           payload: todo.id,
           matchDateTimeComponents: null,
         );
@@ -611,20 +609,33 @@ class NotificationService {
   Future<void> cancelNotificationsForTodo(String todoId) async {
     if (!await _ensureInitialized()) return;
 
-    for (int i = 0; i < _maxOffsetsPerTodo; i++) {
-      final notificationId = _notificationIdForTodo(todoId, i);
-      await _plugin.cancel(notificationId);
-    }
+    final cancelled = await _runPluginOperation(
+      action: 'cancel notifications for todoId=$todoId',
+      operation: () async {
+        for (int i = 0; i < _maxOffsetsPerTodo; i++) {
+          final notificationId = _notificationIdForTodo(todoId, i);
+          await _plugin.cancel(id: notificationId);
+        }
+      },
+    );
 
-    AppLogger.debug(_tag, 'Cancelled notifications for todoId=$todoId');
+    if (cancelled) {
+      AppLogger.debug(_tag, 'Cancelled notifications for todoId=$todoId');
+    }
   }
 
   /// Cancel ALL notifications (task reminders + daily summary).
   Future<void> cancelAllNotifications() async {
     if (!await _ensureInitialized()) return;
 
-    await _plugin.cancelAll();
-    AppLogger.info(_tag, 'All notifications cancelled.');
+    final cancelled = await _runPluginOperation(
+      action: 'cancel all notifications',
+      operation: () => _plugin.cancelAll(),
+    );
+
+    if (cancelled) {
+      AppLogger.info(_tag, 'All notifications cancelled.');
+    }
   }
 
   /// Cancel all scheduled task reminder notifications while preserving the
@@ -818,7 +829,7 @@ class NotificationService {
         await scheduleOverride(pendingCount, hour, minute);
       } else {
         // Cancel previous daily reminder
-        await _plugin.cancel(_dailySummaryNotificationId);
+        await _plugin.cancel(id: _dailySummaryNotificationId);
 
         // Schedule daily repeating notification
         final now = tz.TZDateTime.now(tz.local);
@@ -837,11 +848,11 @@ class NotificationService {
         }
 
         await _plugin.zonedSchedule(
-          _dailySummaryNotificationId,
-          'Ringkasan Tugas Hari Ini',
-          _buildDailyReminderBody(pendingCount),
-          scheduledDate,
-          const NotificationDetails(
+          id: _dailySummaryNotificationId,
+          title: 'Ringkasan Tugas Hari Ini',
+          body: _buildDailyReminderBody(pendingCount),
+          scheduledDate: scheduledDate,
+          notificationDetails: const NotificationDetails(
             android: AndroidNotificationDetails(
               _dailySummaryChannelId,
               _dailySummaryChannelName,
@@ -852,8 +863,6 @@ class NotificationService {
             ),
           ),
           androidScheduleMode: AndroidScheduleMode.inexactAllowWhileIdle,
-          uiLocalNotificationDateInterpretation:
-              UILocalNotificationDateInterpretation.absoluteTime,
           payload: 'daily_summary',
           matchDateTimeComponents: DateTimeComponents.time,
         );
@@ -880,8 +889,14 @@ class NotificationService {
   /// Cancel the daily reminder.
   Future<void> cancelDailyReminder() async {
     if (!await _ensureInitialized()) return;
-    await _plugin.cancel(_dailySummaryNotificationId);
-    AppLogger.info(_tag, 'Daily reminder cancelled.');
+    final cancelled = await _runPluginOperation(
+      action: 'cancel daily reminder',
+      operation: () => _plugin.cancel(id: _dailySummaryNotificationId),
+    );
+
+    if (cancelled) {
+      AppLogger.info(_tag, 'Daily reminder cancelled.');
+    }
   }
 
   String _buildDailyReminderBody(int pendingCount) {
@@ -889,6 +904,24 @@ class NotificationService {
         ? '1 tugas belum selesai'
         : '$pendingCount tugas belum selesai';
     return 'Kamu punya $taskLabel. Buka myTask untuk cek!';
+  }
+
+  Future<bool> _runPluginOperation({
+    required String action,
+    required Future<void> Function() operation,
+  }) async {
+    try {
+      await operation();
+      return true;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to $action.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return false;
+    }
   }
 
   // ─── Helpers ───
