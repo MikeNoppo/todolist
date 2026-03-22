@@ -3,11 +3,9 @@ import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
 
-import 'services/app_blocker_service.dart';
 import 'services/app_logger.dart';
 import 'services/notification_service.dart';
 import 'services/notification_interruption_service.dart';
-import 'services/permission_service.dart';
 import 'screens/splash_screen.dart';
 
 void main() async {
@@ -50,24 +48,12 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
   static const String _tag = 'MainApp';
 
   final GlobalKey<NavigatorState> _navigatorKey = GlobalKey<NavigatorState>();
-  bool _isInterventionVisible = false;
-  bool _isPendingRetryScheduled = false;
-  String? _pendingBlockedPackage;
 
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
-    PermissionService.setBlockedPackageQueuedListener((packageName) {
-      AppLogger.debug(
-        _tag,
-        'Received native blocked package callback: package=$packageName',
-      );
-      _pendingBlockedPackage = packageName;
-      _consumeBlockedPackageAndPresent();
-    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _consumeBlockedPackageAndPresent();
       // Request permission and reschedule notifications after UI is visible,
       // so the permission dialog does not block app startup.
       _initNotificationsPostStartup();
@@ -96,7 +82,6 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
 
   @override
   void dispose() {
-    PermissionService.setBlockedPackageQueuedListener(null);
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -106,88 +91,8 @@ class _MainAppState extends State<MainApp> with WidgetsBindingObserver {
     super.didChangeAppLifecycleState(state);
     AppLogger.debug(_tag, 'App lifecycle changed: state=$state');
     if (state == AppLifecycleState.resumed) {
-      _consumeBlockedPackageAndPresent();
       NotificationInterruptionService().syncNativeState();
     }
-  }
-
-  Future<void> _consumeBlockedPackageAndPresent() async {
-    if (_isInterventionVisible) {
-      return;
-    }
-
-    final blockedPackage =
-        _pendingBlockedPackage ?? await PermissionService.peekBlockedPackage();
-    if (blockedPackage == null || blockedPackage.isEmpty) {
-      return;
-    }
-
-    _pendingBlockedPackage = blockedPackage;
-
-    final navigator = _navigatorKey.currentState;
-    if (navigator == null || !mounted) {
-      AppLogger.warn(
-        _tag,
-        'Navigator not ready yet; retrying intervention for package=$blockedPackage',
-      );
-      _schedulePendingInterventionRetry();
-      return;
-    }
-
-    AppLogger.info(
-      _tag,
-      'Presenting intervention for blocked package=$blockedPackage',
-    );
-
-    _isInterventionVisible = true;
-    var shouldProcessNextPendingPackage = false;
-    try {
-      await AppBlockerService.showInterventionScreenWithNavigator(
-        navigator,
-        blockedPackage,
-      );
-
-      final acknowledged = await PermissionService.acknowledgeBlockedPackage(
-        blockedPackage,
-      );
-      AppLogger.debug(
-        _tag,
-        'Intervention closed for package=$blockedPackage acknowledged=$acknowledged',
-      );
-
-      _pendingBlockedPackage = null;
-      shouldProcessNextPendingPackage = true;
-    } catch (e, stackTrace) {
-      AppLogger.error(
-        _tag,
-        'Failed to present intervention screen for package=$blockedPackage.',
-        error: e,
-        stackTrace: stackTrace,
-      );
-      _schedulePendingInterventionRetry();
-    } finally {
-      _isInterventionVisible = false;
-    }
-
-    if (mounted && shouldProcessNextPendingPackage) {
-      await _consumeBlockedPackageAndPresent();
-    }
-  }
-
-  void _schedulePendingInterventionRetry() {
-    if (_isPendingRetryScheduled) {
-      return;
-    }
-
-    _isPendingRetryScheduled = true;
-    Future.delayed(const Duration(milliseconds: 300), () {
-      _isPendingRetryScheduled = false;
-      if (!mounted) {
-        return;
-      }
-
-      _consumeBlockedPackageAndPresent();
-    });
   }
 
   @override
