@@ -23,31 +23,9 @@ import java.util.Locale
 class MainActivity : FlutterActivity() {
     companion object {
         private const val TAG = "MainActivity"
-        const val EXTRA_BLOCKED_PACKAGE = "blocked_package"
-
-        @Volatile
-        private var pendingBlockedPackage: String? = null
-
-        @JvmStatic
-        fun queueBlockedPackage(packageName: String) {
-            pendingBlockedPackage = packageName
-            Log.d(TAG, "Queued blocked package: package=$packageName")
-        }
-
-        @JvmStatic
-        fun acknowledgeQueuedBlockedPackage(packageName: String?): Boolean {
-            val acknowledged = !packageName.isNullOrBlank() &&
-                packageName == pendingBlockedPackage
-            if (acknowledged) {
-                pendingBlockedPackage = null
-            }
-            Log.d(TAG, "acknowledgeQueuedBlockedPackage called: package=$packageName acknowledged=$acknowledged")
-            return acknowledged
-        }
     }
 
     private val CHANNEL = "app_blocker/permissions"
-    private var methodChannel: MethodChannel? = null
     private val socialKeywords = listOf(
         "facebook",
         "instagram",
@@ -96,19 +74,11 @@ class MainActivity : FlutterActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         InterventionPersistenceService.refreshForPolicy(this, "main_activity_created")
-        consumeBlockedPackageFromIntent(intent)
-    }
-
-    override fun onNewIntent(intent: Intent) {
-        super.onNewIntent(intent)
-        setIntent(intent)
-        consumeBlockedPackageFromIntent(intent)
     }
 
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
-        methodChannel = channel
 
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -151,30 +121,6 @@ class MainActivity : FlutterActivity() {
                     )
                     result.success(synced)
                 }
-                "consumeBlockedPackage" -> {
-                    val blockedPackage = pendingBlockedPackage
-                    pendingBlockedPackage = null
-                    Log.d(TAG, "consumeBlockedPackage called: package=$blockedPackage")
-                    result.success(blockedPackage)
-                }
-                "peekBlockedPackage" -> {
-                    Log.d(TAG, "peekBlockedPackage called: package=$pendingBlockedPackage")
-                    result.success(pendingBlockedPackage)
-                }
-                "acknowledgeBlockedPackage" -> {
-                    val packageName = call.argument<String>("packageName")
-                    val acknowledged = !packageName.isNullOrBlank() &&
-                        packageName == pendingBlockedPackage
-                    if (acknowledged) {
-                        pendingBlockedPackage = null
-                    }
-
-                    Log.d(
-                        TAG,
-                        "acknowledgeBlockedPackage called: package=$packageName acknowledged=$acknowledged"
-                    )
-                    result.success(acknowledged)
-                }
                 "getInstalledFocusApps" -> {
                     result.success(getInstalledFocusApps())
                 }
@@ -184,27 +130,6 @@ class MainActivity : FlutterActivity() {
             }
         }
 
-        pendingBlockedPackage?.let { packageName ->
-            notifyBlockedPackageQueued(packageName)
-        }
-    }
-
-    private fun consumeBlockedPackageFromIntent(intent: Intent?) {
-        val blockedPackage = intent?.getStringExtra(EXTRA_BLOCKED_PACKAGE)
-        if (!blockedPackage.isNullOrBlank()) {
-            queueBlockedPackage(blockedPackage)
-            Log.d(TAG, "Received blocked package from intent: package=$blockedPackage")
-            notifyBlockedPackageQueued(blockedPackage)
-        }
-    }
-
-    private fun notifyBlockedPackageQueued(packageName: String) {
-        try {
-            methodChannel?.invokeMethod("blockedPackageQueued", packageName)
-            Log.d(TAG, "Notified Flutter blocked package queued: package=$packageName")
-        } catch (error: Exception) {
-            Log.w(TAG, "Failed notifying Flutter blocked package queued: package=$packageName", error)
-        }
     }
 
     private fun getInstalledFocusApps(): List<Map<String, Any>> {
