@@ -125,12 +125,14 @@ class _SplashScreenState extends State<SplashScreen>
             ? 'Onboarding complete and permissions active, navigating to home.'
             : needsPermissionRecovery
             ? 'Onboarding complete but permissions missing, routing to permission recovery.'
-            : 'Onboarding incomplete, navigating to onboarding.',
+            : 'Onboarding incomplete, navigating to onboarding from the first page.',
       );
 
       if (mounted) {
         if (shouldNavigateToHome) {
           _navigateToHome();
+        } else if (!hasCompletedSetup) {
+          _navigateToOnboarding();
         } else {
           _navigateToOnboardingWithPage(
             initialPage: accessibilityEnabled
