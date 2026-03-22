@@ -1,10 +1,8 @@
-import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/todo_model.dart';
 import '../repositories/todo_repository.dart';
 import 'app_logger.dart';
-import '../screens/intervention/intervention_screen.dart';
 
 class InterventionDebugInfo {
   const InterventionDebugInfo({
@@ -115,60 +113,6 @@ class AppBlockerService {
       );
       return false;
     }
-  }
-
-  /// Show intervention screen for a blocked app
-  static Future<void> showInterventionScreen(
-    BuildContext context,
-    String packageName,
-  ) async {
-    if (!context.mounted) {
-      return;
-    }
-
-    final route = await _buildInterventionRoute(packageName);
-    if (!context.mounted) {
-      return;
-    }
-
-    await Navigator.of(context).push(route);
-  }
-
-  static Future<void> showInterventionScreenWithNavigator(
-    NavigatorState navigator,
-    String packageName,
-  ) async {
-    final route = await _buildInterventionRoute(packageName);
-    await navigator.push(route);
-  }
-
-  static Future<PageRoute<void>> _buildInterventionRoute(
-    String packageName,
-  ) async {
-    final appName = await _resolveAppDisplayName(packageName);
-    final currentBlockingTaskTitle = await getCurrentBlockingTaskTitle();
-
-    return PageRouteBuilder<void>(
-      pageBuilder: (context, animation, secondaryAnimation) =>
-          InterventionScreen(
-            blockedAppName: appName,
-            currentHighPriorityTask: currentBlockingTaskTitle,
-          ),
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        const begin = 0.0;
-        const end = 1.0;
-        const curve = Curves.easeInOut;
-
-        final tween = Tween(
-          begin: begin,
-          end: end,
-        ).chain(CurveTween(curve: curve));
-
-        return FadeTransition(opacity: animation.drive(tween), child: child);
-      },
-      transitionDuration: const Duration(milliseconds: 400),
-      fullscreenDialog: true,
-    );
   }
 
   static Future<String?> getCurrentBlockingTaskTitle() async {
@@ -390,20 +334,7 @@ class AppBlockerService {
     }
   }
 
-  static Future<String> _resolveAppDisplayName(String packageName) async {
-    final prefs = await SharedPreferences.getInstance();
-    return prefs.getString('$appNameKeyPrefix$packageName') ??
-        _appNames[packageName] ??
-        packageName;
-  }
-
-  /// Get the display name for an app package
   static String getAppDisplayName(String packageName) {
     return _appNames[packageName] ?? packageName;
-  }
-
-  /// Get app names mapping
-  static Map<String, String> getAppNamesMapping() {
-    return Map.from(_appNames);
   }
 }
