@@ -416,9 +416,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
               children: <Widget>[
                 Text('Langkah-langkah:'),
                 SizedBox(height: 8.h),
-                Text('1. Cari "TodoList" dalam daftar layanan'),
-                Text('2. Tap pada "TodoList"'),
-                Text('3. Aktifkan toggle "Gunakan TodoList"'),
+                Text('1. Cari "myTask" dalam daftar layanan'),
+                Text('2. Tap pada "myTask"'),
+                Text('3. Aktifkan toggle "Gunakan myTask"'),
                 Text('4. Tap "OK" pada dialog konfirmasi'),
                 SizedBox(height: 12.h),
                 Text('Setelah selesai, kembali ke aplikasi.'),
@@ -454,8 +454,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
                 children: <Widget>[
                   Text('Langkah-langkah:'),
                   SizedBox(height: 8.h),
-                  Text('1. Cari "TodoList" dalam daftar aplikasi'),
-                  Text('2. Tap pada "TodoList"'),
+                  Text('1. Cari "myTask" dalam daftar aplikasi'),
+                  Text('2. Tap pada "myTask"'),
                   Text(
                     '3. Aktifkan toggle "Izinkan akses statistik penggunaan"',
                   ),
