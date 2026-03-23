@@ -6,7 +6,7 @@ class OnboardingPage2 extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final availableHeight = 0.55.sh;
+    final availableHeight = 0.65.sh;
     final horizontalPadding = 0.08.sw;
     final iconSize = (availableHeight * 0.12).clamp(50.w, 100.w).toDouble();
     final titleSize = 28.sp.clamp(24.sp, 36.sp).toDouble();
