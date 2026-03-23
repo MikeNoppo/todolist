@@ -6,8 +6,15 @@ import 'stat_card.dart';
 
 class DashboardOverviewCard extends StatelessWidget {
   final List<TodoModel> todos;
+  final String currentFilter;
+  final Function(String) onFilterChanged;
 
-  const DashboardOverviewCard({super.key, required this.todos});
+  const DashboardOverviewCard({
+    super.key,
+    required this.todos,
+    this.currentFilter = 'all',
+    required this.onFilterChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -16,9 +23,11 @@ class DashboardOverviewCard extends StatelessWidget {
 
     final completedTasks = todos.where((todo) => todo.isCompleted).length;
     final totalTasks = todos.length;
+
+    final now = DateTime.now();
+    final today = DateTime(now.year, now.month, now.day);
+
     final todayTasks = todos.where((todo) {
-      final now = DateTime.now();
-      final today = DateTime(now.year, now.month, now.day);
       final deadline = DateTime(
         todo.deadline.year,
         todo.deadline.month,
@@ -26,20 +35,24 @@ class DashboardOverviewCard extends StatelessWidget {
       );
       return deadline.isAtSameMomentAs(today);
     }).length;
+
     final stats = [
       (
+        id: 'all',
         label: 'Total',
         value: totalTasks.toString(),
         icon: Icons.assignment_outlined,
         color: Colors.grey[600]!,
       ),
       (
+        id: 'completed',
         label: 'Selesai',
         value: completedTasks.toString(),
         icon: Icons.check_circle_outline,
         color: const Color(0xFF4A6FA5),
       ),
       (
+        id: 'today',
         label: 'Hari Ini',
         value: todayTasks.toString(),
         icon: Icons.today_outlined,
@@ -100,6 +113,8 @@ class DashboardOverviewCard extends StatelessWidget {
                     value: item.value,
                     icon: item.icon,
                     color: item.color,
+                    isSelected: currentFilter == item.id,
+                    onTap: () => onFilterChanged(item.id),
                   );
                 },
               );
