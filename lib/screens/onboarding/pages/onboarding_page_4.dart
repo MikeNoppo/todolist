@@ -3,14 +3,11 @@ import 'package:flutter/material.dart';
 import 'onboarding_permission_page.dart';
 
 class OnboardingPage4 extends StatelessWidget {
-  final VoidCallback onReadComplete;
-
-  const OnboardingPage4({super.key, required this.onReadComplete});
+  const OnboardingPage4({super.key});
 
   @override
   Widget build(BuildContext context) {
     return OnboardingPermissionPage(
-      onReadComplete: onReadComplete,
       headerIcon: Icons.query_stats_outlined,
       title: 'Izin Statistik\nPenggunaan',
       subtitle:

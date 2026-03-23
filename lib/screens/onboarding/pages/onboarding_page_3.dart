@@ -3,14 +3,11 @@ import 'package:flutter/material.dart';
 import 'onboarding_permission_page.dart';
 
 class OnboardingPage3 extends StatelessWidget {
-  final VoidCallback onReadComplete;
-
-  const OnboardingPage3({super.key, required this.onReadComplete});
+  const OnboardingPage3({super.key});
 
   @override
   Widget build(BuildContext context) {
     return OnboardingPermissionPage(
-      onReadComplete: onReadComplete,
       headerIcon: Icons.accessibility_new_outlined,
       title: 'Izin\nAksesibilitas',
       subtitle:

@@ -13,8 +13,7 @@ class PermissionItem {
   });
 }
 
-class OnboardingPermissionPage extends StatefulWidget {
-  final VoidCallback onReadComplete;
+class OnboardingPermissionPage extends StatelessWidget {
   final IconData headerIcon;
   final String title;
   final String subtitle;
@@ -23,50 +22,12 @@ class OnboardingPermissionPage extends StatefulWidget {
 
   const OnboardingPermissionPage({
     super.key,
-    required this.onReadComplete,
     required this.headerIcon,
     required this.title,
     required this.subtitle,
     required this.items,
     required this.disclaimer,
   });
-
-  @override
-  State<OnboardingPermissionPage> createState() =>
-      _OnboardingPermissionPageState();
-}
-
-class _OnboardingPermissionPageState extends State<OnboardingPermissionPage> {
-  final ScrollController _scrollController = ScrollController();
-  bool _hasReachedBottom = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController.addListener(_onScroll);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_onScroll);
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  void _onScroll() {
-    if (!_hasReachedBottom && _scrollController.hasClients) {
-      final maxScroll = _scrollController.position.maxScrollExtent;
-      final currentScroll = _scrollController.position.pixels;
-      final threshold = maxScroll * 0.95; // 95% of the way down
-
-      if (currentScroll >= threshold) {
-        setState(() {
-          _hasReachedBottom = true;
-        });
-        widget.onReadComplete();
-      }
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -87,7 +48,7 @@ class _OnboardingPermissionPageState extends State<OnboardingPermissionPage> {
     return Padding(
       padding: EdgeInsets.symmetric(horizontal: horizontalPadding),
       child: SingleChildScrollView(
-        controller: _scrollController,
+        physics: const NeverScrollableScrollPhysics(),
         child: ConstrainedBox(
           constraints: BoxConstraints(minHeight: availableHeight),
           child: Column(
@@ -101,14 +62,14 @@ class _OnboardingPermissionPageState extends State<OnboardingPermissionPage> {
                   shape: BoxShape.circle,
                 ),
                 child: Icon(
-                  widget.headerIcon,
+                  headerIcon,
                   size: iconSize * 0.5,
                   color: const Color(0xFF4A6FA5),
                 ),
               ),
               SizedBox(height: spacing(0.03)),
               Text(
-                widget.title,
+                title,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: titleSize,
@@ -119,7 +80,7 @@ class _OnboardingPermissionPageState extends State<OnboardingPermissionPage> {
               ),
               SizedBox(height: spacing(0.015)),
               Text(
-                widget.subtitle,
+                subtitle,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: subtitleSize,
@@ -138,10 +99,10 @@ class _OnboardingPermissionPageState extends State<OnboardingPermissionPage> {
                 ),
                 child: Column(
                   children: [
-                    for (int i = 0; i < widget.items.length; i++) ...[
+                    for (int i = 0; i < items.length; i++) ...[
                       if (i > 0) SizedBox(height: spacing(0.015)),
                       _buildPermissionItem(
-                        widget.items[i],
+                        items[i],
                         permissionIconSize,
                         permissionTitleSize,
                         permissionSubtitleSize,
@@ -153,7 +114,7 @@ class _OnboardingPermissionPageState extends State<OnboardingPermissionPage> {
               ),
               SizedBox(height: spacing(0.02)),
               Text(
-                widget.disclaimer,
+                disclaimer,
                 textAlign: TextAlign.center,
                 style: TextStyle(
                   fontSize: disclaimerSize,

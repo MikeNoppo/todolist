@@ -33,8 +33,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   late final PageController _pageController;
   final TodoRepository _todoRepository = TodoRepository();
   int _currentPage = 0;
-  bool _hasReadAccessibilityStep = false;
-  bool _hasReadUsageStatsStep = false;
   bool _isAccessibilityGranted = false;
   bool _isUsageStatsGranted = false;
   bool _isReturningFromPermissionSettings = false;
@@ -233,20 +231,8 @@ class _OnboardingScreenState extends State<OnboardingScreen>
         children: [
           const OnboardingPage1(),
           const OnboardingPage2(),
-          OnboardingPage3(
-            onReadComplete: () {
-              setState(() {
-                _hasReadAccessibilityStep = true;
-              });
-            },
-          ),
-          OnboardingPage4(
-            onReadComplete: () {
-              setState(() {
-                _hasReadUsageStatsStep = true;
-              });
-            },
-          ),
+          const OnboardingPage3(),
+          const OnboardingPage4(),
         ],
       ),
     );
@@ -312,14 +298,6 @@ class _OnboardingScreenState extends State<OnboardingScreen>
   }
 
   bool _isCurrentPermissionStepReadable() {
-    if (_currentPage == _accessibilityPageIndex) {
-      return _hasReadAccessibilityStep;
-    }
-
-    if (_currentPage == _usageStatsPageIndex) {
-      return _hasReadUsageStatsStep;
-    }
-
     return true;
   }
 
@@ -329,16 +307,9 @@ class _OnboardingScreenState extends State<OnboardingScreen>
     }
 
     if (_currentPage == _accessibilityPageIndex) {
-      if (!_hasReadAccessibilityStep) {
-        return 'Baca Hingga Selesai';
-      }
       return _isAccessibilityGranted
           ? 'Lanjut ke Izin Statistik'
           : 'Aktifkan Aksesibilitas';
-    }
-
-    if (!_hasReadUsageStatsStep) {
-      return 'Baca Hingga Selesai';
     }
 
     return _isUsageStatsGranted
