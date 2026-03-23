@@ -241,7 +241,10 @@ class _TodoCardState extends State<TodoCard> {
                               SizedBox(height: 12.h),
                               Row(
                                 children: [
-                                  DeadlineBadge(deadline: widget.todo.deadline),
+                                  DeadlineBadge(
+                                    deadline: widget.todo.deadline,
+                                    isCompleted: widget.todo.isCompleted,
+                                  ),
                                 ],
                               ),
                             ],

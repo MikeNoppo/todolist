@@ -3,10 +3,17 @@ import 'package:flutter_screenutil/flutter_screenutil.dart';
 
 class DeadlineBadge extends StatelessWidget {
   final DateTime deadline;
+  final bool isCompleted;
 
-  const DeadlineBadge({super.key, required this.deadline});
+  const DeadlineBadge({
+    super.key,
+    required this.deadline,
+    this.isCompleted = false,
+  });
 
   String _formatDeadline(DateTime deadline) {
+    if (isCompleted) return 'Selesai';
+
     final now = DateTime.now();
     final isOverdue = deadline.isBefore(now);
     final deadlineDate = DateTime(deadline.year, deadline.month, deadline.day);
@@ -40,16 +47,19 @@ class DeadlineBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
-    final isOverdue = deadline.isBefore(now);
+    final isOverdue = deadline.isBefore(now) && !isCompleted;
     final isToday =
         deadline.year == now.year &&
         deadline.month == now.month &&
-        deadline.day == now.day;
+        deadline.day == now.day &&
+        !isCompleted;
 
     return Container(
       padding: EdgeInsets.symmetric(horizontal: 8.w, vertical: 4.h),
       decoration: BoxDecoration(
-        color: isOverdue
+        color: isCompleted
+            ? Colors.green[50]
+            : isOverdue
             ? Colors.red[50]
             : isToday
             ? Colors.orange[50]
@@ -60,9 +70,11 @@ class DeadlineBadge extends StatelessWidget {
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(
-            Icons.schedule_outlined,
+            isCompleted ? Icons.check_circle_outline : Icons.schedule_outlined,
             size: 16.sp,
-            color: isOverdue
+            color: isCompleted
+                ? Colors.green[600]
+                : isOverdue
                 ? Colors.red[600]
                 : isToday
                 ? Colors.orange[600]
@@ -73,7 +85,9 @@ class DeadlineBadge extends StatelessWidget {
             _formatDeadline(deadline),
             style: TextStyle(
               fontSize: 13.sp,
-              color: isOverdue
+              color: isCompleted
+                  ? Colors.green[600]
+                  : isOverdue
                   ? Colors.red[600]
                   : isToday
                   ? Colors.orange[600]
