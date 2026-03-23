@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
@@ -21,6 +22,9 @@ class _InterventionRulesSettingsScreenState
 
   final NotificationInterruptionService _notificationInterruptionService =
       NotificationInterruptionService();
+  final TextEditingController _customQuoteController = TextEditingController();
+  Timer? _debounceTimer;
+
   bool _isLoading = true;
   int _lowHours = AppBlockerService.defaultLowWindowHours;
   int _mediumHours = AppBlockerService.defaultMediumWindowHours;
@@ -32,9 +36,17 @@ class _InterventionRulesSettingsScreenState
     _loadRules();
   }
 
+  @override
+  void dispose() {
+    _customQuoteController.dispose();
+    _debounceTimer?.cancel();
+    super.dispose();
+  }
+
   Future<void> _loadRules() async {
     try {
       final windows = await AppBlockerService.getInterventionWindows();
+      final customQuote = await AppBlockerService.getCustomQuote();
 
       if (!mounted) return;
       setState(() {
@@ -47,6 +59,11 @@ class _InterventionRulesSettingsScreenState
         _highHours =
             windows[TodoPriority.high] ??
             AppBlockerService.defaultHighWindowHours;
+
+        if (customQuote != null) {
+          _customQuoteController.text = customQuote;
+        }
+
         _isLoading = false;
       });
     } catch (e, stackTrace) {
@@ -111,6 +128,7 @@ class _InterventionRulesSettingsScreenState
       TodoPriority.high,
       AppBlockerService.defaultHighWindowHours,
     );
+    await AppBlockerService.saveCustomQuote('');
     await _notificationInterruptionService.syncNativeState();
 
     if (!mounted) return;
@@ -118,6 +136,7 @@ class _InterventionRulesSettingsScreenState
       _lowHours = AppBlockerService.defaultLowWindowHours;
       _mediumHours = AppBlockerService.defaultMediumWindowHours;
       _highHours = AppBlockerService.defaultHighWindowHours;
+      _customQuoteController.clear();
     });
 
     ScaffoldMessenger.of(context).showSnackBar(
@@ -126,6 +145,21 @@ class _InterventionRulesSettingsScreenState
         duration: Duration(seconds: 2),
       ),
     );
+  }
+
+  void _onCustomQuoteChanged(String value) {
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
+      await AppBlockerService.saveCustomQuote(value);
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Kata-kata intervensi disimpan'),
+            duration: Duration(seconds: 1),
+          ),
+        );
+      }
+    });
   }
 
   @override
@@ -193,8 +227,92 @@ class _InterventionRulesSettingsScreenState
                   onIncrease: () =>
                       _updateWindow(TodoPriority.high, _highHours + 1),
                 ),
+                SizedBox(height: 24.h),
+                _buildSectionHeader('Kustomisasi'),
+                SizedBox(height: 12.h),
+                _buildCustomQuoteCard(),
               ],
             ),
+    );
+  }
+
+  Widget _buildSectionHeader(String title) {
+    return Text(
+      title,
+      style: TextStyle(
+        fontSize: 14.sp,
+        fontWeight: FontWeight.w600,
+        color: Colors.black54,
+        letterSpacing: 0.5.sp,
+      ),
+    );
+  }
+
+  Widget _buildCustomQuoteCard() {
+    return Container(
+      padding: EdgeInsets.all(16.r),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(16.r),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Kata-Kata Intervensi',
+            style: TextStyle(
+              fontSize: 15.sp,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          SizedBox(height: 4.h),
+          Text(
+            'Teks yang akan muncul di layar saat aplikasi diblokir. Kosongkan untuk menggunakan kata-kata motivasi acak bawaan.',
+            style: TextStyle(
+              fontSize: 13.sp,
+              color: Colors.grey[600],
+              height: 1.3,
+            ),
+          ),
+          SizedBox(height: 16.h),
+          TextField(
+            controller: _customQuoteController,
+            onChanged: _onCustomQuoteChanged,
+            maxLines: 3,
+            minLines: 1,
+            decoration: InputDecoration(
+              hintText: 'Misal: Ayo kerja! Deadline sudah dekat...',
+              hintStyle: TextStyle(color: Colors.grey[400], fontSize: 14.sp),
+              filled: true,
+              fillColor: Colors.grey[50],
+              contentPadding: EdgeInsets.symmetric(
+                horizontal: 16.w,
+                vertical: 12.h,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.r),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.r),
+                borderSide: BorderSide(color: Colors.grey[300]!),
+              ),
+              focusedBorder: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12.r),
+                borderSide: const BorderSide(color: Color(0xFF4A6FA5)),
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 

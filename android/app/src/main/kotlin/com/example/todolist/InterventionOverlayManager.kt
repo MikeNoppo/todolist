@@ -53,18 +53,18 @@ class InterventionOverlayManager(
     @Volatile
     private var isShowing = false
 
-    fun show(blockedPackage: String, taskTitle: String?) {
+    fun show(blockedPackage: String, taskTitle: String?, customQuote: String? = null) {
         if (isShowing) {
             Log.d(TAG, "Overlay already showing; skipping duplicate for package=$blockedPackage")
             return
         }
 
         mainHandler.post {
-            showOnMainThread(blockedPackage, taskTitle)
+            showOnMainThread(blockedPackage, taskTitle, customQuote)
         }
     }
 
-    private fun showOnMainThread(blockedPackage: String, taskTitle: String?) {
+    private fun showOnMainThread(blockedPackage: String, taskTitle: String?, customQuote: String?) {
         if (isShowing) {
             return
         }
@@ -88,7 +88,7 @@ class InterventionOverlayManager(
             params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
             params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
 
-            bindViews(view, blockedPackage, taskTitle)
+            bindViews(view, blockedPackage, taskTitle, customQuote)
 
             windowManager.addView(view, params)
             overlayView = view
@@ -103,7 +103,7 @@ class InterventionOverlayManager(
         }
     }
 
-    private fun bindViews(view: View, blockedPackage: String, taskTitle: String?) {
+    private fun bindViews(view: View, blockedPackage: String, taskTitle: String?, customQuote: String?) {
         val quoteText = view.findViewById<TextView>(R.id.overlayQuoteText)
         val quoteAuthor = view.findViewById<TextView>(R.id.overlayQuoteAuthor)
         val taskContainer = view.findViewById<LinearLayout>(R.id.overlayTaskContainer)
@@ -111,9 +111,17 @@ class InterventionOverlayManager(
         val backToWorkButton = view.findViewById<TextView>(R.id.overlayBackToWorkButton)
         val blockedAppText = view.findViewById<TextView>(R.id.overlayBlockedAppText)
 
-        val quote = QUOTES[(System.currentTimeMillis() % QUOTES.size).toInt()]
-        quoteText.text = quote.first
-        quoteAuthor.text = quote.second
+        if (!customQuote.isNullOrBlank()) {
+            Log.d(TAG, "Using custom quote: $customQuote")
+            quoteText.text = "\"$customQuote\""
+            quoteAuthor.visibility = View.GONE
+        } else {
+            Log.d(TAG, "Using fallback random quote")
+            val quote = QUOTES[(System.currentTimeMillis() % QUOTES.size).toInt()]
+            quoteText.text = quote.first
+            quoteAuthor.text = quote.second
+            quoteAuthor.visibility = View.VISIBLE
+        }
 
         if (!taskTitle.isNullOrBlank()) {
             taskContainer.visibility = View.VISIBLE
@@ -132,7 +140,7 @@ class InterventionOverlayManager(
             dismiss()
         }
 
-        Log.d(TAG, "Overlay views bound: package=$blockedPackage appLabel=$appLabel task=$taskTitle")
+        Log.d(TAG, "Overlay views bound: package=$blockedPackage appLabel=$appLabel task=$taskTitle customQuote=$customQuote")
     }
 
     fun dismiss() {

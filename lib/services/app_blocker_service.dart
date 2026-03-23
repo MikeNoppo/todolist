@@ -56,6 +56,7 @@ class AppBlockerService {
   static const String blockKeyPrefix = 'block_';
   static const String allowKeyPrefix = 'allow_';
   static const String interventionEnabledKey = 'intervention_enabled';
+  static const String customQuoteKey = 'intervention_custom_quote';
   static const String lowWindowHoursKey = 'intervention_window_low_hours';
   static const String mediumWindowHoursKey = 'intervention_window_medium_hours';
   static const String highWindowHoursKey = 'intervention_window_high_hours';
@@ -221,6 +222,21 @@ class AppBlockerService {
       case TodoPriority.high:
         await prefs.setInt(highWindowHoursKey, hours);
         break;
+    }
+  }
+
+  static Future<String?> getCustomQuote() async {
+    final prefs = await SharedPreferences.getInstance();
+    return prefs.getString(customQuoteKey);
+  }
+
+  static Future<void> saveCustomQuote(String quote) async {
+    final prefs = await SharedPreferences.getInstance();
+    final trimmedQuote = quote.trim();
+    if (trimmedQuote.isEmpty) {
+      await prefs.remove(customQuoteKey);
+    } else {
+      await prefs.setString(customQuoteKey, trimmedQuote);
     }
   }
 

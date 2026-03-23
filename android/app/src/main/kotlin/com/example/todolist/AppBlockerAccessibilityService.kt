@@ -17,6 +17,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         private const val KEY_LOW_WINDOW_HOURS = "flutter.intervention_window_low_hours"
         private const val KEY_MEDIUM_WINDOW_HOURS = "flutter.intervention_window_medium_hours"
         private const val KEY_HIGH_WINDOW_HOURS = "flutter.intervention_window_high_hours"
+        private const val KEY_CUSTOM_QUOTE = "flutter.intervention_custom_quote"
         private const val KEY_BLOCK_PREFIX = "flutter.block_"
         private const val KEY_ALLOW_PREFIX = "flutter.allow_"
         private const val KEY_LAST_BLOCKED_PACKAGE = "flutter.debug_last_blocked_package"
@@ -192,7 +193,11 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             "Showing overlay for package=$packageName task=${reason.taskTitle} " +
                 "priority=${reason.priority} remainingMinutes=${reason.remainingMinutes}"
         )
-        overlayManager?.show(packageName, reason.taskTitle)
+        
+        val prefs = getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
+        val customQuote = prefs.getString(KEY_CUSTOM_QUOTE, null)
+        
+        overlayManager?.show(packageName, reason.taskTitle, customQuote)
 
         // Step 2: Send blocked app to home in the background, so it stops running.
         // This is safe AFTER the overlay is already on screen.
