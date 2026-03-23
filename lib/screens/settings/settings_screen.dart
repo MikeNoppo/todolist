@@ -13,6 +13,7 @@ import 'app_blocker_settings_screen.dart';
 import 'app_permissions_screen.dart';
 import 'debug_settings_screen.dart';
 import 'intervention_rules_settings_screen.dart';
+import 'privacy_policy_screen.dart';
 import 'profile_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
@@ -1061,27 +1062,9 @@ class _SettingsScreenState extends State<SettingsScreen>
   }
 
   void _showPrivacyPolicy() {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text('Kebijakan Privasi'),
-        content: SingleChildScrollView(
-          child: Text(
-            'Aplikasi myTask berkomitmen untuk melindungi privasi Anda:\n\n'
-            '• Data tugas disimpan secara lokal di perangkat Anda\n'
-            '• Izin akses penggunaan hanya digunakan untuk fitur pemblokiran\n'
-            '• Tidak ada data yang dikirim ke server eksternal\n'
-            '• Anda memiliki kontrol penuh atas data Anda\n\n'
-            'Untuk pertanyaan lebih lanjut, hubungi pengembang.',
-          ),
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('Tutup', style: TextStyle(color: Color(0xFF4A6FA5))),
-          ),
-        ],
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
     );
   }
 }
