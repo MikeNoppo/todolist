@@ -25,6 +25,7 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
   String _userName = 'Pengguna';
   bool _isLoading = true;
   bool _isPermissionRecoveryInProgress = false;
+  String _currentFilter = 'all';
 
   @override
   void initState() {
@@ -366,6 +367,25 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
 
   @override
   Widget build(BuildContext context) {
+    final now = DateTime.now();
+
+    List<TodoModel> displayedTodos = _todos.where((todo) {
+      if (_currentFilter == 'completed') return todo.isCompleted;
+      if (_currentFilter == 'today') {
+        return todo.deadline.year == now.year &&
+            todo.deadline.month == now.month &&
+            todo.deadline.day == now.day;
+      }
+      return true; // all
+    }).toList();
+
+    // Sort to put completed tasks at the bottom
+    displayedTodos.sort((a, b) {
+      if (a.isCompleted && !b.isCompleted) return 1;
+      if (!a.isCompleted && b.isCompleted) return -1;
+      return a.deadline.compareTo(b.deadline);
+    });
+
     return Scaffold(
       backgroundColor: Colors.grey[50],
       appBar: _selectionManager.isSelectionMode
@@ -391,7 +411,15 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                     child: Column(
                       children: [
                         if (!_selectionManager.isSelectionMode) ...[
-                          DashboardOverviewCard(todos: _todos),
+                          DashboardOverviewCard(
+                            todos: _todos,
+                            currentFilter: _currentFilter,
+                            onFilterChanged: (filter) {
+                              setState(() {
+                                _currentFilter = filter;
+                              });
+                            },
+                          ),
                           SizedBox(height: 8.h),
                         ] else ...[
                           SizedBox(height: 20.h),
@@ -399,13 +427,13 @@ class _HomeScreenState extends State<HomeScreen> with WidgetsBindingObserver {
                       ],
                     ),
                   ),
-                  _todos.isEmpty
+                  displayedTodos.isEmpty
                       ? const SliverFillRemaining(
                           hasScrollBody: false,
                           child: EmptyState(),
                         )
                       : TodoList(
-                          todos: _todos,
+                          todos: displayedTodos,
                           onToggleComplete: _toggleTodoComplete,
                           onDeleted: _loadData,
                           selectionManager: _selectionManager,
