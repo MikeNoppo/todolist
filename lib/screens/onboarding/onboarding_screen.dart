@@ -240,11 +240,12 @@ class _OnboardingScreenState extends State<OnboardingScreen>
 
   Widget _buildBottomNavigation() {
     return Padding(
-      padding: EdgeInsets.all(32.0.r),
+      padding: EdgeInsets.fromLTRB(32.w, 16.h, 32.w, 24.h),
       child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
           _buildPageIndicator(),
-          SizedBox(height: 32.h),
+          SizedBox(height: 20.h),
           _buildNavigationButton(),
         ],
       ),
