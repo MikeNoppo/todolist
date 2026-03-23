@@ -10,6 +10,7 @@ import '../../services/notification_interruption_service.dart';
 import '../../services/notification_service.dart';
 import '../../services/permission_service.dart';
 import 'app_blocker_settings_screen.dart';
+import 'app_permissions_screen.dart';
 import 'debug_settings_screen.dart';
 import 'intervention_rules_settings_screen.dart';
 import 'profile_screen.dart';
@@ -686,6 +687,20 @@ class _SettingsScreenState extends State<SettingsScreen>
                         MaterialPageRoute(
                           builder: (context) =>
                               const InterventionRulesSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDivider(),
+                  _buildSettingItem(
+                    icon: Icons.security_outlined,
+                    title: 'Izin Aplikasi',
+                    subtitle: 'Kelola akses yang dibutuhkan aplikasi',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const AppPermissionsScreen(),
                         ),
                       );
                     },
