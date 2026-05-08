@@ -1,8 +1,11 @@
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../models/adaptive_intervention_decision.dart';
 import '../models/todo_model.dart';
 import '../repositories/todo_repository.dart';
+import 'adaptive_intervention_policy.dart';
 import 'app_logger.dart';
+import 'usage_stats_service.dart';
 
 class InterventionDebugInfo {
   const InterventionDebugInfo({
@@ -88,6 +91,55 @@ class AppBlockerService {
     'com.spotify.music': 'Spotify',
     'com.netflix.mediaclient': 'Netflix',
   };
+
+  /// Evaluate the adaptive intervention level for an app
+  static Future<AdaptiveInterventionDecision> evaluateInterventionForApp(String packageName) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      
+      final isBlockedByUser = _isAppBlockedByUserSettings(
+        prefs: prefs,
+        packageName: packageName,
+      );
+      final isWhitelisted = prefs.getBool('$allowKeyPrefix$packageName') ?? false;
+
+      final todos = await TodoRepository().getTodos();
+      final candidate = _findCurrentCandidate(
+        prefs: prefs,
+        todos: todos,
+        now: DateTime.now(),
+      );
+
+      final hasActiveTask = candidate != null;
+      final activeTaskPriority = candidate?.todo.priority;
+
+      const usageStatsService = UsageStatsService();
+      final currentSessionMs = await usageStatsService.getCurrentSessionForApp(packageName);
+
+      final policy = AdaptiveInterventionPolicy();
+      return policy.evaluateAdaptiveBlock(
+        packageName: packageName,
+        isWhitelisted: isWhitelisted,
+        isBlockedByUser: isBlockedByUser,
+        hasActiveTask: hasActiveTask,
+        activeTaskPriority: activeTaskPriority,
+        currentSessionMs: currentSessionMs,
+        todayUsageMs: 0,
+      );
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to evaluate adaptive intervention for package=$packageName.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return const AdaptiveInterventionDecision(
+        level: InterventionLevel.allow,
+        reason: 'Error occurred during evaluation',
+        message: '',
+      );
+    }
+  }
 
   /// Check if an app should be blocked
   static Future<bool> shouldBlockApp(String packageName) async {

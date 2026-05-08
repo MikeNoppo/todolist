@@ -14,7 +14,8 @@ import android.widget.TextView
 
 class InterventionOverlayManager(
     private val context: Context,
-    private val onBackToWorkTapped: (String) -> Unit
+    private val onBackToWorkTapped: (String) -> Unit,
+    private val onContinueTapped: (String) -> Unit
 ) {
 
     companion object {
@@ -53,18 +54,18 @@ class InterventionOverlayManager(
     @Volatile
     private var isShowing = false
 
-    fun show(blockedPackage: String, taskTitle: String?, customQuote: String? = null) {
+    fun show(blockedPackage: String, taskTitle: String?, customQuote: String? = null, isWarningOnly: Boolean = false, customMessage: String? = null) {
         if (isShowing) {
             Log.d(TAG, "Overlay already showing; skipping duplicate for package=$blockedPackage")
             return
         }
 
         mainHandler.post {
-            showOnMainThread(blockedPackage, taskTitle, customQuote)
+            showOnMainThread(blockedPackage, taskTitle, customQuote, isWarningOnly, customMessage)
         }
     }
 
-    private fun showOnMainThread(blockedPackage: String, taskTitle: String?, customQuote: String?) {
+    private fun showOnMainThread(blockedPackage: String, taskTitle: String?, customQuote: String?, isWarningOnly: Boolean, customMessage: String?) {
         if (isShowing) {
             return
         }
@@ -88,7 +89,7 @@ class InterventionOverlayManager(
             params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
             params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
 
-            bindViews(view, blockedPackage, taskTitle, customQuote)
+            bindViews(view, blockedPackage, taskTitle, customQuote, isWarningOnly, customMessage)
 
             windowManager.addView(view, params)
             overlayView = view
@@ -96,22 +97,27 @@ class InterventionOverlayManager(
 
             Log.d(
                 TAG,
-                "Overlay shown: package=$blockedPackage task=$taskTitle"
+                "Overlay shown: package=$blockedPackage task=$taskTitle warningOnly=$isWarningOnly"
             )
         } catch (error: Exception) {
             Log.e(TAG, "Failed to show overlay for package=$blockedPackage", error)
         }
     }
 
-    private fun bindViews(view: View, blockedPackage: String, taskTitle: String?, customQuote: String?) {
+    private fun bindViews(view: View, blockedPackage: String, taskTitle: String?, customQuote: String?, isWarningOnly: Boolean, customMessage: String?) {
         val quoteText = view.findViewById<TextView>(R.id.overlayQuoteText)
         val quoteAuthor = view.findViewById<TextView>(R.id.overlayQuoteAuthor)
         val taskContainer = view.findViewById<LinearLayout>(R.id.overlayTaskContainer)
         val taskTitleText = view.findViewById<TextView>(R.id.overlayTaskTitleText)
         val backToWorkButton = view.findViewById<TextView>(R.id.overlayBackToWorkButton)
+        val continueButton = view.findViewById<TextView>(R.id.overlayContinueButton)
         val blockedAppText = view.findViewById<TextView>(R.id.overlayBlockedAppText)
 
-        if (!customQuote.isNullOrBlank()) {
+        if (!customMessage.isNullOrBlank()) {
+            Log.d(TAG, "Using custom message: $customMessage")
+            quoteText.text = customMessage
+            quoteAuthor.visibility = View.GONE
+        } else if (!customQuote.isNullOrBlank()) {
             Log.d(TAG, "Using custom quote: $customQuote")
             quoteText.text = "\"$customQuote\""
             quoteAuthor.visibility = View.GONE
@@ -131,16 +137,29 @@ class InterventionOverlayManager(
         }
 
         val appLabel = resolveAppLabel(blockedPackage)
-        blockedAppText.text = "Akses ke $appLabel diblokir"
+        if (isWarningOnly) {
+            blockedAppText.text = "Peringatan penggunaan $appLabel"
+            continueButton.visibility = View.VISIBLE
+        } else {
+            blockedAppText.text = "Akses ke $appLabel diblokir"
+            continueButton.visibility = View.GONE
+        }
 
         backToWorkButton.setOnClickListener { btn ->
             btn.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            Log.d(TAG, "User tapped Kembali Bekerja: package=$blockedPackage")
+            Log.d(TAG, "User tapped Tutup Aplikasi: package=$blockedPackage")
             onBackToWorkTapped(blockedPackage)
             dismiss()
         }
 
-        Log.d(TAG, "Overlay views bound: package=$blockedPackage appLabel=$appLabel task=$taskTitle customQuote=$customQuote")
+        continueButton.setOnClickListener { btn ->
+            btn.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            Log.d(TAG, "User tapped Lanjut Sebentar: package=$blockedPackage")
+            onContinueTapped(blockedPackage)
+            dismiss()
+        }
+
+        Log.d(TAG, "Overlay views bound: package=$blockedPackage appLabel=$appLabel task=$taskTitle isWarningOnly=$isWarningOnly")
     }
 
     fun dismiss() {

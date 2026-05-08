@@ -44,6 +44,9 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
         @Volatile
         private var lastTriggeredAtMillis: Long = 0L
+
+        private val snoozedWarningPackages = java.util.concurrent.ConcurrentHashMap<String, Long>()
+        private const val SNOOZE_DURATION_MILLIS = 5L * 60L * 1000L // 5 minutes
     }
 
     // Overlay manager - created once and reused
@@ -70,13 +73,24 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
             val activePackageName = getActivePackageName()
             if (activePackageName == watchedPackage && !isInReentryGuard(activePackageName)) {
+                val snoozeUntil = snoozedWarningPackages[activePackageName] ?: 0L
+                if (System.currentTimeMillis() < snoozeUntil) {
+                    mainHandler.postDelayed(this, POST_DISMISS_WATCH_INTERVAL_MILLIS)
+                    return
+                }
+
                 val blockingReason = getBlockingReasonForPackage(activePackageName)
                 if (blockingReason != null) {
-                    Log.d(
-                        TAG,
-                        "Watchdog re-blocking active package=$activePackageName after overlay dismiss"
-                    )
-                    triggerHardBlock(activePackageName, blockingReason)
+                    val sessionMs = UsageStatsHelper.getCurrentSessionMs(this@AppBlockerAccessibilityService, activePackageName)
+                    val decision = AdaptiveInterventionPolicy.evaluate(sessionMs, blockingReason.priority)
+                    if (decision.level != InterventionLevel.ALLOW) {
+                        val isWarningOnly = decision.level == InterventionLevel.SOFT_WARNING || decision.level == InterventionLevel.STRONG_WARNING
+                        Log.d(
+                            TAG,
+                            "Watchdog re-blocking active package=$activePackageName after overlay dismiss"
+                        )
+                        triggerIntervention(activePackageName, blockingReason, isWarningOnly, decision.message)
+                    }
                 }
             }
 
@@ -87,7 +101,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
-        overlayManager = InterventionOverlayManager(this, ::handleBackToWorkTapped)
+        overlayManager = InterventionOverlayManager(this, ::handleBackToWorkTapped, ::handleContinueTapped)
         InterventionRuntimeStore.touchAccessibilityHeartbeat(this)
         InterventionPersistenceService.refreshForPolicy(this, "accessibility_connected")
         Log.d(TAG, "Accessibility Service connected; overlay manager ready")
@@ -118,16 +132,32 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             return
         }
 
+        val snoozeUntil = snoozedWarningPackages[currentPackageName] ?: 0L
+        if (System.currentTimeMillis() < snoozeUntil) {
+            return
+        }
+
         Log.d(TAG, "Evaluating package for hard block: package=$currentPackageName")
 
         val blockingReason = getBlockingReasonForPackage(currentPackageName) ?: return
+        
+        val currentSessionMs = UsageStatsHelper.getCurrentSessionMs(this, currentPackageName)
+        val decision = AdaptiveInterventionPolicy.evaluate(currentSessionMs, blockingReason.priority)
+        
+        if (decision.level == InterventionLevel.ALLOW) {
+            Log.d(TAG, "Adaptive policy returned ALLOW: package=$currentPackageName sessionMs=$currentSessionMs")
+            return
+        }
+
         Log.d(
             TAG,
-            "Hard block eligible: package=$currentPackageName task=${blockingReason.taskTitle} " +
-                "priority=${blockingReason.priority} remainingMinutes=${blockingReason.remainingMinutes} " +
-                "windowHours=${blockingReason.windowHours}"
+            "Intervention eligible: package=$currentPackageName level=${decision.level} " +
+                "session=${currentSessionMs}ms priority=${blockingReason.priority}"
         )
-        triggerHardBlock(currentPackageName, blockingReason)
+        
+        val isWarningOnly = decision.level == InterventionLevel.SOFT_WARNING || decision.level == InterventionLevel.STRONG_WARNING
+
+        triggerIntervention(currentPackageName, blockingReason, isWarningOnly, decision.message)
     }
 
     override fun onInterrupt() {
@@ -179,30 +209,28 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         return UrgencyNotificationPolicy.getBlockingReasonForPackage(this, packageName)
     }
 
-    private fun triggerHardBlock(packageName: String, reason: UrgencyPolicyReason) {
+    private fun triggerIntervention(packageName: String, reason: UrgencyPolicyReason, isWarningOnly: Boolean = false, customMessage: String? = null) {
         lastTriggeredPackage = packageName
         lastTriggeredAtMillis = System.currentTimeMillis()
 
         saveLastBlockedDebugInfo(packageName, reason)
 
-        // Step 1: Show overlay IMMEDIATELY - this bypasses Android's background
-        // startActivity restriction entirely because TYPE_ACCESSIBILITY_OVERLAY
-        // is drawn directly by the Accessibility Service.
         Log.d(
             TAG,
             "Showing overlay for package=$packageName task=${reason.taskTitle} " +
-                "priority=${reason.priority} remainingMinutes=${reason.remainingMinutes}"
+                "priority=${reason.priority} remainingMinutes=${reason.remainingMinutes} warningOnly=$isWarningOnly"
         )
         
         val prefs = getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
         val customQuote = prefs.getString(KEY_CUSTOM_QUOTE, null)
         
-        overlayManager?.show(packageName, reason.taskTitle, customQuote)
+        overlayManager?.show(packageName, reason.taskTitle, customQuote, isWarningOnly, customMessage)
 
-        // Step 2: Send blocked app to home in the background, so it stops running.
-        // This is safe AFTER the overlay is already on screen.
-        val homeSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
-        Log.d(TAG, "Home action sent: homeSucceeded=$homeSucceeded package=$packageName")
+        if (!isWarningOnly) {
+            // Send blocked app to home in the background if it's a hard block
+            val homeSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
+            Log.d(TAG, "Home action sent: homeSucceeded=$homeSucceeded package=$packageName")
+        }
     }
 
     private fun handleBackToWorkTapped(packageName: String) {
@@ -212,6 +240,13 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             "Back to work tapped; forcing home before watch: package=$packageName homeSucceeded=$homeSucceeded"
         )
         startBlockedPackageWatch(packageName)
+    }
+
+    private fun handleContinueTapped(packageName: String) {
+        Log.d(TAG, "Continue tapped; dismissing warning overlay and snoozing: package=$packageName")
+        snoozedWarningPackages[packageName] = System.currentTimeMillis() + SNOOZE_DURATION_MILLIS
+        // Just let them continue, do not go home, do not watch blocked package aggressively
+        stopBlockedPackageWatch("continue_warning")
     }
 
     private fun startBlockedPackageWatch(packageName: String) {
