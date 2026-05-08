@@ -117,6 +117,97 @@ class PermissionService {
     }
   }
 
+  static Future<Map<String, int>> getAppUsageStats({
+    required List<String> packageNames,
+    int? startMs,
+    int? endMs,
+  }) async {
+    try {
+      final arguments = <String, Object>{'packageNames': packageNames};
+      if (startMs != null) {
+        arguments['startMs'] = startMs;
+      }
+      if (endMs != null) {
+        arguments['endMs'] = endMs;
+      }
+
+      final rawUsage = await _channel.invokeMethod<Object?>(
+        'getAppUsageStats',
+        arguments,
+      );
+
+      return _parseUsageMap(rawUsage);
+    } on PlatformException catch (e, stackTrace) {
+      _logUsageStatsError('Failed to fetch app usage stats.', e, stackTrace);
+      return {};
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to parse app usage stats.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return {};
+    }
+  }
+
+  static Future<Map<String, Map<String, int>>> getAppUsageHistory({
+    required List<String> packageNames,
+    int days = 7,
+  }) async {
+    try {
+      final rawHistory = await _channel.invokeMethod<Object?>(
+        'getAppUsageHistory',
+        {'packageNames': packageNames, 'days': days},
+      );
+
+      if (rawHistory is! Map) {
+        return {};
+      }
+
+      return rawHistory.map((date, rawUsage) {
+        return MapEntry(date.toString(), _parseUsageMap(rawUsage));
+      });
+    } on PlatformException catch (e, stackTrace) {
+      _logUsageStatsError('Failed to fetch app usage history.', e, stackTrace);
+      return {};
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to parse app usage history.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return {};
+    }
+  }
+
+  static Future<int> getAppCurrentSession({required String packageName}) async {
+    try {
+      final rawSession = await _channel.invokeMethod<Object?>(
+        'getAppCurrentSession',
+        {'packageName': packageName},
+      );
+
+      return rawSession is num ? rawSession.toInt() : 0;
+    } on PlatformException catch (e, stackTrace) {
+      _logUsageStatsError(
+        'Failed to fetch current app session.',
+        e,
+        stackTrace,
+      );
+      return 0;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to parse current app session.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return 0;
+    }
+  }
+
   static Future<bool> isNotificationListenerAccessGranted() async {
     try {
       final bool? isGranted = await _channel.invokeMethod<bool>(
@@ -230,5 +321,36 @@ class PermissionService {
         stackTrace: stackTrace,
       );
     }
+  }
+
+  static Map<String, int> _parseUsageMap(Object? rawUsage) {
+    if (rawUsage is! Map) {
+      return {};
+    }
+
+    return rawUsage.map((packageName, usageMs) {
+      final totalTimeMs = usageMs is num ? usageMs.toInt() : 0;
+      return MapEntry(packageName.toString(), totalTimeMs);
+    })..removeWhere((packageName, totalTimeMs) {
+      return packageName.isEmpty || totalTimeMs <= 0;
+    });
+  }
+
+  static void _logUsageStatsError(
+    String message,
+    PlatformException exception,
+    StackTrace stackTrace,
+  ) {
+    if (exception.code == 'PERMISSION_DENIED') {
+      AppLogger.warn(_tag, '$message Usage access has not been granted.');
+      return;
+    }
+
+    AppLogger.error(
+      _tag,
+      message,
+      error: exception.message ?? exception,
+      stackTrace: stackTrace,
+    );
   }
 }

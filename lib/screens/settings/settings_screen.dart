@@ -15,6 +15,7 @@ import 'debug_settings_screen.dart';
 import 'intervention_rules_settings_screen.dart';
 import 'privacy_policy_screen.dart';
 import 'profile_screen.dart';
+import 'screen_time_screen.dart';
 
 class SettingsScreen extends StatefulWidget {
   const SettingsScreen({super.key});
@@ -673,6 +674,20 @@ class _SettingsScreenState extends State<SettingsScreen>
                         MaterialPageRoute(
                           builder: (context) =>
                               const AppBlockerSettingsScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  _buildDivider(),
+                  _buildSettingItem(
+                    icon: Icons.insights_outlined,
+                    title: 'Penggunaan Aplikasi',
+                    subtitle: 'Lihat screen time aplikasi distraksi',
+                    onTap: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const ScreenTimeScreen(),
                         ),
                       );
                     },

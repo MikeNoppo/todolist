@@ -16,9 +16,16 @@ import android.provider.Settings
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
 import java.util.Locale
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 
 class MainActivity : FlutterActivity() {
     companion object {
@@ -26,6 +33,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private val CHANNEL = "app_blocker/permissions"
+    private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val socialKeywords = listOf(
         "facebook",
         "instagram",
@@ -124,12 +132,131 @@ class MainActivity : FlutterActivity() {
                 "getInstalledFocusApps" -> {
                     result.success(getInstalledFocusApps())
                 }
+                "getAppUsageStats" -> {
+                    getAppUsageStats(call, result)
+                }
+                "getAppUsageHistory" -> {
+                    getAppUsageHistory(call, result)
+                }
+                "getAppCurrentSession" -> {
+                    getAppCurrentSession(call, result)
+                }
                 else -> {
                     result.notImplemented()
                 }
             }
         }
 
+    }
+
+    override fun onDestroy() {
+        mainScope.cancel()
+        super.onDestroy()
+    }
+
+    private fun getAppUsageStats(call: MethodCall, result: MethodChannel.Result) {
+        if (!isUsageStatsPermissionGranted()) {
+            result.error(
+                "PERMISSION_DENIED",
+                "Usage stats permission is not granted.",
+                null
+            )
+            return
+        }
+
+        val packageNames = call.argument<List<*>>("packageNames")
+            ?.mapNotNull { it as? String }
+            ?: emptyList()
+        val startMs = call.argument<Number>("startMs")?.toLong()
+            ?: UsageStatsHelper.todayStartMs()
+        val endMs = call.argument<Number>("endMs")?.toLong()
+            ?: System.currentTimeMillis()
+
+        mainScope.launch {
+            try {
+                val usageStats = withContext(Dispatchers.IO) {
+                    UsageStatsHelper.queryRangedUsage(
+                        context = applicationContext,
+                        packageNames = packageNames,
+                        startMs = startMs,
+                        endMs = endMs
+                    )
+                }
+                result.success(usageStats)
+            } catch (error: Throwable) {
+                Log.e(TAG, "Failed to query app usage stats.", error)
+                result.error(
+                    "USAGE_STATS_QUERY_FAILED",
+                    error.message ?: "Failed to query app usage stats.",
+                    null
+                )
+            }
+        }
+    }
+
+    private fun getAppUsageHistory(call: MethodCall, result: MethodChannel.Result) {
+        if (!isUsageStatsPermissionGranted()) {
+            result.error(
+                "PERMISSION_DENIED",
+                "Usage stats permission is not granted.",
+                null
+            )
+            return
+        }
+
+        val packageNames = call.argument<List<*>>("packageNames")
+            ?.mapNotNull { it as? String }
+            ?: emptyList()
+        val days = call.argument<Number>("days")?.toInt() ?: 7
+
+        mainScope.launch {
+            try {
+                val usageHistory = withContext(Dispatchers.IO) {
+                    UsageStatsHelper.queryUsageHistory(
+                        context = applicationContext,
+                        packageNames = packageNames,
+                        days = days
+                    )
+                }
+                result.success(usageHistory)
+            } catch (error: Throwable) {
+                Log.e(TAG, "Failed to query app usage history.", error)
+                result.error(
+                    "USAGE_HISTORY_QUERY_FAILED",
+                    error.message ?: "Failed to query app usage history.",
+                    null
+                )
+            }
+        }
+    }
+
+    private fun getAppCurrentSession(call: MethodCall, result: MethodChannel.Result) {
+        if (!isUsageStatsPermissionGranted()) {
+            result.error(
+                "PERMISSION_DENIED",
+                "Usage stats permission is not granted.",
+                null
+            )
+            return
+        }
+
+        val packageName = call.argument<String>("packageName").orEmpty()
+
+        mainScope.launch {
+            try {
+                val currentSessionMs = withContext(Dispatchers.IO) {
+                    UsageStatsHelper.getCurrentSessionMs(applicationContext, packageName)
+                }
+                result.success(currentSessionMs)
+            } catch (error: Throwable) {
+                Log.e(TAG, "Failed to query current app session.", error)
+                result.error(
+                    "CURRENT_SESSION_QUERY_FAILED",
+                    error.message ?: "Failed to query current app session.",
+                    null
+                )
+            }
+        }
     }
 
     private fun getInstalledFocusApps(): List<Map<String, Any>> {
