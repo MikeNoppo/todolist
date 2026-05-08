@@ -453,7 +453,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
                       value: isBlocked,
                       onChanged: (value) =>
                           _toggleAppBlock(app.packageName, value),
-                      activeThumbColor: const Color(0xFF4A6FA5),
+                      activeColor: const Color(0xFF4A6FA5),
                       activeTrackColor: const Color(
                         0xFF4A6FA5,
                       ).withValues(alpha: 0.3),

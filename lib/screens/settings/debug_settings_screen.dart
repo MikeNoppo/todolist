@@ -412,7 +412,7 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
         Switch.adaptive(
           value: value,
           onChanged: value ? null : onChanged,
-          activeThumbColor: const Color(0xFF4A6FA5),
+          activeColor: const Color(0xFF4A6FA5),
           activeTrackColor: const Color(0xFF4A6FA5).withValues(alpha: 0.3),
         ),
       ],

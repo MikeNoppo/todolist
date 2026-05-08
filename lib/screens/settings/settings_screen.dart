@@ -731,7 +731,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                           _notificationInterruptionMode ==
                           NotificationInterruptionMode.filterDistractingApps,
                       onChanged: _updateNotificationFilterSetting,
-                      activeThumbColor: const Color(0xFF4A6FA5),
+                      activeColor: const Color(0xFF4A6FA5),
                       activeTrackColor: const Color(
                         0xFF4A6FA5,
                       ).withValues(alpha: 0.3),
@@ -759,7 +759,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                           _notificationInterruptionMode ==
                           NotificationInterruptionMode.dnd,
                       onChanged: _updateDoNotDisturbSetting,
-                      activeThumbColor: const Color(0xFF4A6FA5),
+                      activeColor: const Color(0xFF4A6FA5),
                       activeTrackColor: const Color(
                         0xFF4A6FA5,
                       ).withValues(alpha: 0.3),
@@ -801,7 +801,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     trailing: Switch.adaptive(
                       value: _taskNotificationsEnabled,
                       onChanged: _updateTaskNotificationSetting,
-                      activeThumbColor: const Color(0xFF4A6FA5),
+                      activeColor: const Color(0xFF4A6FA5),
                       activeTrackColor: const Color(
                         0xFF4A6FA5,
                       ).withValues(alpha: 0.3),
@@ -815,7 +815,7 @@ class _SettingsScreenState extends State<SettingsScreen>
                     trailing: Switch.adaptive(
                       value: _dailyReminderEnabled,
                       onChanged: _updateDailyReminderSetting,
-                      activeThumbColor: const Color(0xFF4A6FA5),
+                      activeColor: const Color(0xFF4A6FA5),
                       activeTrackColor: const Color(
                         0xFF4A6FA5,
                       ).withValues(alpha: 0.3),
