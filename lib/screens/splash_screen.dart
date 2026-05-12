@@ -55,7 +55,6 @@ class _SplashScreenState extends State<SplashScreen>
       vsync: this,
     );
 
-    // Icon animations
     _iconScaleAnimation = Tween<double>(begin: 0.3, end: 1.0).animate(
       CurvedAnimation(parent: _iconController, curve: Curves.elasticOut),
     );
