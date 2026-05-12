@@ -535,3 +535,180 @@ Rekomendasi: gunakan kombinasi AccessibilityService untuk deteksi foreground dan
 Fondasi data screen time sudah siap. Aplikasi sekarang bisa membaca data penggunaan aplikasi dari Android secara native, mengirimkannya ke Flutter, menampilkannya di layar Penggunaan Aplikasi, dan melakukan polling sesi aktif.
 
 Tahap berikutnya adalah mengubah keputusan blokir dari boolean sederhana menjadi keputusan bertingkat. Dengan begitu, aplikasi bisa memberikan ruang relaksasi singkat kepada user, tetapi tetap melakukan hard-block ketika penggunaan aplikasi distraksi melewati batas yang tidak sehat saat ada tugas berurgensi tinggi.
+
+## Update Implementasi Algoritma Adaptif
+
+Tanggal: 12 Mei 2026
+
+Tahap awal algoritma adaptif sudah mulai diimplementasikan di sisi Android native. Implementasi sengaja diletakkan di native karena pemblokiran aplikasi terjadi melalui `AppBlockerAccessibilityService`, sehingga keputusan adaptif tetap bisa berjalan saat user membuka aplikasi distraksi di luar Flutter UI.
+
+### File Baru
+
+- `android/app/src/main/kotlin/com/example/todolist/AdaptiveInterventionPolicy.kt`
+  - Menentukan level intervensi adaptif.
+  - Membaca `currentSessionMs` dari `UsageStatsHelper.getCurrentSessionMs`.
+  - Membaca `todayUsageMs` dari `UsageStatsHelper.queryRangedUsage`.
+  - Membaca rata-rata historis 7 hari dari `UsageStatsHelper.queryUsageHistory`.
+  - Menyimpan warning count dan debug decision ke SharedPreferences.
+
+### File yang Diubah
+
+- `android/app/src/main/kotlin/com/example/todolist/AppBlockerAccessibilityService.kt`
+  - Evaluasi app tidak lagi langsung `hard block` setelah urgency ditemukan.
+  - Service sekarang memanggil `AdaptiveInterventionPolicy.evaluate`.
+  - Output policy diarahkan ke aksi berikut:
+    - `allow`: tidak melakukan apa-apa.
+    - `soft_warning`: tampilkan overlay peringatan tanpa menutup aplikasi.
+    - `strong_warning`: tampilkan overlay peringatan lebih tegas tanpa menutup aplikasi.
+    - `temporary_block`: tampilkan overlay blokir dan kirim user ke Home.
+    - `hard_block`: tampilkan overlay blokir dan kirim user ke Home.
+
+- `android/app/src/main/kotlin/com/example/todolist/InterventionOverlayManager.kt`
+  - Menambahkan mode warning-only melalui `showWarning`.
+  - Warning-only overlay memakai tombol `Lanjutkan`.
+  - Tombol `Lanjutkan` hanya menutup overlay dan tidak memanggil `GLOBAL_ACTION_HOME`.
+  - Mode block lama tetap memakai tombol `Kembali Bekerja` dan tetap mengarahkan user keluar dari aplikasi distraksi.
+
+- `lib/services/app_blocker_service.dart`
+  - Menambahkan key debug adaptif agar data native bisa dibaca dari Flutter.
+  - `InterventionDebugInfo` sekarang memuat informasi keputusan adaptif terakhir.
+
+- `lib/screens/settings/debug_settings_screen.dart`
+  - Menambahkan kartu `Keputusan Adaptif Terakhir`.
+  - Menampilkan package, level, sesi aktif, usage hari ini, rata-rata histori, jumlah warning, pesan, alasan, dan waktu evaluasi.
+
+### Decision Level Saat Ini
+
+Algoritma memakai enum native berikut:
+
+```text
+ALLOW
+SOFT_WARNING
+STRONG_WARNING
+TEMPORARY_BLOCK
+HARD_BLOCK
+```
+
+Field penyimpanan/debug memakai bentuk storage berikut:
+
+```text
+allow
+soft_warning
+strong_warning
+temporary_block
+hard_block
+```
+
+### Threshold Awal
+
+Threshold awal masih statis per prioritas, tetapi sudah dipadukan dengan baseline historis.
+
+| Prioritas | Soft Warning | Strong Warning | Temporary Block | Hard Block |
+|---|---:|---:|---:|---:|
+| High | 5 menit | 10 menit | 30 menit | 60 menit |
+| Medium | 10 menit | 20 menit | 45 menit | 90 menit |
+| Low | 15 menit | 30 menit | 60 menit | 120 menit |
+
+Untuk prioritas `high`, soft warning bisa muncul langsung saat user membuka aplikasi distraksi, karena konteks tugas dianggap mendesak. Namun warning tidak ditampilkan terus-menerus karena ada cooldown warning.
+
+### Penggunaan Data Historis
+
+Data historis dipakai untuk membuat batas keputusan lebih personal.
+
+Nilai yang dihitung:
+
+```text
+averageDailyUsageMs = rata-rata usage package dari 6 hari sebelum hari ini
+```
+
+Lalu dibandingkan dengan penggunaan hari ini:
+
+```text
+todayUsageMs
+currentSessionMs
+averageDailyUsageMs
+warningCount
+```
+
+Contoh perilaku:
+
+- Jika sesi saat ini mencapai batas hard-block, app langsung diblokir.
+- Jika penggunaan hari ini sudah jauh melewati rata-rata historis, level intervensi naik.
+- Jika user sudah sering menerima warning dan tetap lanjut, level bisa naik ke temporary block.
+
+### Cooldown dan Reset Warning
+
+Warning count disimpan per package:
+
+```text
+flutter.adaptive_warning_count_<packageName>
+flutter.adaptive_last_warning_at_<packageName>
+```
+
+Aturan awal:
+
+- Warning cooldown: 5 menit.
+- Warning count reset setelah 2 jam tanpa warning.
+
+Tujuannya agar user tidak melihat overlay warning berulang setiap accessibility event, tetapi sistem tetap bisa menaikkan level intervensi jika penggunaan terus berlanjut.
+
+### Debug Keys Native
+
+Keputusan adaptif terakhir disimpan dengan key berikut:
+
+```text
+flutter.debug_last_adaptive_package
+flutter.debug_last_adaptive_level
+flutter.debug_last_adaptive_reason
+flutter.debug_last_adaptive_message
+flutter.debug_last_adaptive_session_ms
+flutter.debug_last_adaptive_today_ms
+flutter.debug_last_adaptive_average_ms
+flutter.debug_last_adaptive_warning_count
+flutter.debug_last_adaptive_at_millis
+```
+
+Data ini ditampilkan di halaman Debug pada build non-release.
+
+### Alur Native Setelah Implementasi Adaptif
+
+```text
+Accessibility event foreground app
+        |
+        v
+AppBlockerAccessibilityService
+        |
+        v
+UrgencyNotificationPolicy.getBlockingReasonForPackage
+        |
+        v
+AdaptiveInterventionPolicy.evaluate
+        |
+        v
+Decision level
+        |
+        +--> allow: tidak ada overlay
+        +--> soft_warning / strong_warning: overlay warning-only
+        +--> temporary_block / hard_block: overlay block + GLOBAL_ACTION_HOME
+```
+
+### Catatan Penting
+
+Implementasi ini belum memakai machine learning. Algoritma masih rule-based, tetapi sudah adaptif karena mempertimbangkan histori penggunaan user dan sesi aktif saat ini.
+
+Pendekatan ini cocok untuk tahap awal tugas akhir karena:
+
+1. Mudah dijelaskan secara akademik.
+2. Tidak terlalu berat untuk perangkat Android.
+3. Tetap memakai data OS-level dari `UsageStatsManager`.
+4. Bisa diuji dengan skenario yang jelas.
+5. Bisa dikembangkan menjadi scoring adaptif yang lebih kompleks nanti.
+
+### Rencana Lanjutan Setelah Tahap Ini
+
+1. Tambahkan UI settings untuk mengaktifkan atau menonaktifkan mode adaptif.
+2. Tambahkan UI settings untuk mengatur threshold warning dan block.
+3. Tambahkan log riwayat intervensi agar evaluasi tugas akhir lebih kuat.
+4. Bedakan threshold berdasarkan kategori aplikasi sosial dan game.
+5. Tambahkan mekanisme recovery positif, misalnya warning count turun setelah user menyelesaikan tugas.
+6. Tambahkan evaluasi kuantitatif, misalnya membandingkan total penggunaan aplikasi distraksi sebelum dan sesudah adaptive blocking aktif.

@@ -255,6 +255,48 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
                 ),
                 SizedBox(height: 12.h),
                 _buildDebugCard(
+                  title: 'Keputusan Adaptif Terakhir',
+                  rows: [
+                    _debugRow(
+                      'Package adaptif',
+                      _debugInfo!.lastAdaptivePackage ?? '-',
+                    ),
+                    _debugRow(
+                      'Level adaptif',
+                      _formatAdaptiveLevel(_debugInfo!.lastAdaptiveLevel),
+                    ),
+                    _debugRow(
+                      'Sesi aktif',
+                      _formatDurationMs(_debugInfo!.lastAdaptiveSessionMs),
+                    ),
+                    _debugRow(
+                      'Usage hari ini',
+                      _formatDurationMs(_debugInfo!.lastAdaptiveTodayMs),
+                    ),
+                    _debugRow(
+                      'Rata-rata histori',
+                      _formatDurationMs(_debugInfo!.lastAdaptiveAverageMs),
+                    ),
+                    _debugRow(
+                      'Jumlah warning',
+                      _debugInfo!.lastAdaptiveWarningCount?.toString() ?? '-',
+                    ),
+                    _debugRow(
+                      'Pesan adaptif',
+                      _debugInfo!.lastAdaptiveMessage ?? '-',
+                    ),
+                    _debugRow(
+                      'Alasan adaptif',
+                      _debugInfo!.lastAdaptiveReason ?? '-',
+                    ),
+                    _debugRow(
+                      'Waktu evaluasi',
+                      _formatDebugTime(_debugInfo!.lastAdaptiveAt),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12.h),
+                _buildDebugCard(
                   title: 'Kandidat Saat Ini',
                   rows: [
                     _debugRow(
@@ -465,6 +507,43 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
 
   String _formatPriorityFromString(String? priorityValue) {
     return _formatPriority(AppBlockerService.parsePriorityLabel(priorityValue));
+  }
+
+  String _formatAdaptiveLevel(String? level) {
+    switch (level) {
+      case 'allow':
+        return 'Allow';
+      case 'soft_warning':
+        return 'Soft warning';
+      case 'strong_warning':
+        return 'Strong warning';
+      case 'temporary_block':
+        return 'Temporary block';
+      case 'hard_block':
+        return 'Hard block';
+      default:
+        return '-';
+    }
+  }
+
+  String _formatDurationMs(int? durationMs) {
+    if (durationMs == null) {
+      return '-';
+    }
+
+    final duration = Duration(milliseconds: durationMs);
+    if (duration.inHours > 0) {
+      final minutes = duration.inMinutes.remainder(Duration.minutesPerHour);
+      return minutes > 0
+          ? '${duration.inHours}j ${minutes}m'
+          : '${duration.inHours}j';
+    }
+
+    if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}m';
+    }
+
+    return '${duration.inSeconds}d';
   }
 
   String _formatRemainingMinutes(int? remainingMinutes) {

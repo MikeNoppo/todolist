@@ -15,6 +15,15 @@ class InterventionDebugInfo {
     required this.lastBlockedRemainingMinutes,
     required this.lastBlockedWindowHours,
     required this.lastBlockedAt,
+    required this.lastAdaptivePackage,
+    required this.lastAdaptiveLevel,
+    required this.lastAdaptiveReason,
+    required this.lastAdaptiveMessage,
+    required this.lastAdaptiveSessionMs,
+    required this.lastAdaptiveTodayMs,
+    required this.lastAdaptiveAverageMs,
+    required this.lastAdaptiveWarningCount,
+    required this.lastAdaptiveAt,
     required this.nextTaskTitle,
     required this.nextTaskPriority,
     required this.nextTaskRemainingMinutes,
@@ -31,6 +40,16 @@ class InterventionDebugInfo {
   final int? lastBlockedRemainingMinutes;
   final int? lastBlockedWindowHours;
   final DateTime? lastBlockedAt;
+
+  final String? lastAdaptivePackage;
+  final String? lastAdaptiveLevel;
+  final String? lastAdaptiveReason;
+  final String? lastAdaptiveMessage;
+  final int? lastAdaptiveSessionMs;
+  final int? lastAdaptiveTodayMs;
+  final int? lastAdaptiveAverageMs;
+  final int? lastAdaptiveWarningCount;
+  final DateTime? lastAdaptiveAt;
 
   final String? nextTaskTitle;
   final TodoPriority? nextTaskPriority;
@@ -73,6 +92,24 @@ class AppBlockerService {
       'debug_last_blocked_window_hours';
   static const String debugLastBlockedAtMillisKey =
       'debug_last_blocked_at_millis';
+  static const String adaptiveInterventionEnabledKey =
+      'adaptive_intervention_enabled';
+  static const String debugLastAdaptivePackageKey =
+      'debug_last_adaptive_package';
+  static const String debugLastAdaptiveLevelKey = 'debug_last_adaptive_level';
+  static const String debugLastAdaptiveReasonKey = 'debug_last_adaptive_reason';
+  static const String debugLastAdaptiveMessageKey =
+      'debug_last_adaptive_message';
+  static const String debugLastAdaptiveSessionMsKey =
+      'debug_last_adaptive_session_ms';
+  static const String debugLastAdaptiveTodayMsKey =
+      'debug_last_adaptive_today_ms';
+  static const String debugLastAdaptiveAverageMsKey =
+      'debug_last_adaptive_average_ms';
+  static const String debugLastAdaptiveWarningCountKey =
+      'debug_last_adaptive_warning_count';
+  static const String debugLastAdaptiveAtMillisKey =
+      'debug_last_adaptive_at_millis';
 
   static const int defaultLowWindowHours = 2;
   static const int defaultMediumWindowHours = 8;
@@ -169,6 +206,12 @@ class AppBlockerService {
     final DateTime? lastBlockedAt = lastBlockedAtMillis == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(lastBlockedAtMillis);
+    final int? lastAdaptiveAtMillis = prefs.getInt(
+      debugLastAdaptiveAtMillisKey,
+    );
+    final DateTime? lastAdaptiveAt = lastAdaptiveAtMillis == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(lastAdaptiveAtMillis);
 
     final candidate = _findCurrentCandidate(
       prefs: prefs,
@@ -188,6 +231,15 @@ class AppBlockerService {
       ),
       lastBlockedWindowHours: prefs.getInt(debugLastBlockedWindowHoursKey),
       lastBlockedAt: lastBlockedAt,
+      lastAdaptivePackage: prefs.getString(debugLastAdaptivePackageKey),
+      lastAdaptiveLevel: prefs.getString(debugLastAdaptiveLevelKey),
+      lastAdaptiveReason: prefs.getString(debugLastAdaptiveReasonKey),
+      lastAdaptiveMessage: prefs.getString(debugLastAdaptiveMessageKey),
+      lastAdaptiveSessionMs: prefs.getInt(debugLastAdaptiveSessionMsKey),
+      lastAdaptiveTodayMs: prefs.getInt(debugLastAdaptiveTodayMsKey),
+      lastAdaptiveAverageMs: prefs.getInt(debugLastAdaptiveAverageMsKey),
+      lastAdaptiveWarningCount: prefs.getInt(debugLastAdaptiveWarningCountKey),
+      lastAdaptiveAt: lastAdaptiveAt,
       nextTaskTitle: candidate?.todo.title,
       nextTaskPriority: candidate?.todo.priority,
       nextTaskRemainingMinutes: candidate?.remainingMinutes,

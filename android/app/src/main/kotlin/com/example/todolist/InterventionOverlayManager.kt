@@ -53,18 +53,52 @@ class InterventionOverlayManager(
     @Volatile
     private var isShowing = false
 
-    fun show(blockedPackage: String, taskTitle: String?, customQuote: String? = null) {
+    fun show(
+        blockedPackage: String,
+        taskTitle: String?,
+        customQuote: String? = null,
+        messageOverride: String? = null
+    ) {
         if (isShowing) {
             Log.d(TAG, "Overlay already showing; skipping duplicate for package=$blockedPackage")
             return
         }
 
         mainHandler.post {
-            showOnMainThread(blockedPackage, taskTitle, customQuote)
+            showOnMainThread(
+                blockedPackage = blockedPackage,
+                taskTitle = taskTitle,
+                customQuote = customQuote,
+                messageOverride = messageOverride,
+                warningOnly = false
+            )
         }
     }
 
-    private fun showOnMainThread(blockedPackage: String, taskTitle: String?, customQuote: String?) {
+    fun showWarning(blockedPackage: String, taskTitle: String?, warningMessage: String) {
+        if (isShowing) {
+            Log.d(TAG, "Overlay already showing; skipping warning for package=$blockedPackage")
+            return
+        }
+
+        mainHandler.post {
+            showOnMainThread(
+                blockedPackage = blockedPackage,
+                taskTitle = taskTitle,
+                customQuote = null,
+                messageOverride = warningMessage,
+                warningOnly = true
+            )
+        }
+    }
+
+    private fun showOnMainThread(
+        blockedPackage: String,
+        taskTitle: String?,
+        customQuote: String?,
+        messageOverride: String?,
+        warningOnly: Boolean
+    ) {
         if (isShowing) {
             return
         }
@@ -88,7 +122,14 @@ class InterventionOverlayManager(
             params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE.inv()
             params.flags = params.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
 
-            bindViews(view, blockedPackage, taskTitle, customQuote)
+            bindViews(
+                view = view,
+                blockedPackage = blockedPackage,
+                taskTitle = taskTitle,
+                customQuote = customQuote,
+                messageOverride = messageOverride,
+                warningOnly = warningOnly
+            )
 
             windowManager.addView(view, params)
             overlayView = view
@@ -96,14 +137,21 @@ class InterventionOverlayManager(
 
             Log.d(
                 TAG,
-                "Overlay shown: package=$blockedPackage task=$taskTitle"
+                "Overlay shown: package=$blockedPackage task=$taskTitle warningOnly=$warningOnly"
             )
         } catch (error: Exception) {
             Log.e(TAG, "Failed to show overlay for package=$blockedPackage", error)
         }
     }
 
-    private fun bindViews(view: View, blockedPackage: String, taskTitle: String?, customQuote: String?) {
+    private fun bindViews(
+        view: View,
+        blockedPackage: String,
+        taskTitle: String?,
+        customQuote: String?,
+        messageOverride: String?,
+        warningOnly: Boolean
+    ) {
         val quoteText = view.findViewById<TextView>(R.id.overlayQuoteText)
         val quoteAuthor = view.findViewById<TextView>(R.id.overlayQuoteAuthor)
         val taskContainer = view.findViewById<LinearLayout>(R.id.overlayTaskContainer)
@@ -111,7 +159,11 @@ class InterventionOverlayManager(
         val backToWorkButton = view.findViewById<TextView>(R.id.overlayBackToWorkButton)
         val blockedAppText = view.findViewById<TextView>(R.id.overlayBlockedAppText)
 
-        if (!customQuote.isNullOrBlank()) {
+        if (!messageOverride.isNullOrBlank()) {
+            Log.d(TAG, "Using overlay message override: $messageOverride")
+            quoteText.text = messageOverride
+            quoteAuthor.visibility = View.GONE
+        } else if (!customQuote.isNullOrBlank()) {
             Log.d(TAG, "Using custom quote: $customQuote")
             quoteText.text = "\"$customQuote\""
             quoteAuthor.visibility = View.GONE
@@ -131,16 +183,29 @@ class InterventionOverlayManager(
         }
 
         val appLabel = resolveAppLabel(blockedPackage)
-        blockedAppText.text = "Akses ke $appLabel diblokir"
+        blockedAppText.text = if (warningOnly) {
+            "Akses ke $appLabel masih diizinkan"
+        } else {
+            "Akses ke $appLabel diblokir"
+        }
+        backToWorkButton.text = if (warningOnly) "Lanjutkan" else "Kembali Bekerja"
 
         backToWorkButton.setOnClickListener { btn ->
             btn.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
-            Log.d(TAG, "User tapped Kembali Bekerja: package=$blockedPackage")
-            onBackToWorkTapped(blockedPackage)
+            if (warningOnly) {
+                Log.d(TAG, "User acknowledged adaptive warning: package=$blockedPackage")
+            } else {
+                Log.d(TAG, "User tapped Kembali Bekerja: package=$blockedPackage")
+                onBackToWorkTapped(blockedPackage)
+            }
             dismiss()
         }
 
-        Log.d(TAG, "Overlay views bound: package=$blockedPackage appLabel=$appLabel task=$taskTitle customQuote=$customQuote")
+        Log.d(
+            TAG,
+            "Overlay views bound: package=$blockedPackage appLabel=$appLabel " +
+                "task=$taskTitle customQuote=$customQuote warningOnly=$warningOnly"
+        )
     }
 
     fun dismiss() {
