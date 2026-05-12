@@ -175,15 +175,11 @@ object AdaptiveInterventionPolicy {
             return 0L
         }
 
-        val nonZeroValues = previousDays.mapNotNull { entry ->
-            val usageMs = entry.value[packageName] ?: 0L
-            usageMs.takeIf { it > 0L }
-        }
-        if (nonZeroValues.isEmpty()) {
-            return 0L
+        val totalUsageMs = previousDays.sumOf { entry ->
+            entry.value[packageName] ?: 0L
         }
 
-        return nonZeroValues.sum() / nonZeroValues.size
+        return totalUsageMs / previousDays.size
     }
 
     private fun decideLevel(

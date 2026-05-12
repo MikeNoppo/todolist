@@ -40,6 +40,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         private const val REENTRY_GUARD_MILLIS = 300L
         private const val POST_DISMISS_WATCH_DURATION_MILLIS = 15_000L
         private const val POST_DISMISS_WATCH_INTERVAL_MILLIS = 250L
+        private const val CONTENT_EVENT_EVALUATION_THROTTLE_MILLIS = 2_000L
 
         var instance: AppBlockerAccessibilityService? = null
             private set
@@ -56,6 +57,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var watchedBlockedPackage: String? = null
     private var watchBlockedPackageUntilMillis: Long = 0L
+    private var lastContentEvaluatedPackage: String? = null
+    private var lastContentEvaluatedAtMillis: Long = 0L
     private val blockedPackageWatchRunnable = object : Runnable {
         override fun run() {
             val watchedPackage = watchedBlockedPackage
@@ -115,6 +118,12 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         val currentPackageName = event.packageName?.toString() ?: return
         InterventionRuntimeStore.touchAccessibilityHeartbeat(this, currentPackageName)
         if (!shouldEvaluatePackage(currentPackageName)) {
+            return
+        }
+
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+            shouldThrottleContentEvaluation(currentPackageName)
+        ) {
             return
         }
 
@@ -187,6 +196,20 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         }
 
         return true
+    }
+
+    private fun shouldThrottleContentEvaluation(packageName: String): Boolean {
+        val nowMillis = System.currentTimeMillis()
+        val elapsedMillis = nowMillis - lastContentEvaluatedAtMillis
+        if (lastContentEvaluatedPackage == packageName &&
+            elapsedMillis in 0 until CONTENT_EVENT_EVALUATION_THROTTLE_MILLIS
+        ) {
+            return true
+        }
+
+        lastContentEvaluatedPackage = packageName
+        lastContentEvaluatedAtMillis = nowMillis
+        return false
     }
 
     private fun getBlockingReasonForPackage(packageName: String): UrgencyPolicyReason? {
