@@ -255,6 +255,76 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
                 ),
                 SizedBox(height: 12.h),
                 _buildDebugCard(
+                  title: 'Keputusan Adaptif Terakhir',
+                  rows: [
+                    _debugRow(
+                      'Package adaptif',
+                      _debugInfo!.lastAdaptivePackage ?? '-',
+                    ),
+                    _debugRow(
+                      'Level adaptif',
+                      _formatAdaptiveLevel(_debugInfo!.lastAdaptiveLevel),
+                    ),
+                    _debugRow(
+                      'Sesi aktif',
+                      _formatDurationMs(_debugInfo!.lastAdaptiveSessionMs),
+                    ),
+                    _debugRow(
+                      'Usage hari ini',
+                      _formatDurationMs(_debugInfo!.lastAdaptiveTodayMs),
+                    ),
+                    _debugRow(
+                      'Rata-rata histori',
+                      _formatDurationMs(_debugInfo!.lastAdaptiveAverageMs),
+                    ),
+                    _debugRow(
+                      'Usage Access saat evaluasi',
+                      _formatBoolStatus(
+                        _debugInfo!.lastAdaptiveUsageStatsAvailable,
+                      ),
+                    ),
+                    _debugRow(
+                      'Jumlah warning',
+                      _debugInfo!.lastAdaptiveWarningCount?.toString() ?? '-',
+                    ),
+                    _debugRow(
+                      'Pesan adaptif',
+                      _debugInfo!.lastAdaptiveMessage ?? '-',
+                    ),
+                    _debugRow(
+                      'Alasan adaptif',
+                      _debugInfo!.lastAdaptiveReason ?? '-',
+                    ),
+                    _debugRow(
+                      'Waktu evaluasi',
+                      _formatDebugTime(_debugInfo!.lastAdaptiveAt),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12.h),
+                _buildDebugCard(
+                  title: 'Health Service Native',
+                  rows: [
+                    _debugRow(
+                      'Heartbeat accessibility',
+                      _formatDebugTime(_debugInfo!.accessibilityHeartbeatAt),
+                    ),
+                    _debugRow(
+                      'Usia heartbeat',
+                      _formatAge(_debugInfo!.accessibilityHeartbeatAt),
+                    ),
+                    _debugRow(
+                      'Event package terakhir',
+                      _debugInfo!.accessibilityLastEventPackage ?? '-',
+                    ),
+                    _debugRow(
+                      'Terputus terakhir',
+                      _formatDebugTime(_debugInfo!.accessibilityDisconnectedAt),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12.h),
+                _buildDebugCard(
                   title: 'Kandidat Saat Ini',
                   rows: [
                     _debugRow(
@@ -465,6 +535,71 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
 
   String _formatPriorityFromString(String? priorityValue) {
     return _formatPriority(AppBlockerService.parsePriorityLabel(priorityValue));
+  }
+
+  String _formatAdaptiveLevel(String? level) {
+    switch (level) {
+      case 'allow':
+        return 'Allow';
+      case 'soft_warning':
+        return 'Soft warning';
+      case 'strong_warning':
+        return 'Strong warning';
+      case 'temporary_block':
+        return 'Temporary block';
+      case 'hard_block':
+        return 'Hard block';
+      default:
+        return '-';
+    }
+  }
+
+  String _formatBoolStatus(bool? value) {
+    if (value == null) {
+      return '-';
+    }
+
+    return value ? 'Tersedia' : 'Tidak tersedia';
+  }
+
+  String _formatAge(DateTime? time) {
+    if (time == null) {
+      return '-';
+    }
+
+    final age = DateTime.now().difference(time);
+    if (age.inHours > 0) {
+      final minutes = age.inMinutes.remainder(Duration.minutesPerHour);
+      return minutes > 0
+          ? '${age.inHours}j ${minutes}m lalu'
+          : '${age.inHours}j lalu';
+    }
+
+    if (age.inMinutes > 0) {
+      return '${age.inMinutes}m lalu';
+    }
+
+    return '${age.inSeconds}d lalu';
+  }
+
+  String _formatDurationMs(int? durationMs) {
+    if (durationMs == null) {
+      return '-';
+    }
+
+    final duration = Duration(milliseconds: durationMs);
+    if (duration.inHours > 0) {
+      final minutes = duration.inMinutes.remainder(Duration.minutesPerHour);
+      return minutes > 0
+          ? '${duration.inHours}j ${minutes}m'
+          : '${duration.inHours}j';
+    }
+
+    if (duration.inMinutes > 0) {
+      return '${duration.inMinutes}m';
+    }
+
+    return '${duration.inSeconds}d';
   }
 
   String _formatRemainingMinutes(int? remainingMinutes) {
