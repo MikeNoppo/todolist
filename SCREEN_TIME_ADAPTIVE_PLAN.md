@@ -712,3 +712,85 @@ Pendekatan ini cocok untuk tahap awal tugas akhir karena:
 4. Bedakan threshold berdasarkan kategori aplikasi sosial dan game.
 5. Tambahkan mekanisme recovery positif, misalnya warning count turun setelah user menyelesaikan tugas.
 6. Tambahkan evaluasi kuantitatif, misalnya membandingkan total penggunaan aplikasi distraksi sebelum dan sesudah adaptive blocking aktif.
+
+## Update Mekanisme Health dan Fallback
+
+Tanggal: 12 Mei 2026
+
+Mekanisme reliabilitas awal sudah ditambahkan untuk menjaga agar adaptive blocking tidak menjadi terlalu permisif ketika izin Usage Access hilang atau data `UsageStatsManager` tidak bisa dibaca.
+
+### Prinsip Utama
+
+Android tidak mengizinkan aplikasi mengaktifkan Accessibility Service atau Usage Access secara diam-diam. Karena itu strategi yang digunakan bukan memaksa izin tetap aktif, tetapi:
+
+1. Mendeteksi status izin/service.
+2. Menyimpan informasi health ke SharedPreferences.
+3. Menampilkan status health di halaman Debug.
+4. Menggunakan fallback konservatif saat data usage tidak tersedia.
+
+### UsageStats Guard Native
+
+`UsageStatsHelper.kt` sekarang memiliki helper:
+
+```text
+hasUsageStatsPermission(context): Boolean
+```
+
+Fungsi ini mengecek Usage Access melalui `AppOpsManager.OPSTR_GET_USAGE_STATS`, dengan fallback query `UsageStatsManager` seperti pola permission check Android yang sudah dipakai di `MainActivity`.
+
+### Fallback Policy Saat Usage Access Tidak Tersedia
+
+`AdaptiveInterventionPolicy.evaluate` sekarang mengecek Usage Access sebelum membaca data historis atau sesi aktif.
+
+Jika Usage Access tidak tersedia, policy tidak lagi menganggap `currentSessionMs = 0` dan `todayUsageMs = 0` sebagai kondisi aman. Sebaliknya, policy memakai fallback konservatif:
+
+| Prioritas | Fallback awal saat Usage Access mati |
+|---|---|
+| High | `hard_block` |
+| Medium | `strong_warning`, naik ke `temporary_block` jika sudah pernah diberi warning |
+| Low | `soft_warning`, naik ke `temporary_block` jika warning berulang |
+
+Tujuannya agar user tidak bisa lolos dari intervensi hanya karena Usage Access dicabut atau dibatasi OEM.
+
+### Debug UsageStats Availability
+
+Keputusan adaptif sekarang menyimpan flag:
+
+```text
+flutter.debug_last_adaptive_usage_stats_available
+```
+
+Field ini ditampilkan di halaman Debug sebagai `Usage Access saat evaluasi`.
+
+### Accessibility Service Heartbeat
+
+AccessibilityService sebelumnya sudah menulis heartbeat melalui `InterventionRuntimeStore`. Sekarang data tersebut juga dibaca di Flutter debug screen.
+
+Key yang ditampilkan:
+
+```text
+flutter.native_accessibility_heartbeat_millis
+flutter.native_accessibility_last_event_package
+flutter.native_accessibility_disconnected_at_millis
+```
+
+Di halaman Debug, data ini tampil pada kartu `Health Service Native`:
+
+- waktu heartbeat accessibility terakhir
+- usia heartbeat
+- package event terakhir
+- waktu disconnect terakhir
+
+### Manfaat untuk Pengujian
+
+Dengan tambahan ini, pengujian di perangkat nyata bisa menjawab pertanyaan berikut:
+
+1. Apakah Accessibility Service masih hidup?
+2. Apakah service masih menerima event dari app foreground?
+3. Apakah Usage Access tersedia saat policy adaptif dievaluasi?
+4. Apakah policy memakai data usage asli atau fallback konservatif?
+5. Apakah fallback berubah menjadi block saat izin Usage Access dicabut?
+
+### Catatan Lanjutan
+
+Tahap berikutnya yang masih bisa ditambahkan adalah recovery UX yang lebih eksplisit di halaman Home atau Settings, misalnya banner `Intervensi belum aktif` jika Accessibility Service mati atau heartbeat terlalu lama. Saat ini status tersebut sudah tersedia di Debug dan izin utama sudah tetap bisa dikelola dari halaman `Izin Aplikasi`.

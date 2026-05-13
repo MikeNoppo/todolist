@@ -22,8 +22,12 @@ class InterventionDebugInfo {
     required this.lastAdaptiveSessionMs,
     required this.lastAdaptiveTodayMs,
     required this.lastAdaptiveAverageMs,
+    required this.lastAdaptiveUsageStatsAvailable,
     required this.lastAdaptiveWarningCount,
     required this.lastAdaptiveAt,
+    required this.accessibilityHeartbeatAt,
+    required this.accessibilityLastEventPackage,
+    required this.accessibilityDisconnectedAt,
     required this.nextTaskTitle,
     required this.nextTaskPriority,
     required this.nextTaskRemainingMinutes,
@@ -48,8 +52,13 @@ class InterventionDebugInfo {
   final int? lastAdaptiveSessionMs;
   final int? lastAdaptiveTodayMs;
   final int? lastAdaptiveAverageMs;
+  final bool? lastAdaptiveUsageStatsAvailable;
   final int? lastAdaptiveWarningCount;
   final DateTime? lastAdaptiveAt;
+
+  final DateTime? accessibilityHeartbeatAt;
+  final String? accessibilityLastEventPackage;
+  final DateTime? accessibilityDisconnectedAt;
 
   final String? nextTaskTitle;
   final TodoPriority? nextTaskPriority;
@@ -106,10 +115,18 @@ class AppBlockerService {
       'debug_last_adaptive_today_ms';
   static const String debugLastAdaptiveAverageMsKey =
       'debug_last_adaptive_average_ms';
+  static const String debugLastAdaptiveUsageStatsAvailableKey =
+      'debug_last_adaptive_usage_stats_available';
   static const String debugLastAdaptiveWarningCountKey =
       'debug_last_adaptive_warning_count';
   static const String debugLastAdaptiveAtMillisKey =
       'debug_last_adaptive_at_millis';
+  static const String nativeAccessibilityHeartbeatMillisKey =
+      'native_accessibility_heartbeat_millis';
+  static const String nativeAccessibilityLastEventPackageKey =
+      'native_accessibility_last_event_package';
+  static const String nativeAccessibilityDisconnectedAtMillisKey =
+      'native_accessibility_disconnected_at_millis';
 
   static const int defaultLowWindowHours = 2;
   static const int defaultMediumWindowHours = 8;
@@ -212,6 +229,22 @@ class AppBlockerService {
     final DateTime? lastAdaptiveAt = lastAdaptiveAtMillis == null
         ? null
         : DateTime.fromMillisecondsSinceEpoch(lastAdaptiveAtMillis);
+    final int? accessibilityHeartbeatMillis = prefs.getInt(
+      nativeAccessibilityHeartbeatMillisKey,
+    );
+    final DateTime? accessibilityHeartbeatAt =
+        accessibilityHeartbeatMillis == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(accessibilityHeartbeatMillis);
+    final int? accessibilityDisconnectedAtMillis = prefs.getInt(
+      nativeAccessibilityDisconnectedAtMillisKey,
+    );
+    final DateTime? accessibilityDisconnectedAt =
+        accessibilityDisconnectedAtMillis == null
+        ? null
+        : DateTime.fromMillisecondsSinceEpoch(
+            accessibilityDisconnectedAtMillis,
+          );
 
     final candidate = _findCurrentCandidate(
       prefs: prefs,
@@ -238,8 +271,16 @@ class AppBlockerService {
       lastAdaptiveSessionMs: prefs.getInt(debugLastAdaptiveSessionMsKey),
       lastAdaptiveTodayMs: prefs.getInt(debugLastAdaptiveTodayMsKey),
       lastAdaptiveAverageMs: prefs.getInt(debugLastAdaptiveAverageMsKey),
+      lastAdaptiveUsageStatsAvailable: prefs.getBool(
+        debugLastAdaptiveUsageStatsAvailableKey,
+      ),
       lastAdaptiveWarningCount: prefs.getInt(debugLastAdaptiveWarningCountKey),
       lastAdaptiveAt: lastAdaptiveAt,
+      accessibilityHeartbeatAt: accessibilityHeartbeatAt,
+      accessibilityLastEventPackage: prefs.getString(
+        nativeAccessibilityLastEventPackageKey,
+      ),
+      accessibilityDisconnectedAt: accessibilityDisconnectedAt,
       nextTaskTitle: candidate?.todo.title,
       nextTaskPriority: candidate?.todo.priority,
       nextTaskRemainingMinutes: candidate?.remainingMinutes,

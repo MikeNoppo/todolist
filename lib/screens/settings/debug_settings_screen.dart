@@ -278,6 +278,12 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
                       _formatDurationMs(_debugInfo!.lastAdaptiveAverageMs),
                     ),
                     _debugRow(
+                      'Usage Access saat evaluasi',
+                      _formatBoolStatus(
+                        _debugInfo!.lastAdaptiveUsageStatsAvailable,
+                      ),
+                    ),
+                    _debugRow(
                       'Jumlah warning',
                       _debugInfo!.lastAdaptiveWarningCount?.toString() ?? '-',
                     ),
@@ -292,6 +298,28 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
                     _debugRow(
                       'Waktu evaluasi',
                       _formatDebugTime(_debugInfo!.lastAdaptiveAt),
+                    ),
+                  ],
+                ),
+                SizedBox(height: 12.h),
+                _buildDebugCard(
+                  title: 'Health Service Native',
+                  rows: [
+                    _debugRow(
+                      'Heartbeat accessibility',
+                      _formatDebugTime(_debugInfo!.accessibilityHeartbeatAt),
+                    ),
+                    _debugRow(
+                      'Usia heartbeat',
+                      _formatAge(_debugInfo!.accessibilityHeartbeatAt),
+                    ),
+                    _debugRow(
+                      'Event package terakhir',
+                      _debugInfo!.accessibilityLastEventPackage ?? '-',
+                    ),
+                    _debugRow(
+                      'Terputus terakhir',
+                      _formatDebugTime(_debugInfo!.accessibilityDisconnectedAt),
                     ),
                   ],
                 ),
@@ -524,6 +552,34 @@ class _DebugSettingsScreenState extends State<DebugSettingsScreen> {
       default:
         return '-';
     }
+  }
+
+  String _formatBoolStatus(bool? value) {
+    if (value == null) {
+      return '-';
+    }
+
+    return value ? 'Tersedia' : 'Tidak tersedia';
+  }
+
+  String _formatAge(DateTime? time) {
+    if (time == null) {
+      return '-';
+    }
+
+    final age = DateTime.now().difference(time);
+    if (age.inHours > 0) {
+      final minutes = age.inMinutes.remainder(Duration.minutesPerHour);
+      return minutes > 0
+          ? '${age.inHours}j ${minutes}m lalu'
+          : '${age.inHours}j lalu';
+    }
+
+    if (age.inMinutes > 0) {
+      return '${age.inMinutes}m lalu';
+    }
+
+    return '${age.inSeconds}d lalu';
   }
 
   String _formatDurationMs(int? durationMs) {

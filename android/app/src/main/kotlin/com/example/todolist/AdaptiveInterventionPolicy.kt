@@ -19,6 +19,7 @@ enum class AdaptiveInterventionLevel(
 
 data class AdaptiveInterventionDecision(
     val level: AdaptiveInterventionLevel,
+    val usageStatsAvailable: Boolean,
     val currentSessionMs: Long,
     val todayUsageMs: Long,
     val averageDailyUsageMs: Long,
@@ -48,6 +49,8 @@ object AdaptiveInterventionPolicy {
     const val KEY_DEBUG_LAST_ADAPTIVE_SESSION_MS = "flutter.debug_last_adaptive_session_ms"
     const val KEY_DEBUG_LAST_ADAPTIVE_TODAY_MS = "flutter.debug_last_adaptive_today_ms"
     const val KEY_DEBUG_LAST_ADAPTIVE_AVERAGE_MS = "flutter.debug_last_adaptive_average_ms"
+    const val KEY_DEBUG_LAST_ADAPTIVE_USAGE_STATS_AVAILABLE =
+        "flutter.debug_last_adaptive_usage_stats_available"
     const val KEY_DEBUG_LAST_ADAPTIVE_WARNING_COUNT =
         "flutter.debug_last_adaptive_warning_count"
     const val KEY_DEBUG_LAST_ADAPTIVE_AT_MILLIS = "flutter.debug_last_adaptive_at_millis"
@@ -65,6 +68,11 @@ object AdaptiveInterventionPolicy {
         val isAdaptiveEnabled = prefs.getBoolean(KEY_ADAPTIVE_ENABLED, true)
         if (!isAdaptiveEnabled) {
             return legacyHardBlockDecision(context, packageName, urgencyReason)
+        }
+
+        val usageStatsAvailable = UsageStatsHelper.hasUsageStatsPermission(context)
+        if (!usageStatsAvailable) {
+            return fallbackDecisionWithoutUsageStats(prefs, packageName, urgencyReason)
         }
 
         val currentSessionMs = UsageStatsHelper.getCurrentSessionMs(context, packageName)
@@ -100,6 +108,7 @@ object AdaptiveInterventionPolicy {
 
         return AdaptiveInterventionDecision(
             level = cooledLevel,
+            usageStatsAvailable = true,
             currentSessionMs = currentSessionMs,
             todayUsageMs = todayUsageMs,
             averageDailyUsageMs = averageDailyUsageMs,
@@ -132,6 +141,10 @@ object AdaptiveInterventionPolicy {
             .putLong(KEY_DEBUG_LAST_ADAPTIVE_SESSION_MS, decision.currentSessionMs)
             .putLong(KEY_DEBUG_LAST_ADAPTIVE_TODAY_MS, decision.todayUsageMs)
             .putLong(KEY_DEBUG_LAST_ADAPTIVE_AVERAGE_MS, decision.averageDailyUsageMs)
+            .putBoolean(
+                KEY_DEBUG_LAST_ADAPTIVE_USAGE_STATS_AVAILABLE,
+                decision.usageStatsAvailable
+            )
             .putInt(KEY_DEBUG_LAST_ADAPTIVE_WARNING_COUNT, decision.warningCount)
             .putLong(KEY_DEBUG_LAST_ADAPTIVE_AT_MILLIS, System.currentTimeMillis())
             .apply()
@@ -151,12 +164,52 @@ object AdaptiveInterventionPolicy {
         )[packageName] ?: 0L
         return AdaptiveInterventionDecision(
             level = AdaptiveInterventionLevel.HARD_BLOCK,
+            usageStatsAvailable = UsageStatsHelper.hasUsageStatsPermission(context),
             currentSessionMs = currentSessionMs,
             todayUsageMs = todayUsageMs,
             averageDailyUsageMs = calculateAverageDailyUsageMs(context, packageName),
             warningCount = 0,
             message = "Aplikasi ini diblokir karena ada tugas mendesak.",
             reason = "adaptive_disabled_legacy_hard_block_${urgencyReason.priority}"
+        )
+    }
+
+    private fun fallbackDecisionWithoutUsageStats(
+        prefs: SharedPreferences,
+        packageName: String,
+        urgencyReason: UrgencyPolicyReason
+    ): AdaptiveInterventionDecision {
+        val warningCount = getWarningCount(prefs, packageName)
+        val level = when (urgencyReason.priority.lowercase()) {
+            "high" -> AdaptiveInterventionLevel.HARD_BLOCK
+            "medium" -> if (warningCount >= 1) {
+                AdaptiveInterventionLevel.TEMPORARY_BLOCK
+            } else {
+                AdaptiveInterventionLevel.STRONG_WARNING
+            }
+            else -> if (warningCount >= 2) {
+                AdaptiveInterventionLevel.TEMPORARY_BLOCK
+            } else {
+                AdaptiveInterventionLevel.SOFT_WARNING
+            }
+        }
+
+        val cooledLevel = applyWarningCooldown(
+            prefs = prefs,
+            packageName = packageName,
+            level = level
+        )
+
+        return AdaptiveInterventionDecision(
+            level = cooledLevel,
+            usageStatsAvailable = false,
+            currentSessionMs = 0L,
+            todayUsageMs = 0L,
+            averageDailyUsageMs = 0L,
+            warningCount = warningCount,
+            message = buildUsageStatsFallbackMessage(cooledLevel, urgencyReason),
+            reason = "usage_stats_unavailable;level=${cooledLevel.storageValue};" +
+                "priority=${urgencyReason.priority};warnings=$warningCount"
         )
     }
 
@@ -304,6 +357,21 @@ object AdaptiveInterventionPolicy {
                 "Sesi distraksi sudah terlalu panjang. myTask menahan aplikasi ini sementara agar kamu kembali fokus."
             AdaptiveInterventionLevel.HARD_BLOCK ->
                 "Batas distraksi sudah tercapai hari ini. Selesaikan tugas mendesak sebelum membuka aplikasi ini lagi."
+        }
+    }
+
+    private fun buildUsageStatsFallbackMessage(
+        level: AdaptiveInterventionLevel,
+        urgencyReason: UrgencyPolicyReason
+    ): String {
+        return when (level) {
+            AdaptiveInterventionLevel.ALLOW -> "Usage Access belum tersedia, evaluasi adaptif ditunda."
+            AdaptiveInterventionLevel.SOFT_WARNING,
+            AdaptiveInterventionLevel.STRONG_WARNING ->
+                "Usage Access belum aktif. Aktifkan izin agar myTask bisa menilai waktu distraksi dengan akurat."
+            AdaptiveInterventionLevel.TEMPORARY_BLOCK,
+            AdaptiveInterventionLevel.HARD_BLOCK ->
+                "Usage Access belum aktif, jadi myTask memakai proteksi konservatif untuk tugas mendesak: ${urgencyReason.taskTitle}."
         }
     }
 
