@@ -16,6 +16,8 @@ import '../../services/usage_stats_service.dart';
 
 enum _ScreenTimeView { today, history }
 
+enum _UsageRiskLevel { light, moderate, heavy, abusive }
+
 class ScreenTimeScreen extends StatefulWidget {
   const ScreenTimeScreen({super.key});
 
@@ -40,10 +42,18 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
   bool _isLoading = true;
   bool _usagePermissionGranted = false;
 
-  static const Map<TodoPriority, int> _hardBlockMinutes = {
+  static const int _minActiveDayMs = 5 * Duration.millisecondsPerMinute;
+
+  static const Map<TodoPriority, int> _baseHardBlockMinutes = {
     TodoPriority.high: 60,
     TodoPriority.medium: 90,
     TodoPriority.low: 120,
+  };
+
+  static const Map<TodoPriority, int> _minimumHardBlockMinutes = {
+    TodoPriority.high: 15,
+    TodoPriority.medium: 25,
+    TodoPriority.low: 40,
   };
 
   @override
@@ -170,30 +180,115 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     await PermissionService.openUsageStatsSettings();
   }
 
-  int _hardBlockMsForPriority(TodoPriority priority) {
-    return (_hardBlockMinutes[priority] ??
-            _hardBlockMinutes[TodoPriority.medium]!) *
+  int _hardBlockMsForPriority(
+    TodoPriority priority,
+    _UsageRiskLevel riskLevel,
+  ) {
+    final baseMs =
+        (_baseHardBlockMinutes[priority] ??
+            _baseHardBlockMinutes[TodoPriority.medium]!) *
         Duration.millisecondsPerMinute;
+    final minimumMs =
+        (_minimumHardBlockMinutes[priority] ??
+            _minimumHardBlockMinutes[TodoPriority.medium]!) *
+        Duration.millisecondsPerMinute;
+    return max(minimumMs, (baseMs * _thresholdScaleForRisk(riskLevel)).round());
   }
 
-  int _averagePreviousDailyUsageMs(String packageName) {
+  _UsageHistoryProfile _usageHistoryProfileForPackage(String packageName) {
     final dateKeys = _usageHistory.keys.toList()..sort();
     if (dateKeys.length <= 1) {
-      return 0;
+      return const _UsageHistoryProfile(
+        averageDailyUsageMs: 0,
+        activeDays: 0,
+        maxDailyUsageMs: 0,
+        riskLevel: _UsageRiskLevel.light,
+      );
     }
 
-    var totalUsageMs = 0;
+    final dailyUsageMs = <int>[];
     for (final dateKey in dateKeys.take(dateKeys.length - 1)) {
       final stats = _usageHistory[dateKey] ?? const <AppUsageStat>[];
+      var usageMs = 0;
       for (final stat in stats) {
         if (stat.packageName == packageName) {
-          totalUsageMs += stat.totalTimeMs;
+          usageMs = stat.totalTimeMs;
           break;
         }
       }
+      dailyUsageMs.add(usageMs);
     }
 
-    return totalUsageMs ~/ (dateKeys.length - 1);
+    final totalUsageMs = dailyUsageMs.fold<int>(0, (total, ms) => total + ms);
+    final averageDailyUsageMs = totalUsageMs ~/ dailyUsageMs.length;
+    final activeDays = dailyUsageMs.where((usageMs) {
+      return usageMs >= _minActiveDayMs;
+    }).length;
+    final maxDailyUsageMs = dailyUsageMs.fold<int>(0, max);
+
+    return _UsageHistoryProfile(
+      averageDailyUsageMs: averageDailyUsageMs,
+      activeDays: activeDays,
+      maxDailyUsageMs: maxDailyUsageMs,
+      riskLevel: _classifyUsageRisk(
+        averageDailyUsageMs: averageDailyUsageMs,
+        activeDays: activeDays,
+        maxDailyUsageMs: maxDailyUsageMs,
+      ),
+    );
+  }
+
+  _UsageRiskLevel _classifyUsageRisk({
+    required int averageDailyUsageMs,
+    required int activeDays,
+    required int maxDailyUsageMs,
+  }) {
+    const minuteMs = Duration.millisecondsPerMinute;
+    if (averageDailyUsageMs >= 120 * minuteMs ||
+        maxDailyUsageMs >= 240 * minuteMs ||
+        activeDays >= 5 && averageDailyUsageMs >= 90 * minuteMs) {
+      return _UsageRiskLevel.abusive;
+    }
+
+    if (averageDailyUsageMs >= 75 * minuteMs ||
+        maxDailyUsageMs >= 150 * minuteMs ||
+        activeDays >= 5 && averageDailyUsageMs >= 45 * minuteMs) {
+      return _UsageRiskLevel.heavy;
+    }
+
+    if (averageDailyUsageMs >= 30 * minuteMs ||
+        maxDailyUsageMs >= 60 * minuteMs ||
+        activeDays >= 4 && averageDailyUsageMs >= 15 * minuteMs) {
+      return _UsageRiskLevel.moderate;
+    }
+
+    return _UsageRiskLevel.light;
+  }
+
+  double _thresholdScaleForRisk(_UsageRiskLevel riskLevel) {
+    switch (riskLevel) {
+      case _UsageRiskLevel.light:
+        return 1.0;
+      case _UsageRiskLevel.moderate:
+        return 0.8;
+      case _UsageRiskLevel.heavy:
+        return 0.6;
+      case _UsageRiskLevel.abusive:
+        return 0.4;
+    }
+  }
+
+  double _dailyHardMultiplierForRisk(_UsageRiskLevel riskLevel) {
+    switch (riskLevel) {
+      case _UsageRiskLevel.light:
+        return 1.0;
+      case _UsageRiskLevel.moderate:
+        return 0.85;
+      case _UsageRiskLevel.heavy:
+        return 0.65;
+      case _UsageRiskLevel.abusive:
+        return 0.45;
+    }
   }
 
   _UsageLimitInfo? _usageLimitInfoForRow(_AppUsageRow row) {
@@ -206,17 +301,24 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
       return null;
     }
 
-    final sessionLimitMs = _hardBlockMsForPriority(priority);
-    final averageDailyUsageMs = _averagePreviousDailyUsageMs(
-      row.app.packageName,
+    final usageProfile = _usageHistoryProfileForPackage(row.app.packageName);
+    final sessionLimitMs = _hardBlockMsForPriority(
+      priority,
+      usageProfile.riskLevel,
     );
     final dailyLimitMs = max(
       sessionLimitMs,
-      (averageDailyUsageMs * 1.5).round(),
+      (usageProfile.averageDailyUsageMs *
+              _dailyHardMultiplierForRisk(usageProfile.riskLevel))
+          .round(),
     );
 
     return _UsageLimitInfo(
       priority: priority,
+      riskLevel: usageProfile.riskLevel,
+      averageDailyUsageMs: usageProfile.averageDailyUsageMs,
+      activeDays: usageProfile.activeDays,
+      maxDailyUsageMs: usageProfile.maxDailyUsageMs,
       dailyLimitMs: dailyLimitMs,
       sessionLimitMs: sessionLimitMs,
       remainingDailyMs: max(0, dailyLimitMs - row.usageMs),
@@ -232,6 +334,32 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
         return 'Sedang';
       case TodoPriority.high:
         return 'Tinggi';
+    }
+  }
+
+  String _riskLabel(_UsageRiskLevel riskLevel) {
+    switch (riskLevel) {
+      case _UsageRiskLevel.light:
+        return 'Ringan';
+      case _UsageRiskLevel.moderate:
+        return 'Sedang';
+      case _UsageRiskLevel.heavy:
+        return 'Berat';
+      case _UsageRiskLevel.abusive:
+        return 'Abusive';
+    }
+  }
+
+  Color _riskColor(_UsageRiskLevel riskLevel) {
+    switch (riskLevel) {
+      case _UsageRiskLevel.light:
+        return const Color(0xFF2E8B57);
+      case _UsageRiskLevel.moderate:
+        return const Color(0xFF4A6FA5);
+      case _UsageRiskLevel.heavy:
+        return Colors.orange[700]!;
+      case _UsageRiskLevel.abusive:
+        return const Color(0xFFE53935);
     }
   }
 
@@ -342,11 +470,43 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                   if (limitInfo != null) ...[
                     _buildDetailStat(
                       icon: Icons.speed_outlined,
-                      label: 'Batas penggunaan hari ini',
+                      label: 'Batas total harian adaptif',
                       value: AppUsageStat.formatDuration(
                         Duration(milliseconds: limitInfo.dailyLimitMs),
                       ),
                       color: const Color(0xFFE53935),
+                    ),
+                    SizedBox(height: AppSizeTokens.space12),
+                    _buildDetailStat(
+                      icon: Icons.history_outlined,
+                      label: 'Pola 7 hari',
+                      value: _riskLabel(limitInfo.riskLevel),
+                      color: _riskColor(limitInfo.riskLevel),
+                    ),
+                    SizedBox(height: AppSizeTokens.space12),
+                    _buildDetailStat(
+                      icon: Icons.query_stats_outlined,
+                      label: 'Rata-rata harian',
+                      value: AppUsageStat.formatDuration(
+                        Duration(milliseconds: limitInfo.averageDailyUsageMs),
+                      ),
+                      color: Colors.grey[700]!,
+                    ),
+                    SizedBox(height: AppSizeTokens.space12),
+                    _buildDetailStat(
+                      icon: Icons.event_available_outlined,
+                      label: 'Hari aktif historis',
+                      value: '${limitInfo.activeDays}/6 hari',
+                      color: Colors.grey[700]!,
+                    ),
+                    SizedBox(height: AppSizeTokens.space12),
+                    _buildDetailStat(
+                      icon: Icons.trending_up_outlined,
+                      label: 'Hari terberat',
+                      value: AppUsageStat.formatDuration(
+                        Duration(milliseconds: limitInfo.maxDailyUsageMs),
+                      ),
+                      color: Colors.grey[700]!,
                     ),
                     SizedBox(height: AppSizeTokens.space12),
                     _buildDetailStat(
@@ -375,7 +535,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                     SizedBox(height: AppSizeTokens.space12),
                     _buildDetailStat(
                       icon: Icons.block_outlined,
-                      label: 'Batas sesi hard block',
+                      label: 'Batas sesi adaptif',
                       value: AppUsageStat.formatDuration(
                         Duration(milliseconds: limitInfo.sessionLimitMs),
                       ),
@@ -1311,6 +1471,10 @@ class _AppUsageRow {
 class _UsageLimitInfo {
   const _UsageLimitInfo({
     required this.priority,
+    required this.riskLevel,
+    required this.averageDailyUsageMs,
+    required this.activeDays,
+    required this.maxDailyUsageMs,
     required this.dailyLimitMs,
     required this.sessionLimitMs,
     required this.remainingDailyMs,
@@ -1318,8 +1482,26 @@ class _UsageLimitInfo {
   });
 
   final TodoPriority priority;
+  final _UsageRiskLevel riskLevel;
+  final int averageDailyUsageMs;
+  final int activeDays;
+  final int maxDailyUsageMs;
   final int dailyLimitMs;
   final int sessionLimitMs;
   final int remainingDailyMs;
   final int remainingSessionMs;
+}
+
+class _UsageHistoryProfile {
+  const _UsageHistoryProfile({
+    required this.averageDailyUsageMs,
+    required this.activeDays,
+    required this.maxDailyUsageMs,
+    required this.riskLevel,
+  });
+
+  final int averageDailyUsageMs;
+  final int activeDays;
+  final int maxDailyUsageMs;
+  final _UsageRiskLevel riskLevel;
 }

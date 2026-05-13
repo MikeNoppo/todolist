@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import kotlin.math.max
+import kotlin.math.roundToLong
 
 enum class AdaptiveInterventionLevel(
     val storageValue: String,
@@ -35,6 +36,24 @@ private data class AdaptiveThresholds(
     val hardBlockMs: Long
 )
 
+private data class UsageProfile(
+    val averageDailyUsageMs: Long,
+    val activeDays: Int,
+    val maxDailyUsageMs: Long,
+    val riskLevel: UsageRiskLevel
+)
+
+private enum class UsageRiskLevel(
+    val storageValue: String,
+    val thresholdScale: Double,
+    val dailyHardMultiplier: Double
+) {
+    LIGHT("light", 1.0, 1.0),
+    MODERATE("moderate", 0.8, 0.85),
+    HEAVY("heavy", 0.6, 0.65),
+    ABUSIVE("abusive", 0.4, 0.45)
+}
+
 object AdaptiveInterventionPolicy {
     private const val TAG = "AdaptivePolicy"
 
@@ -58,6 +77,13 @@ object AdaptiveInterventionPolicy {
     private const val MINUTE_MS = 60L * 1000L
     private const val WARNING_COOLDOWN_MS = 5L * MINUTE_MS
     private const val WARNING_RESET_MS = 2L * 60L * MINUTE_MS
+    private const val MIN_ACTIVE_DAY_MS = 5L * MINUTE_MS
+    private const val MODERATE_AVERAGE_DAILY_MS = 30L * MINUTE_MS
+    private const val HEAVY_AVERAGE_DAILY_MS = 75L * MINUTE_MS
+    private const val ABUSIVE_AVERAGE_DAILY_MS = 120L * MINUTE_MS
+    private const val MODERATE_MAX_DAILY_MS = 60L * MINUTE_MS
+    private const val HEAVY_MAX_DAILY_MS = 150L * MINUTE_MS
+    private const val ABUSIVE_MAX_DAILY_MS = 240L * MINUTE_MS
 
     fun evaluate(
         context: Context,
@@ -82,15 +108,15 @@ object AdaptiveInterventionPolicy {
             startMs = UsageStatsHelper.todayStartMs(),
             endMs = System.currentTimeMillis()
         )[packageName] ?: 0L
-        val averageDailyUsageMs = calculateAverageDailyUsageMs(context, packageName)
+        val usageProfile = calculateUsageProfile(context, packageName)
         val warningCount = getWarningCount(prefs, packageName)
-        val thresholds = thresholdsForPriority(urgencyReason.priority)
+        val thresholds = thresholdsForPriority(urgencyReason.priority, usageProfile)
         val level = decideLevel(
             priority = urgencyReason.priority,
             thresholds = thresholds,
             currentSessionMs = currentSessionMs,
             todayUsageMs = todayUsageMs,
-            averageDailyUsageMs = averageDailyUsageMs,
+            usageProfile = usageProfile,
             warningCount = warningCount
         )
         val cooledLevel = applyWarningCooldown(
@@ -102,7 +128,8 @@ object AdaptiveInterventionPolicy {
             level = cooledLevel,
             currentSessionMs = currentSessionMs,
             todayUsageMs = todayUsageMs,
-            averageDailyUsageMs = averageDailyUsageMs,
+            usageProfile = usageProfile,
+            thresholds = thresholds,
             warningCount = warningCount
         )
 
@@ -111,7 +138,7 @@ object AdaptiveInterventionPolicy {
             usageStatsAvailable = true,
             currentSessionMs = currentSessionMs,
             todayUsageMs = todayUsageMs,
-            averageDailyUsageMs = averageDailyUsageMs,
+            averageDailyUsageMs = usageProfile.averageDailyUsageMs,
             warningCount = warningCount,
             message = buildMessage(cooledLevel, urgencyReason, currentSessionMs, todayUsageMs),
             reason = reason
@@ -167,7 +194,7 @@ object AdaptiveInterventionPolicy {
             usageStatsAvailable = UsageStatsHelper.hasUsageStatsPermission(context),
             currentSessionMs = currentSessionMs,
             todayUsageMs = todayUsageMs,
-            averageDailyUsageMs = calculateAverageDailyUsageMs(context, packageName),
+            averageDailyUsageMs = calculateUsageProfile(context, packageName).averageDailyUsageMs,
             warningCount = 0,
             message = "Aplikasi ini diblokir karena ada tugas mendesak.",
             reason = "adaptive_disabled_legacy_hard_block_${urgencyReason.priority}"
@@ -213,26 +240,69 @@ object AdaptiveInterventionPolicy {
         )
     }
 
-    private fun calculateAverageDailyUsageMs(context: Context, packageName: String): Long {
+    private fun calculateUsageProfile(context: Context, packageName: String): UsageProfile {
         val history = UsageStatsHelper.queryUsageHistory(
             context = context,
             packageNames = listOf(packageName),
             days = 7
         )
         if (history.isEmpty()) {
-            return 0L
+            return UsageProfile(
+                averageDailyUsageMs = 0L,
+                activeDays = 0,
+                maxDailyUsageMs = 0L,
+                riskLevel = UsageRiskLevel.LIGHT
+            )
         }
 
         val previousDays = history.entries.toList().dropLast(1)
         if (previousDays.isEmpty()) {
-            return 0L
+            return UsageProfile(
+                averageDailyUsageMs = 0L,
+                activeDays = 0,
+                maxDailyUsageMs = 0L,
+                riskLevel = UsageRiskLevel.LIGHT
+            )
         }
 
-        val totalUsageMs = previousDays.sumOf { entry ->
-            entry.value[packageName] ?: 0L
-        }
+        val dailyUsageMs = previousDays.map { entry -> entry.value[packageName] ?: 0L }
+        val totalUsageMs = dailyUsageMs.sum()
+        val averageDailyUsageMs = totalUsageMs / dailyUsageMs.size
+        val activeDays = dailyUsageMs.count { usageMs -> usageMs >= MIN_ACTIVE_DAY_MS }
+        val maxDailyUsageMs = dailyUsageMs.maxOrNull() ?: 0L
 
-        return totalUsageMs / previousDays.size
+        return UsageProfile(
+            averageDailyUsageMs = averageDailyUsageMs,
+            activeDays = activeDays,
+            maxDailyUsageMs = maxDailyUsageMs,
+            riskLevel = classifyUsageRisk(
+                averageDailyUsageMs = averageDailyUsageMs,
+                activeDays = activeDays,
+                maxDailyUsageMs = maxDailyUsageMs
+            )
+        )
+    }
+
+    private fun classifyUsageRisk(
+        averageDailyUsageMs: Long,
+        activeDays: Int,
+        maxDailyUsageMs: Long
+    ): UsageRiskLevel {
+        return when {
+            averageDailyUsageMs >= ABUSIVE_AVERAGE_DAILY_MS ||
+                maxDailyUsageMs >= ABUSIVE_MAX_DAILY_MS ||
+                (activeDays >= 5 && averageDailyUsageMs >= 90L * MINUTE_MS) ->
+                UsageRiskLevel.ABUSIVE
+            averageDailyUsageMs >= HEAVY_AVERAGE_DAILY_MS ||
+                maxDailyUsageMs >= HEAVY_MAX_DAILY_MS ||
+                (activeDays >= 5 && averageDailyUsageMs >= 45L * MINUTE_MS) ->
+                UsageRiskLevel.HEAVY
+            averageDailyUsageMs >= MODERATE_AVERAGE_DAILY_MS ||
+                maxDailyUsageMs >= MODERATE_MAX_DAILY_MS ||
+                (activeDays >= 4 && averageDailyUsageMs >= 15L * MINUTE_MS) ->
+                UsageRiskLevel.MODERATE
+            else -> UsageRiskLevel.LIGHT
+        }
     }
 
     private fun decideLevel(
@@ -240,14 +310,14 @@ object AdaptiveInterventionPolicy {
         thresholds: AdaptiveThresholds,
         currentSessionMs: Long,
         todayUsageMs: Long,
-        averageDailyUsageMs: Long,
+        usageProfile: UsageProfile,
         warningCount: Int
     ): AdaptiveInterventionLevel {
-        val adaptiveStrongMs = max(thresholds.strongWarningMs, (averageDailyUsageMs * 0.85).toLong())
-        val adaptiveTemporaryMs = max(thresholds.temporaryBlockMs, averageDailyUsageMs)
-        val adaptiveHardMs = max(thresholds.hardBlockMs, (averageDailyUsageMs * 1.5).toLong())
+        val dailyHardMs = dailyHardBlockMs(thresholds, usageProfile)
+        val adaptiveStrongMs = max(thresholds.strongWarningMs, (dailyHardMs * 0.45).roundToLong())
+        val adaptiveTemporaryMs = max(thresholds.temporaryBlockMs, (dailyHardMs * 0.75).roundToLong())
 
-        if (currentSessionMs >= thresholds.hardBlockMs || todayUsageMs >= adaptiveHardMs) {
+        if (currentSessionMs >= thresholds.hardBlockMs || todayUsageMs >= dailyHardMs) {
             return AdaptiveInterventionLevel.HARD_BLOCK
         }
 
@@ -265,7 +335,7 @@ object AdaptiveInterventionPolicy {
             return AdaptiveInterventionLevel.STRONG_WARNING
         }
 
-        if (priority == "high" ||
+        if (priority.lowercase() == "high" ||
             currentSessionMs >= thresholds.softWarningMs ||
             todayUsageMs >= thresholds.softWarningMs
         ) {
@@ -310,7 +380,30 @@ object AdaptiveInterventionPolicy {
         return prefs.getInt("$KEY_WARNING_COUNT_PREFIX$packageName", 0).coerceAtLeast(0)
     }
 
-    private fun thresholdsForPriority(priority: String): AdaptiveThresholds {
+    private fun thresholdsForPriority(
+        priority: String,
+        usageProfile: UsageProfile
+    ): AdaptiveThresholds {
+        val base = baseThresholdsForPriority(priority)
+        val minimum = minimumThresholdsForPriority(priority)
+
+        return AdaptiveThresholds(
+            softWarningMs = scaledThreshold(base.softWarningMs, minimum.softWarningMs, usageProfile),
+            strongWarningMs = scaledThreshold(
+                base.strongWarningMs,
+                minimum.strongWarningMs,
+                usageProfile
+            ),
+            temporaryBlockMs = scaledThreshold(
+                base.temporaryBlockMs,
+                minimum.temporaryBlockMs,
+                usageProfile
+            ),
+            hardBlockMs = scaledThreshold(base.hardBlockMs, minimum.hardBlockMs, usageProfile)
+        )
+    }
+
+    private fun baseThresholdsForPriority(priority: String): AdaptiveThresholds {
         return when (priority.lowercase()) {
             "high" -> AdaptiveThresholds(
                 softWarningMs = 5L * MINUTE_MS,
@@ -331,6 +424,48 @@ object AdaptiveInterventionPolicy {
                 hardBlockMs = 120L * MINUTE_MS
             )
         }
+    }
+
+    private fun minimumThresholdsForPriority(priority: String): AdaptiveThresholds {
+        return when (priority.lowercase()) {
+            "high" -> AdaptiveThresholds(
+                softWarningMs = 2L * MINUTE_MS,
+                strongWarningMs = 5L * MINUTE_MS,
+                temporaryBlockMs = 10L * MINUTE_MS,
+                hardBlockMs = 15L * MINUTE_MS
+            )
+            "medium" -> AdaptiveThresholds(
+                softWarningMs = 3L * MINUTE_MS,
+                strongWarningMs = 8L * MINUTE_MS,
+                temporaryBlockMs = 15L * MINUTE_MS,
+                hardBlockMs = 25L * MINUTE_MS
+            )
+            else -> AdaptiveThresholds(
+                softWarningMs = 5L * MINUTE_MS,
+                strongWarningMs = 10L * MINUTE_MS,
+                temporaryBlockMs = 20L * MINUTE_MS,
+                hardBlockMs = 40L * MINUTE_MS
+            )
+        }
+    }
+
+    private fun scaledThreshold(
+        baseMs: Long,
+        minimumMs: Long,
+        usageProfile: UsageProfile
+    ): Long {
+        return max(minimumMs, (baseMs * usageProfile.riskLevel.thresholdScale).roundToLong())
+    }
+
+    private fun dailyHardBlockMs(
+        thresholds: AdaptiveThresholds,
+        usageProfile: UsageProfile
+    ): Long {
+        return max(
+            thresholds.hardBlockMs,
+            (usageProfile.averageDailyUsageMs * usageProfile.riskLevel.dailyHardMultiplier)
+                .roundToLong()
+        )
     }
 
     private fun buildMessage(
@@ -379,11 +514,17 @@ object AdaptiveInterventionPolicy {
         level: AdaptiveInterventionLevel,
         currentSessionMs: Long,
         todayUsageMs: Long,
-        averageDailyUsageMs: Long,
+        usageProfile: UsageProfile,
+        thresholds: AdaptiveThresholds,
         warningCount: Int
     ): String {
+        val dailyHardMs = dailyHardBlockMs(thresholds, usageProfile)
         return "level=${level.storageValue};sessionMs=$currentSessionMs;" +
-            "todayMs=$todayUsageMs;averageDailyMs=$averageDailyUsageMs;warnings=$warningCount"
+            "todayMs=$todayUsageMs;averageDailyMs=${usageProfile.averageDailyUsageMs};" +
+            "maxDailyMs=${usageProfile.maxDailyUsageMs};activeDays=${usageProfile.activeDays};" +
+            "usageRisk=${usageProfile.riskLevel.storageValue};" +
+            "sessionHardMs=${thresholds.hardBlockMs};dailyHardMs=$dailyHardMs;" +
+            "warnings=$warningCount"
     }
 
     private fun formatDuration(durationMs: Long): String {
