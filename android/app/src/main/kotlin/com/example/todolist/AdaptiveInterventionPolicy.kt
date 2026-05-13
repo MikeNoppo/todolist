@@ -29,6 +29,38 @@ data class AdaptiveInterventionDecision(
     val reason: String
 )
 
+data class AdaptiveLimitSummary(
+    val packageName: String,
+    val priority: String,
+    val usageRisk: String,
+    val currentSessionMs: Long,
+    val todayUsageMs: Long,
+    val averageDailyUsageMs: Long,
+    val activeDays: Int,
+    val maxDailyUsageMs: Long,
+    val sessionHardMs: Long,
+    val dailyHardMs: Long,
+    val remainingSessionMs: Long,
+    val remainingDailyMs: Long
+) {
+    fun toMap(): Map<String, Any> {
+        return mapOf(
+            "packageName" to packageName,
+            "priority" to priority,
+            "usageRisk" to usageRisk,
+            "currentSessionMs" to currentSessionMs,
+            "todayUsageMs" to todayUsageMs,
+            "averageDailyUsageMs" to averageDailyUsageMs,
+            "activeDays" to activeDays,
+            "maxDailyUsageMs" to maxDailyUsageMs,
+            "sessionHardMs" to sessionHardMs,
+            "dailyHardMs" to dailyHardMs,
+            "remainingSessionMs" to remainingSessionMs,
+            "remainingDailyMs" to remainingDailyMs
+        )
+    }
+}
+
 private data class AdaptiveThresholds(
     val softWarningMs: Long,
     val strongWarningMs: Long,
@@ -153,6 +185,38 @@ object AdaptiveInterventionPolicy {
             .putLong("$KEY_LAST_WARNING_AT_PREFIX$packageName", System.currentTimeMillis())
             .apply()
         Log.d(TAG, "Recorded adaptive warning: package=$packageName count=$warningCount")
+    }
+
+    fun limitSummary(
+        context: Context,
+        packageName: String,
+        priority: String
+    ): AdaptiveLimitSummary {
+        val currentSessionMs = UsageStatsHelper.getCurrentSessionMs(context, packageName)
+        val todayUsageMs = UsageStatsHelper.queryRangedUsage(
+            context = context,
+            packageNames = listOf(packageName),
+            startMs = UsageStatsHelper.todayStartMs(),
+            endMs = System.currentTimeMillis()
+        )[packageName] ?: 0L
+        val usageProfile = calculateUsageProfile(context, packageName)
+        val thresholds = thresholdsForPriority(priority, usageProfile)
+        val dailyHardMs = dailyHardBlockMs(thresholds, usageProfile)
+
+        return AdaptiveLimitSummary(
+            packageName = packageName,
+            priority = priority.lowercase(),
+            usageRisk = usageProfile.riskLevel.storageValue,
+            currentSessionMs = currentSessionMs,
+            todayUsageMs = todayUsageMs,
+            averageDailyUsageMs = usageProfile.averageDailyUsageMs,
+            activeDays = usageProfile.activeDays,
+            maxDailyUsageMs = usageProfile.maxDailyUsageMs,
+            sessionHardMs = thresholds.hardBlockMs,
+            dailyHardMs = dailyHardMs,
+            remainingSessionMs = max(0L, thresholds.hardBlockMs - currentSessionMs),
+            remainingDailyMs = max(0L, dailyHardMs - todayUsageMs)
+        )
     }
 
     fun saveDebugInfo(

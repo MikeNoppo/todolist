@@ -141,6 +141,9 @@ class MainActivity : FlutterActivity() {
                 "getAppCurrentSession" -> {
                     getAppCurrentSession(call, result)
                 }
+                "getAdaptiveLimitSummaries" -> {
+                    getAdaptiveLimitSummaries(call, result)
+                }
                 else -> {
                     result.notImplemented()
                 }
@@ -253,6 +256,47 @@ class MainActivity : FlutterActivity() {
                 result.error(
                     "CURRENT_SESSION_QUERY_FAILED",
                     error.message ?: "Failed to query current app session.",
+                    null
+                )
+            }
+        }
+    }
+
+    private fun getAdaptiveLimitSummaries(call: MethodCall, result: MethodChannel.Result) {
+        if (!isUsageStatsPermissionGranted()) {
+            result.error(
+                "PERMISSION_DENIED",
+                "Usage stats permission is not granted.",
+                null
+            )
+            return
+        }
+
+        val packageNames = call.argument<List<*>>("packageNames")
+            ?.mapNotNull { it as? String }
+            ?: emptyList()
+        val priority = call.argument<String>("priority").orEmpty().ifBlank { "medium" }
+
+        mainScope.launch {
+            try {
+                val summaries = withContext(Dispatchers.IO) {
+                    packageNames
+                        .filter { it.isNotBlank() }
+                        .distinct()
+                        .map { packageName ->
+                            AdaptiveInterventionPolicy.limitSummary(
+                                context = applicationContext,
+                                packageName = packageName,
+                                priority = priority
+                            ).toMap()
+                        }
+                }
+                result.success(summaries)
+            } catch (error: Throwable) {
+                Log.e(TAG, "Failed to query adaptive limit summaries.", error)
+                result.error(
+                    "ADAPTIVE_LIMIT_QUERY_FAILED",
+                    error.message ?: "Failed to query adaptive limit summaries.",
                     null
                 )
             }

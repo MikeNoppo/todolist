@@ -1,5 +1,6 @@
 import 'package:flutter/services.dart';
 
+import '../models/adaptive_limit_summary.dart';
 import '../models/installed_focus_app.dart';
 import 'app_logger.dart';
 
@@ -205,6 +206,48 @@ class PermissionService {
         stackTrace: stackTrace,
       );
       return 0;
+    }
+  }
+
+  static Future<Map<String, AdaptiveLimitSummary>> getAdaptiveLimitSummaries({
+    required List<String> packageNames,
+    required String priority,
+  }) async {
+    try {
+      final rawSummaries = await _channel.invokeMethod<Object?>(
+        'getAdaptiveLimitSummaries',
+        {'packageNames': packageNames, 'priority': priority},
+      );
+
+      if (rawSummaries is! List) {
+        return {};
+      }
+
+      final summaries = <String, AdaptiveLimitSummary>{};
+      for (final rawSummary
+          in rawSummaries.whereType<Map<dynamic, dynamic>>()) {
+        final summary = AdaptiveLimitSummary.fromMap(rawSummary);
+        if (summary.packageName.isNotEmpty) {
+          summaries[summary.packageName] = summary;
+        }
+      }
+
+      return summaries;
+    } on PlatformException catch (e, stackTrace) {
+      _logUsageStatsError(
+        'Failed to fetch adaptive limit summaries.',
+        e,
+        stackTrace,
+      );
+      return {};
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to parse adaptive limit summaries.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return {};
     }
   }
 
