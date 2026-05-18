@@ -16,6 +16,7 @@ import android.provider.Settings
 import android.util.Log
 import io.flutter.embedding.android.FlutterActivity
 import io.flutter.embedding.engine.FlutterEngine
+import io.flutter.plugin.common.EventChannel
 import io.flutter.plugin.common.MethodCall
 import io.flutter.plugin.common.MethodChannel
 import java.io.ByteArrayOutputStream
@@ -33,6 +34,7 @@ class MainActivity : FlutterActivity() {
     }
 
     private val CHANNEL = "app_blocker/permissions"
+    private val ADAPTIVE_EVENTS_CHANNEL = "app_blocker/adaptive_intervention_events"
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
     private val socialKeywords = listOf(
         "facebook",
@@ -87,6 +89,10 @@ class MainActivity : FlutterActivity() {
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
         val channel = MethodChannel(flutterEngine.dartExecutor.binaryMessenger, CHANNEL)
+        val adaptiveEventsChannel = EventChannel(
+            flutterEngine.dartExecutor.binaryMessenger,
+            ADAPTIVE_EVENTS_CHANNEL
+        )
 
         channel.setMethodCallHandler { call, result ->
             when (call.method) {
@@ -141,6 +147,9 @@ class MainActivity : FlutterActivity() {
                 "getAppCurrentSession" -> {
                     getAppCurrentSession(call, result)
                 }
+                "getAppCurrentSessions" -> {
+                    getAppCurrentSessions(call, result)
+                }
                 "getAdaptiveLimitSummaries" -> {
                     getAdaptiveLimitSummaries(call, result)
                 }
@@ -149,6 +158,33 @@ class MainActivity : FlutterActivity() {
                 }
             }
         }
+
+        adaptiveEventsChannel.setStreamHandler(object : EventChannel.StreamHandler {
+            private var listener: ((Map<String, Any>) -> Unit)? = null
+
+            override fun onListen(arguments: Any?, events: EventChannel.EventSink?) {
+                listener?.let { AdaptiveInterventionEventBus.removeListener(it) }
+
+                val newListener: (Map<String, Any>) -> Unit = { event ->
+                    mainScope.launch {
+                        events?.success(event)
+                    }
+                }
+                listener = newListener
+
+                val latestEvent = AdaptiveInterventionEventBus.addListener(newListener)
+                if (latestEvent != null) {
+                    mainScope.launch {
+                        events?.success(latestEvent)
+                    }
+                }
+            }
+
+            override fun onCancel(arguments: Any?) {
+                listener?.let { AdaptiveInterventionEventBus.removeListener(it) }
+                listener = null
+            }
+        })
 
     }
 
@@ -256,6 +292,37 @@ class MainActivity : FlutterActivity() {
                 result.error(
                     "CURRENT_SESSION_QUERY_FAILED",
                     error.message ?: "Failed to query current app session.",
+                    null
+                )
+            }
+        }
+    }
+
+    private fun getAppCurrentSessions(call: MethodCall, result: MethodChannel.Result) {
+        if (!isUsageStatsPermissionGranted()) {
+            result.error(
+                "PERMISSION_DENIED",
+                "Usage stats permission is not granted.",
+                null
+            )
+            return
+        }
+
+        val packageNames = call.argument<List<*>>("packageNames")
+            ?.mapNotNull { it as? String }
+            ?: emptyList()
+
+        mainScope.launch {
+            try {
+                val currentSessionsMs = withContext(Dispatchers.IO) {
+                    UsageStatsHelper.getCurrentSessionsMs(applicationContext, packageNames)
+                }
+                result.success(currentSessionsMs)
+            } catch (error: Throwable) {
+                Log.e(TAG, "Failed to query current app sessions.", error)
+                result.error(
+                    "CURRENT_SESSIONS_QUERY_FAILED",
+                    error.message ?: "Failed to query current app sessions.",
                     null
                 )
             }

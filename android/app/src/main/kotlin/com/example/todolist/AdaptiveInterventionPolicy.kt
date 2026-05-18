@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.util.Log
 import kotlin.math.max
+import kotlin.math.min
 import kotlin.math.roundToLong
 
 enum class AdaptiveInterventionLevel(
@@ -38,8 +39,12 @@ data class AdaptiveLimitSummary(
     val averageDailyUsageMs: Long,
     val activeDays: Int,
     val maxDailyUsageMs: Long,
+    val interventionLevel: String,
+    val isBlockingNow: Boolean,
+    val temporaryBlockMs: Long,
     val sessionHardMs: Long,
     val dailyHardMs: Long,
+    val remainingBeforeBlockMs: Long,
     val remainingSessionMs: Long,
     val remainingDailyMs: Long
 ) {
@@ -53,8 +58,12 @@ data class AdaptiveLimitSummary(
             "averageDailyUsageMs" to averageDailyUsageMs,
             "activeDays" to activeDays,
             "maxDailyUsageMs" to maxDailyUsageMs,
+            "interventionLevel" to interventionLevel,
+            "isBlockingNow" to isBlockingNow,
+            "temporaryBlockMs" to temporaryBlockMs,
             "sessionHardMs" to sessionHardMs,
             "dailyHardMs" to dailyHardMs,
+            "remainingBeforeBlockMs" to remainingBeforeBlockMs,
             "remainingSessionMs" to remainingSessionMs,
             "remainingDailyMs" to remainingDailyMs
         )
@@ -172,7 +181,7 @@ object AdaptiveInterventionPolicy {
             todayUsageMs = todayUsageMs,
             averageDailyUsageMs = usageProfile.averageDailyUsageMs,
             warningCount = warningCount,
-            message = buildMessage(cooledLevel, urgencyReason, currentSessionMs, todayUsageMs),
+            message = buildMessage(cooledLevel, urgencyReason, todayUsageMs),
             reason = reason
         )
     }
@@ -200,8 +209,29 @@ object AdaptiveInterventionPolicy {
             endMs = System.currentTimeMillis()
         )[packageName] ?: 0L
         val usageProfile = calculateUsageProfile(context, packageName)
+        val prefs = UrgencyNotificationPolicy.prefs(context)
+        val warningCount = getWarningCount(prefs, packageName)
         val thresholds = thresholdsForPriority(priority, usageProfile)
         val dailyHardMs = dailyHardBlockMs(thresholds, usageProfile)
+        val level = applyWarningCooldown(
+            prefs = prefs,
+            packageName = packageName,
+            level = decideLevel(
+                priority = priority,
+                thresholds = thresholds,
+                currentSessionMs = currentSessionMs,
+                todayUsageMs = todayUsageMs,
+                usageProfile = usageProfile,
+                warningCount = warningCount
+            )
+        )
+        val remainingBeforeBlockMs = remainingBeforeBlockingMs(
+            thresholds = thresholds,
+            currentSessionMs = currentSessionMs,
+            todayUsageMs = todayUsageMs,
+            usageProfile = usageProfile,
+            warningCount = warningCount
+        )
 
         return AdaptiveLimitSummary(
             packageName = packageName,
@@ -212,8 +242,12 @@ object AdaptiveInterventionPolicy {
             averageDailyUsageMs = usageProfile.averageDailyUsageMs,
             activeDays = usageProfile.activeDays,
             maxDailyUsageMs = usageProfile.maxDailyUsageMs,
+            interventionLevel = level.storageValue,
+            isBlockingNow = level.isBlocking,
+            temporaryBlockMs = thresholds.temporaryBlockMs,
             sessionHardMs = thresholds.hardBlockMs,
             dailyHardMs = dailyHardMs,
+            remainingBeforeBlockMs = remainingBeforeBlockMs,
             remainingSessionMs = max(0L, thresholds.hardBlockMs - currentSessionMs),
             remainingDailyMs = max(0L, dailyHardMs - todayUsageMs)
         )
@@ -224,6 +258,7 @@ object AdaptiveInterventionPolicy {
         packageName: String,
         decision: AdaptiveInterventionDecision
     ) {
+        val recordedAtMillis = System.currentTimeMillis()
         UrgencyNotificationPolicy.prefs(context).edit()
             .putString(KEY_DEBUG_LAST_ADAPTIVE_PACKAGE, packageName)
             .putString(KEY_DEBUG_LAST_ADAPTIVE_LEVEL, decision.level.storageValue)
@@ -237,8 +272,23 @@ object AdaptiveInterventionPolicy {
                 decision.usageStatsAvailable
             )
             .putInt(KEY_DEBUG_LAST_ADAPTIVE_WARNING_COUNT, decision.warningCount)
-            .putLong(KEY_DEBUG_LAST_ADAPTIVE_AT_MILLIS, System.currentTimeMillis())
+            .putLong(KEY_DEBUG_LAST_ADAPTIVE_AT_MILLIS, recordedAtMillis)
             .apply()
+
+        AdaptiveInterventionEventBus.publish(
+            mapOf(
+                "packageName" to packageName,
+                "interventionLevel" to decision.level.storageValue,
+                "isBlockingNow" to decision.level.isBlocking,
+                "recordedAtMillis" to recordedAtMillis,
+                "currentSessionMs" to decision.currentSessionMs,
+                "todayUsageMs" to decision.todayUsageMs,
+                "averageDailyUsageMs" to decision.averageDailyUsageMs,
+                "warningCount" to decision.warningCount,
+                "message" to decision.message,
+                "reason" to decision.reason
+            )
+        )
     }
 
     private fun legacyHardBlockDecision(
@@ -409,6 +459,27 @@ object AdaptiveInterventionPolicy {
         return AdaptiveInterventionLevel.ALLOW
     }
 
+    private fun remainingBeforeBlockingMs(
+        thresholds: AdaptiveThresholds,
+        currentSessionMs: Long,
+        todayUsageMs: Long,
+        usageProfile: UsageProfile,
+        warningCount: Int
+    ): Long {
+        val dailyHardMs = dailyHardBlockMs(thresholds, usageProfile)
+        val adaptiveTemporaryMs = max(thresholds.temporaryBlockMs, (dailyHardMs * 0.75).roundToLong())
+        var remainingMs = min(
+            max(0L, thresholds.temporaryBlockMs - currentSessionMs),
+            max(0L, adaptiveTemporaryMs - todayUsageMs)
+        )
+
+        if (warningCount >= 3) {
+            remainingMs = min(remainingMs, max(0L, thresholds.strongWarningMs - currentSessionMs))
+        }
+
+        return remainingMs
+    }
+
     private fun applyWarningCooldown(
         prefs: SharedPreferences,
         packageName: String,
@@ -535,10 +606,8 @@ object AdaptiveInterventionPolicy {
     private fun buildMessage(
         level: AdaptiveInterventionLevel,
         urgencyReason: UrgencyPolicyReason,
-        currentSessionMs: Long,
         todayUsageMs: Long
     ): String {
-        val sessionText = formatDuration(currentSessionMs)
         val todayText = formatDuration(todayUsageMs)
         val priorityText = when (urgencyReason.priority.lowercase()) {
             "high" -> "prioritas tinggi"
@@ -549,7 +618,7 @@ object AdaptiveInterventionPolicy {
         return when (level) {
             AdaptiveInterventionLevel.ALLOW -> "Masih dalam batas adaptif."
             AdaptiveInterventionLevel.SOFT_WARNING ->
-                "Kamu punya tugas $priorityText. Rehat sebentar boleh, tapi sesi ini sudah $sessionText."
+                "Kamu punya tugas $priorityText. Rehat sebentar boleh, tetap jaga fokus."
             AdaptiveInterventionLevel.STRONG_WARNING ->
                 "Waktu distraksi hari ini sudah $todayText. Sebaiknya kembali ke tugas: ${urgencyReason.taskTitle}."
             AdaptiveInterventionLevel.TEMPORARY_BLOCK ->
