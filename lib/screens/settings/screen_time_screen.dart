@@ -184,6 +184,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
             setState(() {
               _currentSessions = sessions;
             });
+            unawaited(_refreshLiveUsageState(packageNames));
           },
           onError: (Object error, StackTrace stackTrace) {
             AppLogger.error(
@@ -194,6 +195,38 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
             );
           },
         );
+  }
+
+  Future<void> _refreshLiveUsageState(List<String> packageNames) async {
+    if (packageNames.isEmpty) {
+      return;
+    }
+
+    try {
+      final todayStats = await _usageStatsService.getTodayUsageForApps(
+        packageNames,
+      );
+      final priority = _debugInfo?.nextTaskPriority;
+      final adaptiveLimitSummaries = await _loadAdaptiveLimitSummaries(
+        blockedPackages: _blockedPackages,
+        priority: priority,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _todayStats = todayStats;
+        _adaptiveLimitSummaries = adaptiveLimitSummaries;
+      });
+      _runtimeDecisionVersion.value++;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to refresh live usage state.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
   }
 
   void _watchAdaptiveInterventionEvents() {
