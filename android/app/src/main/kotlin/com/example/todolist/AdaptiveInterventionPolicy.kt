@@ -229,7 +229,6 @@ object AdaptiveInterventionPolicy {
             thresholds = thresholds,
             currentSessionMs = currentSessionMs,
             todayUsageMs = todayUsageMs,
-            usageProfile = usageProfile,
             warningCount = warningCount
         )
 
@@ -429,14 +428,13 @@ object AdaptiveInterventionPolicy {
     ): AdaptiveInterventionLevel {
         val dailyHardMs = dailyHardBlockMs(thresholds, usageProfile)
         val adaptiveStrongMs = max(thresholds.strongWarningMs, (dailyHardMs * 0.45).roundToLong())
-        val adaptiveTemporaryMs = max(thresholds.temporaryBlockMs, (dailyHardMs * 0.75).roundToLong())
 
         if (currentSessionMs >= thresholds.hardBlockMs || todayUsageMs >= dailyHardMs) {
             return AdaptiveInterventionLevel.HARD_BLOCK
         }
 
         if (currentSessionMs >= thresholds.temporaryBlockMs ||
-            todayUsageMs >= adaptiveTemporaryMs ||
+            todayUsageMs >= thresholds.temporaryBlockMs ||
             (warningCount >= 3 && currentSessionMs >= thresholds.strongWarningMs)
         ) {
             return AdaptiveInterventionLevel.TEMPORARY_BLOCK
@@ -463,14 +461,11 @@ object AdaptiveInterventionPolicy {
         thresholds: AdaptiveThresholds,
         currentSessionMs: Long,
         todayUsageMs: Long,
-        usageProfile: UsageProfile,
         warningCount: Int
     ): Long {
-        val dailyHardMs = dailyHardBlockMs(thresholds, usageProfile)
-        val adaptiveTemporaryMs = max(thresholds.temporaryBlockMs, (dailyHardMs * 0.75).roundToLong())
         var remainingMs = min(
             max(0L, thresholds.temporaryBlockMs - currentSessionMs),
-            max(0L, adaptiveTemporaryMs - todayUsageMs)
+            max(0L, thresholds.temporaryBlockMs - todayUsageMs)
         )
 
         if (warningCount >= 3) {
