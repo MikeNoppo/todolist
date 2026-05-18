@@ -204,13 +204,8 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     return _UsageLimitInfo(
       priority: priority,
       usageRisk: summary.usageRisk,
-      averageDailyUsageMs: summary.averageDailyUsageMs,
-      activeDays: summary.activeDays,
-      maxDailyUsageMs: summary.maxDailyUsageMs,
       dailyLimitMs: summary.dailyHardMs,
-      sessionLimitMs: summary.sessionHardMs,
-      remainingDailyMs: max(0, summary.dailyHardMs - row.usageMs),
-      remainingSessionMs: max(0, summary.sessionHardMs - row.currentSessionMs),
+      remainingDailyMs: summary.remainingDailyMs,
     );
   }
 
@@ -241,14 +236,29 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
       case 'light':
         return 'Ringan';
       case 'moderate':
-        return 'Sedang';
+        return 'Cukup tinggi';
       case 'heavy':
-        return 'Berat';
+        return 'Tinggi';
       case 'abusive':
-        return 'Abusive';
+        return 'Sangat tinggi';
     }
 
     return 'Ringan';
+  }
+
+  String _riskExplanation(String riskLevel, String appName) {
+    switch (riskLevel.toLowerCase()) {
+      case 'light':
+        return 'Pola pemakaian $appName masih ringan, jadi batasnya tidak banyak diperketat.';
+      case 'moderate':
+        return '$appName mulai sering dipakai, jadi batasnya dibuat sedikit lebih ketat saat ada tugas mendesak.';
+      case 'heavy':
+        return '$appName sering dipakai dalam beberapa hari terakhir, jadi batasnya dibuat lebih ketat saat ada tugas mendesak.';
+      case 'abusive':
+        return '$appName sangat sering dipakai, jadi batasnya dibuat paling ketat saat ada tugas mendesak.';
+    }
+
+    return 'Batas ini disesuaikan dari pola pemakaian beberapa hari terakhir.';
   }
 
   Color _riskColor(String riskLevel) {
@@ -289,6 +299,26 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     return info.remainingDailyMs <= warningThresholdMs
         ? const Color(0xFFE53935)
         : Colors.orange[700]!;
+  }
+
+  String _formatFriendlyDuration(int durationMs) {
+    final duration = Duration(milliseconds: max(0, durationMs));
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(Duration.minutesPerHour);
+
+    if (hours > 0 && minutes > 0) {
+      return '$hours jam $minutes menit';
+    }
+
+    if (hours > 0) {
+      return '$hours jam';
+    }
+
+    if (duration.inMinutes > 0) {
+      return '${duration.inMinutes} menit';
+    }
+
+    return 'Kurang dari 1 menit';
   }
 
   void _showAppDetailSheet(BuildContext context, _AppUsageRow row) {
@@ -361,103 +391,49 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                     ],
                   ),
                   SizedBox(height: AppSizeTokens.space20),
-                  _buildDetailStat(
-                    icon: Icons.bar_chart_outlined,
-                    label: 'Penggunaan hari ini',
-                    value: AppUsageStat.formatDuration(
-                      Duration(milliseconds: row.usageMs),
-                    ),
-                    color: const Color(0xFF4A6FA5),
-                  ),
-                  SizedBox(height: AppSizeTokens.space12),
                   if (limitInfo != null) ...[
+                    _buildRemainingTimeCard(
+                      limitInfo: limitInfo,
+                      color: remainingColor,
+                    ),
+                    SizedBox(height: AppSizeTokens.space16),
                     _buildDetailStat(
-                      icon: Icons.speed_outlined,
-                      label: 'Batas total harian adaptif',
-                      value: AppUsageStat.formatDuration(
-                        Duration(milliseconds: limitInfo.dailyLimitMs),
-                      ),
-                      color: const Color(0xFFE53935),
+                      icon: Icons.bar_chart_outlined,
+                      label: 'Dipakai hari ini',
+                      value: _formatFriendlyDuration(row.usageMs),
+                      color: const Color(0xFF4A6FA5),
                     ),
                     SizedBox(height: AppSizeTokens.space12),
                     _buildDetailStat(
                       icon: Icons.history_outlined,
-                      label: 'Pola 7 hari',
+                      label: 'Pola pemakaian',
                       value: _riskLabel(limitInfo.usageRisk),
                       color: _riskColor(limitInfo.usageRisk),
                     ),
                     SizedBox(height: AppSizeTokens.space12),
                     _buildDetailStat(
-                      icon: Icons.query_stats_outlined,
-                      label: 'Rata-rata harian',
-                      value: AppUsageStat.formatDuration(
-                        Duration(milliseconds: limitInfo.averageDailyUsageMs),
-                      ),
-                      color: Colors.grey[700]!,
+                      icon: Icons.timer_outlined,
+                      label: 'Sesi sekarang',
+                      value: row.currentSessionMs > 0
+                          ? _formatFriendlyDuration(row.currentSessionMs)
+                          : 'Tidak aktif',
+                      color: row.currentSessionMs > 0
+                          ? const Color(0xFF2E8B57)
+                          : Colors.grey[600]!,
                     ),
-                    SizedBox(height: AppSizeTokens.space12),
-                    _buildDetailStat(
-                      icon: Icons.event_available_outlined,
-                      label: 'Hari aktif historis',
-                      value: '${limitInfo.activeDays}/6 hari',
-                      color: Colors.grey[700]!,
-                    ),
-                    SizedBox(height: AppSizeTokens.space12),
-                    _buildDetailStat(
-                      icon: Icons.trending_up_outlined,
-                      label: 'Hari terberat',
-                      value: AppUsageStat.formatDuration(
-                        Duration(milliseconds: limitInfo.maxDailyUsageMs),
-                      ),
-                      color: Colors.grey[700]!,
-                    ),
-                    SizedBox(height: AppSizeTokens.space12),
-                    _buildDetailStat(
-                      icon: Icons.hourglass_bottom_outlined,
-                      label: 'Sisa jatah hari ini',
-                      value: AppUsageStat.formatDuration(
-                        Duration(milliseconds: limitInfo.remainingDailyMs),
-                      ),
-                      color: remainingColor,
-                    ),
-                    SizedBox(height: AppSizeTokens.space12),
-                  ],
-                  _buildDetailStat(
-                    icon: Icons.timer_outlined,
-                    label: 'Sesi saat ini',
-                    value: row.currentSessionMs > 0
-                        ? AppUsageStat.formatDuration(
-                            Duration(milliseconds: row.currentSessionMs),
-                          )
-                        : 'Tidak aktif',
-                    color: row.currentSessionMs > 0
-                        ? const Color(0xFF2E8B57)
-                        : Colors.grey[600]!,
-                  ),
-                  if (limitInfo != null) ...[
-                    SizedBox(height: AppSizeTokens.space12),
-                    _buildDetailStat(
-                      icon: Icons.block_outlined,
-                      label: 'Batas sesi adaptif',
-                      value: AppUsageStat.formatDuration(
-                        Duration(milliseconds: limitInfo.sessionLimitMs),
-                      ),
-                      color: const Color(0xFFE53935),
-                    ),
-                    SizedBox(height: AppSizeTokens.space12),
-                    _buildDetailStat(
-                      icon: Icons.timelapse_outlined,
-                      label: 'Sisa sesi sebelum diblokir',
-                      value: AppUsageStat.formatDuration(
-                        Duration(milliseconds: limitInfo.remainingSessionMs),
-                      ),
-                      color: remainingColor,
-                    ),
+                    SizedBox(height: AppSizeTokens.space16),
+                    _buildUsageReasonCard(row.app.appName, limitInfo),
                     SizedBox(height: AppSizeTokens.space16),
                     Divider(color: Colors.grey[200]),
                     SizedBox(height: AppSizeTokens.space12),
                     _buildTriggerTaskCard(limitInfo),
                   ] else ...[
+                    _buildDetailStat(
+                      icon: Icons.bar_chart_outlined,
+                      label: 'Dipakai hari ini',
+                      value: _formatFriendlyDuration(row.usageMs),
+                      color: const Color(0xFF4A6FA5),
+                    ),
                     SizedBox(height: AppSizeTokens.space16),
                     Container(
                       width: double.infinity,
@@ -485,6 +461,68 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
           ),
         );
       },
+    );
+  }
+
+  Widget _buildRemainingTimeCard({
+    required _UsageLimitInfo limitInfo,
+    required Color color,
+  }) {
+    final isTimeUp = limitInfo.remainingDailyMs <= 0;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(AppSizeTokens.space16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppSizeTokens.radius12),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42.w,
+            height: 42.w,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(AppSizeTokens.radius12),
+            ),
+            child: Icon(
+              isTimeUp ? Icons.block_outlined : Icons.hourglass_bottom_outlined,
+              color: color,
+              size: AppSizeTokens.icon22,
+            ),
+          ),
+          SizedBox(width: AppSizeTokens.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isTimeUp ? 'Waktu aman habis' : 'Sisa waktu aman',
+                  style: TextStyle(
+                    fontSize: AppSizeTokens.text13,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: AppSizeTokens.space4),
+                Text(
+                  isTimeUp
+                      ? 'Bisa kena blokir'
+                      : _formatFriendlyDuration(limitInfo.remainingDailyMs),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 22.sp,
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -530,6 +568,39 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
           ),
         ),
       ],
+    );
+  }
+
+  Widget _buildUsageReasonCard(String appName, _UsageLimitInfo limitInfo) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(AppSizeTokens.space12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(AppSizeTokens.radius12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: AppSizeTokens.icon18,
+            color: Colors.grey[600],
+          ),
+          SizedBox(width: AppSizeTokens.space8),
+          Expanded(
+            child: Text(
+              _riskExplanation(limitInfo.usageRisk, appName),
+              style: TextStyle(
+                fontSize: AppSizeTokens.text12,
+                color: Colors.grey[700],
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 
@@ -1091,7 +1162,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                       SizedBox(width: AppSizeTokens.space6),
                       Expanded(
                         child: Text(
-                          'Sisa jatah ${AppUsageStat.formatDuration(Duration(milliseconds: limitInfo.remainingDailyMs))}',
+                          'Sisa waktu ${_formatFriendlyDuration(limitInfo.remainingDailyMs)}',
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
@@ -1375,22 +1446,12 @@ class _UsageLimitInfo {
   const _UsageLimitInfo({
     required this.priority,
     required this.usageRisk,
-    required this.averageDailyUsageMs,
-    required this.activeDays,
-    required this.maxDailyUsageMs,
     required this.dailyLimitMs,
-    required this.sessionLimitMs,
     required this.remainingDailyMs,
-    required this.remainingSessionMs,
   });
 
   final TodoPriority priority;
   final String usageRisk;
-  final int averageDailyUsageMs;
-  final int activeDays;
-  final int maxDailyUsageMs;
   final int dailyLimitMs;
-  final int sessionLimitMs;
   final int remainingDailyMs;
-  final int remainingSessionMs;
 }
