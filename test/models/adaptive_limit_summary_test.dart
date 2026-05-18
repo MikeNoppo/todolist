@@ -14,8 +14,12 @@ void main() {
         'averageDailyUsageMs': 3000,
         'activeDays': 4,
         'maxDailyUsageMs': 5000,
+        'interventionLevel': 'temporary_block',
+        'isBlockingNow': true,
+        'temporaryBlockMs': 5500,
         'sessionHardMs': 6000,
         'dailyHardMs': 7000,
+        'remainingBeforeBlockMs': 7500,
         'remainingSessionMs': 8000,
         'remainingDailyMs': 9000,
       });
@@ -28,8 +32,12 @@ void main() {
       expect(summary.averageDailyUsageMs, 3000);
       expect(summary.activeDays, 4);
       expect(summary.maxDailyUsageMs, 5000);
+      expect(summary.interventionLevel, 'temporary_block');
+      expect(summary.isBlockingNow, isTrue);
+      expect(summary.temporaryBlockMs, 5500);
       expect(summary.sessionHardMs, 6000);
       expect(summary.dailyHardMs, 7000);
+      expect(summary.remainingBeforeBlockMs, 7500);
       expect(summary.remainingSessionMs, 8000);
       expect(summary.remainingDailyMs, 9000);
     });
@@ -45,8 +53,12 @@ void main() {
       expect(summary.packageName, '');
       expect(summary.priority, '');
       expect(summary.usageRisk, 'light');
+      expect(summary.interventionLevel, 'allow');
+      expect(summary.isBlockingNow, isFalse);
+      expect(summary.temporaryBlockMs, 0);
       expect(summary.sessionHardMs, 0);
       expect(summary.dailyHardMs, 0);
+      expect(summary.remainingBeforeBlockMs, 0);
     });
   });
 }
