@@ -9,6 +9,7 @@ import android.view.HapticFeedbackConstants
 import android.view.LayoutInflater
 import android.view.View
 import android.view.WindowManager
+import android.widget.ImageView
 import android.widget.LinearLayout
 import android.widget.TextView
 
@@ -75,7 +76,12 @@ class InterventionOverlayManager(
         }
     }
 
-    fun showWarning(blockedPackage: String, taskTitle: String?, warningMessage: String) {
+    fun showWarning(
+        blockedPackage: String,
+        taskTitle: String?,
+        warningMessage: String,
+        warningLevel: AdaptiveInterventionLevel = AdaptiveInterventionLevel.SOFT_WARNING
+    ) {
         if (isShowing) {
             Log.d(TAG, "Overlay already showing; skipping warning for package=$blockedPackage")
             return
@@ -87,7 +93,8 @@ class InterventionOverlayManager(
                 taskTitle = taskTitle,
                 customQuote = null,
                 messageOverride = warningMessage,
-                warningOnly = true
+                warningOnly = true,
+                warningLevel = warningLevel
             )
         }
     }
@@ -97,7 +104,8 @@ class InterventionOverlayManager(
         taskTitle: String?,
         customQuote: String?,
         messageOverride: String?,
-        warningOnly: Boolean
+        warningOnly: Boolean,
+        warningLevel: AdaptiveInterventionLevel? = null
     ) {
         if (isShowing) {
             return
@@ -128,7 +136,8 @@ class InterventionOverlayManager(
                 taskTitle = taskTitle,
                 customQuote = customQuote,
                 messageOverride = messageOverride,
-                warningOnly = warningOnly
+                warningOnly = warningOnly,
+                warningLevel = warningLevel
             )
 
             windowManager.addView(view, params)
@@ -150,14 +159,25 @@ class InterventionOverlayManager(
         taskTitle: String?,
         customQuote: String?,
         messageOverride: String?,
-        warningOnly: Boolean
+        warningOnly: Boolean,
+        warningLevel: AdaptiveInterventionLevel?
     ) {
+        val overlayIcon = view.findViewById<ImageView>(R.id.overlayIcon)
+        val statusTitleText = view.findViewById<TextView>(R.id.overlayStatusTitleText)
         val quoteText = view.findViewById<TextView>(R.id.overlayQuoteText)
         val quoteAuthor = view.findViewById<TextView>(R.id.overlayQuoteAuthor)
         val taskContainer = view.findViewById<LinearLayout>(R.id.overlayTaskContainer)
+        val taskLabelText = view.findViewById<TextView>(R.id.overlayTaskLabelText)
         val taskTitleText = view.findViewById<TextView>(R.id.overlayTaskTitleText)
         val backToWorkButton = view.findViewById<TextView>(R.id.overlayBackToWorkButton)
+        val continueButton = view.findViewById<TextView>(R.id.overlayContinueButton)
         val blockedAppText = view.findViewById<TextView>(R.id.overlayBlockedAppText)
+        val appLabel = resolveAppLabel(blockedPackage)
+
+        overlayIcon.setImageResource(
+            if (warningOnly) android.R.drawable.ic_dialog_alert else android.R.drawable.ic_lock_lock
+        )
+        statusTitleText.text = buildStatusTitle(appLabel, warningOnly, warningLevel)
 
         if (!messageOverride.isNullOrBlank()) {
             Log.d(TAG, "Using overlay message override: $messageOverride")
@@ -177,23 +197,22 @@ class InterventionOverlayManager(
 
         if (!taskTitle.isNullOrBlank()) {
             taskContainer.visibility = View.VISIBLE
+            taskLabelText.text = if (warningOnly) "Tugas sekarang:" else "Tugas mendesak saat ini:"
             taskTitleText.text = taskTitle
         } else {
             taskContainer.visibility = View.GONE
         }
 
-        val appLabel = resolveAppLabel(blockedPackage)
-        blockedAppText.text = if (warningOnly) {
-            "Akses ke $appLabel masih diizinkan"
-        } else {
-            "Akses ke $appLabel diblokir"
-        }
-        backToWorkButton.text = if (warningOnly) "Lanjutkan" else "Kembali Bekerja"
+        blockedAppText.text = buildFooterText(appLabel, warningOnly, warningLevel)
+        backToWorkButton.text = if (warningOnly) "Kembali ke Tugas" else "Kembali Bekerja"
+        continueButton.visibility = if (warningOnly) View.VISIBLE else View.GONE
+        continueButton.text = buildContinueButtonText(warningLevel)
 
         backToWorkButton.setOnClickListener { btn ->
             btn.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
             if (warningOnly) {
-                Log.d(TAG, "User acknowledged adaptive warning: package=$blockedPackage")
+                Log.d(TAG, "User chose to return from adaptive warning: package=$blockedPackage")
+                onBackToWorkTapped(blockedPackage)
             } else {
                 Log.d(TAG, "User tapped Kembali Bekerja: package=$blockedPackage")
                 onBackToWorkTapped(blockedPackage)
@@ -201,11 +220,61 @@ class InterventionOverlayManager(
             dismiss()
         }
 
+        continueButton.setOnClickListener { btn ->
+            btn.performHapticFeedback(HapticFeedbackConstants.VIRTUAL_KEY)
+            Log.d(
+                TAG,
+                "User continued after adaptive warning: package=$blockedPackage level=${warningLevel?.storageValue}"
+            )
+            dismiss()
+        }
+
         Log.d(
             TAG,
             "Overlay views bound: package=$blockedPackage appLabel=$appLabel " +
-                "task=$taskTitle customQuote=$customQuote warningOnly=$warningOnly"
+                "task=$taskTitle customQuote=$customQuote warningOnly=$warningOnly " +
+                "warningLevel=${warningLevel?.storageValue}"
         )
+    }
+
+    private fun buildStatusTitle(
+        appLabel: String,
+        warningOnly: Boolean,
+        warningLevel: AdaptiveInterventionLevel?
+    ): String {
+        if (!warningOnly) {
+            return "Akses $appLabel Ditahan"
+        }
+
+        return if (warningLevel == AdaptiveInterventionLevel.STRONG_WARNING) {
+            "$appLabel Hampir Dibatasi"
+        } else {
+            "$appLabel Masuk Zona Distraksi"
+        }
+    }
+
+    private fun buildFooterText(
+        appLabel: String,
+        warningOnly: Boolean,
+        warningLevel: AdaptiveInterventionLevel?
+    ): String {
+        if (!warningOnly) {
+            return "Akses ke $appLabel diblokir"
+        }
+
+        return if (warningLevel == AdaptiveInterventionLevel.STRONG_WARNING) {
+            "Jika distraksi berlanjut, $appLabel bisa ditahan sementara."
+        } else {
+            "Akses ke $appLabel masih diizinkan, tapi sebaiknya dibatasi."
+        }
+    }
+
+    private fun buildContinueButtonText(warningLevel: AdaptiveInterventionLevel?): String {
+        return if (warningLevel == AdaptiveInterventionLevel.STRONG_WARNING) {
+            "Lanjut maks. 5 menit"
+        } else {
+            "Lanjut 5 menit"
+        }
     }
 
     fun dismiss() {

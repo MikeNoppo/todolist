@@ -258,7 +258,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         )
 
         AdaptiveInterventionPolicy.recordWarning(this, packageName)
-        overlayManager?.showWarning(packageName, reason.taskTitle, decision.message)
+        overlayManager?.showWarning(packageName, reason.taskTitle, decision.message, decision.level)
     }
 
     private fun triggerHardBlock(
