@@ -604,6 +604,7 @@ object AdaptiveInterventionPolicy {
         todayUsageMs: Long
     ): String {
         val todayText = formatDuration(todayUsageMs)
+        val remainingText = formatRemainingTime(urgencyReason.remainingMinutes)
         val priorityText = when (urgencyReason.priority.lowercase()) {
             "high" -> "prioritas tinggi"
             "medium" -> "prioritas sedang"
@@ -613,9 +614,9 @@ object AdaptiveInterventionPolicy {
         return when (level) {
             AdaptiveInterventionLevel.ALLOW -> "Masih dalam batas adaptif."
             AdaptiveInterventionLevel.SOFT_WARNING ->
-                "Kamu punya tugas $priorityText. Rehat sebentar boleh, tetap jaga fokus."
+                "${urgencyReason.taskTitle} masih $priorityText dan $remainingText. Pakai aplikasi ini sebentar saja kalau memang perlu."
             AdaptiveInterventionLevel.STRONG_WARNING ->
-                "Waktu distraksi hari ini sudah $todayText. Sebaiknya kembali ke tugas: ${urgencyReason.taskTitle}."
+                "Waktu distraksi hari ini sudah $todayText. ${urgencyReason.taskTitle} $remainingText, jadi sebaiknya kembali sekarang."
             AdaptiveInterventionLevel.TEMPORARY_BLOCK ->
                 "Sesi distraksi sudah terlalu panjang. myTask menahan aplikasi ini sementara agar kamu kembali fokus."
             AdaptiveInterventionLevel.HARD_BLOCK ->
@@ -669,5 +670,24 @@ object AdaptiveInterventionPolicy {
         }
 
         return "${minutes}m"
+    }
+
+    private fun formatRemainingTime(remainingMinutes: Int): String {
+        if (remainingMinutes <= 0) {
+            return "sudah jatuh tempo"
+        }
+
+        val hours = remainingMinutes / 60
+        val minutes = remainingMinutes % 60
+
+        if (hours > 0 && minutes > 0) {
+            return "tersisa ${hours}j ${minutes}m"
+        }
+
+        if (hours > 0) {
+            return "tersisa ${hours}j"
+        }
+
+        return "tersisa ${minutes}m"
     }
 }
