@@ -209,6 +209,38 @@ class PermissionService {
     }
   }
 
+  static Future<Map<String, int>> getAppCurrentSessions({
+    required List<String> packageNames,
+  }) async {
+    if (packageNames.isEmpty) {
+      return {};
+    }
+
+    try {
+      final rawSessions = await _channel.invokeMethod<Object?>(
+        'getAppCurrentSessions',
+        {'packageNames': packageNames},
+      );
+
+      return _parseUsageMap(rawSessions);
+    } on PlatformException catch (e, stackTrace) {
+      _logUsageStatsError(
+        'Failed to fetch current app sessions.',
+        e,
+        stackTrace,
+      );
+      return {};
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to parse current app sessions.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+      return {};
+    }
+  }
+
   static Future<Map<String, AdaptiveLimitSummary>> getAdaptiveLimitSummaries({
     required List<String> packageNames,
     required String priority,

@@ -33,8 +33,12 @@ void main() {
                 'averageDailyUsageMs': 3 * 60 * 60 * 1000,
                 'activeDays': 6,
                 'maxDailyUsageMs': 4 * 60 * 60 * 1000,
+                'interventionLevel': 'temporary_block',
+                'isBlockingNow': true,
+                'temporaryBlockMs': 12 * 60 * 1000,
                 'sessionHardMs': 24 * 60 * 1000,
                 'dailyHardMs': 81 * 60 * 1000,
+                'remainingBeforeBlockMs': 0,
                 'remainingSessionMs': 21 * 60 * 1000,
                 'remainingDailyMs': 56 * 60 * 1000,
               },
@@ -49,8 +53,12 @@ void main() {
       final summary = summaries['com.zhiliaoapp.musically'];
       expect(summary, isNotNull);
       expect(summary!.usageRisk, 'abusive');
+      expect(summary.interventionLevel, 'temporary_block');
+      expect(summary.isBlockingNow, isTrue);
+      expect(summary.temporaryBlockMs, 12 * 60 * 1000);
       expect(summary.sessionHardMs, 24 * 60 * 1000);
       expect(summary.dailyHardMs, 81 * 60 * 1000);
+      expect(summary.remainingBeforeBlockMs, 0);
       expect(summary.activeDays, 6);
     });
 
