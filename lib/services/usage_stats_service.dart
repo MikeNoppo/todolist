@@ -67,6 +67,7 @@ class UsageStatsService {
   }) {
     final normalizedPackages = _normalizePackageNames(packageNames);
     Timer? timer;
+    var isPolling = false;
 
     final controller = StreamController<Map<String, int>>();
 
@@ -80,16 +81,18 @@ class UsageStatsService {
         return;
       }
 
+      if (isPolling) {
+        return;
+      }
+
+      isPolling = true;
       try {
-        final entries = await Future.wait(
-          normalizedPackages.map((packageName) async {
-            final sessionMs = await getCurrentSessionForApp(packageName);
-            return MapEntry(packageName, sessionMs);
-          }),
+        final sessions = await PermissionService.getAppCurrentSessions(
+          packageNames: normalizedPackages,
         );
 
         if (!controller.isClosed) {
-          controller.add(Map<String, int>.fromEntries(entries));
+          controller.add(sessions);
         }
       } catch (e, stackTrace) {
         AppLogger.error(
@@ -101,6 +104,8 @@ class UsageStatsService {
         if (!controller.isClosed) {
           controller.add({});
         }
+      } finally {
+        isPolling = false;
       }
     }
 
