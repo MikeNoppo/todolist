@@ -147,15 +147,18 @@ class AppBlockerService {
   };
 
   /// Evaluate the adaptive intervention level for an app
-  static Future<AdaptiveInterventionDecision> evaluateInterventionForApp(String packageName) async {
+  static Future<AdaptiveInterventionDecision> evaluateInterventionForApp(
+    String packageName,
+  ) async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      
+
       final isBlockedByUser = _isAppBlockedByUserSettings(
         prefs: prefs,
         packageName: packageName,
       );
-      final isWhitelisted = prefs.getBool('$allowKeyPrefix$packageName') ?? false;
+      final isWhitelisted =
+          prefs.getBool('$allowKeyPrefix$packageName') ?? false;
 
       final todos = await TodoRepository().getTodos();
       final candidate = _findCurrentCandidate(
@@ -168,7 +171,9 @@ class AppBlockerService {
       final activeTaskPriority = candidate?.todo.priority;
 
       const usageStatsService = UsageStatsService();
-      final currentSessionMs = await usageStatsService.getCurrentSessionForApp(packageName);
+      final currentSessionMs = await usageStatsService.getCurrentSessionForApp(
+        packageName,
+      );
 
       final policy = AdaptiveInterventionPolicy();
       return policy.evaluateAdaptiveBlock(

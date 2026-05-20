@@ -98,19 +98,22 @@ void main() {
         expect(decision.level, InterventionLevel.strongWarning);
       });
 
-      test('returns temporaryBlock if above temp block but below hard block', () {
-        final decision = policy.evaluateAdaptiveBlock(
-          packageName: 'com.example.app',
-          isWhitelisted: false,
-          isBlockedByUser: true,
-          hasActiveTask: true,
-          activeTaskPriority: TodoPriority.high,
-          currentSessionMs: 40 * 60 * 1000, // 40 mins (>= 30m)
-          todayUsageMs: 0,
-        );
+      test(
+        'returns temporaryBlock if above temp block but below hard block',
+        () {
+          final decision = policy.evaluateAdaptiveBlock(
+            packageName: 'com.example.app',
+            isWhitelisted: false,
+            isBlockedByUser: true,
+            hasActiveTask: true,
+            activeTaskPriority: TodoPriority.high,
+            currentSessionMs: 40 * 60 * 1000, // 40 mins (>= 30m)
+            todayUsageMs: 0,
+          );
 
-        expect(decision.level, InterventionLevel.temporaryBlock);
-      });
+          expect(decision.level, InterventionLevel.temporaryBlock);
+        },
+      );
 
       test('returns hardBlock if above hard block threshold', () {
         final decision = policy.evaluateAdaptiveBlock(

@@ -18,10 +18,19 @@ object UsageStatsHelper {
     private const val DEFAULT_HISTORY_DAYS = 7
     private const val MAX_HISTORY_DAYS = 31
     private const val MILLIS_PER_SECOND = 1000L
+    private const val RANGED_USAGE_QUERY_CHUNK_MS = 60L * 60L * MILLIS_PER_SECOND
+    private const val MIN_RANGED_USAGE_QUERY_CHUNK_MS = 60L * MILLIS_PER_SECOND
+    private const val INITIAL_STATE_LOOKBACK_MS = 24L * 60L * 60L * MILLIS_PER_SECOND
     private const val CURRENT_SESSION_QUERY_CHUNK_MS = 15L * 60L * MILLIS_PER_SECOND
     private const val MIN_CURRENT_SESSION_QUERY_CHUNK_MS = 60L * MILLIS_PER_SECOND
 
     private data class SessionBoundaryEvent(
+        val eventType: Int,
+        val timestampMs: Long
+    )
+
+    private data class PackageSessionBoundaryEvent(
+        val packageName: String,
         val eventType: Int,
         val timestampMs: Long
     )
@@ -91,28 +100,181 @@ object UsageStatsHelper {
             Context.USAGE_STATS_SERVICE
         ) as? UsageStatsManager ?: return emptyMap()
 
-        val usageStats = usageStatsManager.queryUsageStats(
-            UsageStatsManager.INTERVAL_BEST,
-            startMs,
-            endMs
-        ) ?: return emptyMap()
-
         val totals = linkedMapOf<String, Long>()
-        for (stat in usageStats) {
-            val packageName = stat.packageName ?: continue
-            if (!targetPackages.contains(packageName)) {
-                continue
-            }
+        val activeSinceByPackage = mutableMapOf<String, Long>()
 
-            val foregroundMs = stat.totalTimeInForeground
-            if (foregroundMs <= 0L) {
-                continue
-            }
+        val initialStateStartMs = max(0L, startMs - INITIAL_STATE_LOOKBACK_MS)
+        val latestInitialEvents = queryLatestSessionEvents(
+            usageStatsManager = usageStatsManager,
+            targetPackages = targetPackages,
+            startMs = initialStateStartMs,
+            endMs = startMs
+        )
 
-            totals[packageName] = (totals[packageName] ?: 0L) + foregroundMs
+        for ((packageName, event) in latestInitialEvents) {
+            if (isForegroundEvent(event.eventType)) {
+                activeSinceByPackage[packageName] = startMs
+            }
         }
 
-        return totals
+        queryRangedSessionEvents(
+            usageStatsManager = usageStatsManager,
+            targetPackages = targetPackages,
+            startMs = startMs,
+            endMs = endMs
+        ).forEach { event ->
+            applySessionBoundaryEvent(
+                event = event,
+                rangeEndMs = endMs,
+                totals = totals,
+                activeSinceByPackage = activeSinceByPackage
+            )
+        }
+
+        for ((packageName, activeSinceMs) in activeSinceByPackage) {
+            addUsageDuration(
+                packageName = packageName,
+                startMs = activeSinceMs,
+                endMs = endMs,
+                totals = totals
+            )
+        }
+
+        return totals.filterValues { it > 0L }
+    }
+
+    private fun queryRangedSessionEvents(
+        usageStatsManager: UsageStatsManager,
+        targetPackages: Set<String>,
+        startMs: Long,
+        endMs: Long
+    ): List<PackageSessionBoundaryEvent> {
+        if (targetPackages.isEmpty() || startMs >= endMs) {
+            return emptyList()
+        }
+
+        val result = mutableListOf<PackageSessionBoundaryEvent>()
+        var chunkStartMs = startMs
+
+        while (chunkStartMs < endMs) {
+            val chunkEndMs = min(endMs, chunkStartMs + RANGED_USAGE_QUERY_CHUNK_MS)
+            result.addAll(
+                querySessionEventsChunk(
+                    usageStatsManager = usageStatsManager,
+                    targetPackages = targetPackages,
+                    startMs = chunkStartMs,
+                    endMs = chunkEndMs
+                )
+            )
+            chunkStartMs = chunkEndMs
+        }
+
+        return result
+    }
+
+    private fun querySessionEventsChunk(
+        usageStatsManager: UsageStatsManager,
+        targetPackages: Set<String>,
+        startMs: Long,
+        endMs: Long
+    ): List<PackageSessionBoundaryEvent> {
+        if (targetPackages.isEmpty() || startMs >= endMs) {
+            return emptyList()
+        }
+
+        return try {
+            readSessionEvents(
+                usageStatsManager = usageStatsManager,
+                targetPackages = targetPackages,
+                startMs = startMs,
+                endMs = endMs
+            )
+        } catch (error: Throwable) {
+            val durationMs = endMs - startMs
+            if (durationMs <= MIN_RANGED_USAGE_QUERY_CHUNK_MS) {
+                Log.w(TAG, "Skipping ranged usage events chunk after Binder failure.", error)
+                emptyList()
+            } else {
+                val midpointMs = startMs + durationMs / 2L
+                querySessionEventsChunk(
+                    usageStatsManager = usageStatsManager,
+                    targetPackages = targetPackages,
+                    startMs = startMs,
+                    endMs = midpointMs
+                ) + querySessionEventsChunk(
+                    usageStatsManager = usageStatsManager,
+                    targetPackages = targetPackages,
+                    startMs = midpointMs,
+                    endMs = endMs
+                )
+            }
+        }
+    }
+
+    private fun readSessionEvents(
+        usageStatsManager: UsageStatsManager,
+        targetPackages: Set<String>,
+        startMs: Long,
+        endMs: Long
+    ): List<PackageSessionBoundaryEvent> {
+        val events = usageStatsManager.queryEvents(startMs, endMs) ?: return emptyList()
+        val result = mutableListOf<PackageSessionBoundaryEvent>()
+        val event = UsageEvents.Event()
+
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+
+            val eventPackageName = event.packageName ?: continue
+            if (!targetPackages.contains(eventPackageName) ||
+                !isSessionBoundaryEvent(event.eventType)
+            ) {
+                continue
+            }
+
+            result.add(
+                PackageSessionBoundaryEvent(
+                    packageName = eventPackageName,
+                    eventType = event.eventType,
+                    timestampMs = event.timeStamp
+                )
+            )
+        }
+
+        return result
+    }
+
+    private fun applySessionBoundaryEvent(
+        event: PackageSessionBoundaryEvent,
+        rangeEndMs: Long,
+        totals: MutableMap<String, Long>,
+        activeSinceByPackage: MutableMap<String, Long>
+    ) {
+        if (isForegroundEvent(event.eventType)) {
+            activeSinceByPackage.putIfAbsent(event.packageName, event.timestampMs)
+            return
+        }
+
+        val activeSinceMs = activeSinceByPackage.remove(event.packageName) ?: return
+        addUsageDuration(
+            packageName = event.packageName,
+            startMs = activeSinceMs,
+            endMs = min(event.timestampMs, rangeEndMs),
+            totals = totals
+        )
+    }
+
+    private fun addUsageDuration(
+        packageName: String,
+        startMs: Long,
+        endMs: Long,
+        totals: MutableMap<String, Long>
+    ) {
+        val durationMs = (endMs - startMs).coerceAtLeast(0L)
+        if (durationMs <= 0L) {
+            return
+        }
+
+        totals[packageName] = (totals[packageName] ?: 0L) + durationMs
     }
 
     fun queryUsageHistory(
