@@ -277,7 +277,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         Log.d(
             TAG,
             "Showing overlay for package=$packageName task=${reason.taskTitle} " +
-                "priority=${reason.priority} remainingMinutes=${reason.remainingMinutes} warningOnly=$isWarningOnly"
+                "priority=${reason.priority} remainingMinutes=${reason.remainingMinutes} " +
+                "level=${decision?.level?.storageValue ?: "legacy_hard_block"}"
         )
         
         val prefs = getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
@@ -290,11 +291,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             messageOverride = decision?.message
         )
 
-        if (!isWarningOnly) {
-            // Send blocked app to home in the background if it's a hard block
-            val homeSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
-            Log.d(TAG, "Home action sent: homeSucceeded=$homeSucceeded package=$packageName")
-        }
+        val homeSucceeded = performGlobalAction(GLOBAL_ACTION_HOME)
+        Log.d(TAG, "Home action sent: homeSucceeded=$homeSucceeded package=$packageName")
     }
 
     private fun handleBackToWorkTapped(packageName: String) {

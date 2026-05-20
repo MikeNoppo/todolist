@@ -10,7 +10,7 @@ import kotlin.math.roundToLong
 enum class AdaptiveInterventionLevel(
     val storageValue: String,
     val isWarning: Boolean,
-    val isBlocking: Booleana
+    val isBlocking: Boolean
 ) {
     ALLOW("allow", false, false),
     SOFT_WARNING("soft_warning", true, false),
