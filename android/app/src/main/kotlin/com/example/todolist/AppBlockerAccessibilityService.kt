@@ -11,6 +11,11 @@ import android.view.accessibility.AccessibilityEvent
 
 class AppBlockerAccessibilityService : AccessibilityService() {
 
+    private data class PackageAdaptiveDecision(
+        val urgencyReason: UrgencyPolicyReason,
+        val adaptiveDecision: AdaptiveInterventionDecision
+    )
+
     companion object {
         private const val TAG = "AppBlockerService"
         private const val FLUTTER_PREFS = "FlutterSharedPreferences"
@@ -35,6 +40,7 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         private const val REENTRY_GUARD_MILLIS = 300L
         private const val POST_DISMISS_WATCH_DURATION_MILLIS = 15_000L
         private const val POST_DISMISS_WATCH_INTERVAL_MILLIS = 250L
+        private const val CONTENT_EVENT_EVALUATION_THROTTLE_MILLIS = 2_000L
 
         var instance: AppBlockerAccessibilityService? = null
             private set
@@ -54,6 +60,8 @@ class AppBlockerAccessibilityService : AccessibilityService() {
     private val mainHandler = Handler(Looper.getMainLooper())
     private var watchedBlockedPackage: String? = null
     private var watchBlockedPackageUntilMillis: Long = 0L
+    private var lastContentEvaluatedPackage: String? = null
+    private var lastContentEvaluatedAtMillis: Long = 0L
     private val blockedPackageWatchRunnable = object : Runnable {
         override fun run() {
             val watchedPackage = watchedBlockedPackage
@@ -73,24 +81,19 @@ class AppBlockerAccessibilityService : AccessibilityService() {
 
             val activePackageName = getActivePackageName()
             if (activePackageName == watchedPackage && !isInReentryGuard(activePackageName)) {
-                val snoozeUntil = snoozedWarningPackages[activePackageName] ?: 0L
-                if (System.currentTimeMillis() < snoozeUntil) {
-                    mainHandler.postDelayed(this, POST_DISMISS_WATCH_INTERVAL_MILLIS)
-                    return
-                }
-
-                val blockingReason = getBlockingReasonForPackage(activePackageName)
-                if (blockingReason != null) {
-                    val sessionMs = UsageStatsHelper.getCurrentSessionMs(this@AppBlockerAccessibilityService, activePackageName)
-                    val decision = AdaptiveInterventionPolicy.evaluate(sessionMs, blockingReason.priority)
-                    if (decision.level != InterventionLevel.ALLOW) {
-                        val isWarningOnly = decision.level == InterventionLevel.SOFT_WARNING || decision.level == InterventionLevel.STRONG_WARNING
-                        Log.d(
-                            TAG,
-                            "Watchdog re-blocking active package=$activePackageName after overlay dismiss"
-                        )
-                        triggerIntervention(activePackageName, blockingReason, isWarningOnly, decision.message)
-                    }
+                val packageDecision = getAdaptiveDecisionForPackage(activePackageName)
+                if (packageDecision?.adaptiveDecision?.level?.isBlocking == true) {
+                    Log.d(
+                        TAG,
+                        "Watchdog re-blocking active package=$activePackageName after overlay dismiss"
+                    )
+                    triggerHardBlock(
+                        activePackageName,
+                        packageDecision.urgencyReason,
+                        packageDecision.adaptiveDecision
+                    )
+                } else if (packageDecision != null) {
+                    stopBlockedPackageWatch("adaptive_decision_not_blocking")
                 }
             }
 
@@ -121,6 +124,12 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             return
         }
 
+        if (event.eventType == AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED &&
+            shouldThrottleContentEvaluation(currentPackageName)
+        ) {
+            return
+        }
+
         // If our own overlay is showing, don't re-trigger
         if (overlayManager?.isOverlayShowing == true) {
             Log.d(TAG, "Overlay already visible; skip evaluation for package=$currentPackageName")
@@ -132,32 +141,19 @@ class AppBlockerAccessibilityService : AccessibilityService() {
             return
         }
 
-        val snoozeUntil = snoozedWarningPackages[currentPackageName] ?: 0L
-        if (System.currentTimeMillis() < snoozeUntil) {
-            return
-        }
+        Log.d(TAG, "Evaluating package for adaptive intervention: package=$currentPackageName")
 
-        Log.d(TAG, "Evaluating package for hard block: package=$currentPackageName")
-
-        val blockingReason = getBlockingReasonForPackage(currentPackageName) ?: return
-        
-        val currentSessionMs = UsageStatsHelper.getCurrentSessionMs(this, currentPackageName)
-        val decision = AdaptiveInterventionPolicy.evaluate(currentSessionMs, blockingReason.priority)
-        
-        if (decision.level == InterventionLevel.ALLOW) {
-            Log.d(TAG, "Adaptive policy returned ALLOW: package=$currentPackageName sessionMs=$currentSessionMs")
-            return
-        }
-
+        val packageDecision = getAdaptiveDecisionForPackage(currentPackageName) ?: return
+        val blockingReason = packageDecision.urgencyReason
+        val adaptiveDecision = packageDecision.adaptiveDecision
         Log.d(
             TAG,
-            "Intervention eligible: package=$currentPackageName level=${decision.level} " +
-                "session=${currentSessionMs}ms priority=${blockingReason.priority}"
+            "Adaptive decision: package=$currentPackageName level=${adaptiveDecision.level.storageValue} " +
+                "task=${blockingReason.taskTitle} " +
+                "priority=${blockingReason.priority} remainingMinutes=${blockingReason.remainingMinutes} " +
+                "windowHours=${blockingReason.windowHours} reason=${adaptiveDecision.reason}"
         )
-        
-        val isWarningOnly = decision.level == InterventionLevel.SOFT_WARNING || decision.level == InterventionLevel.STRONG_WARNING
-
-        triggerIntervention(currentPackageName, blockingReason, isWarningOnly, decision.message)
+        handleAdaptiveDecision(currentPackageName, blockingReason, adaptiveDecision)
     }
 
     override fun onInterrupt() {
@@ -205,11 +201,74 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         return true
     }
 
+    private fun shouldThrottleContentEvaluation(packageName: String): Boolean {
+        val nowMillis = System.currentTimeMillis()
+        val elapsedMillis = nowMillis - lastContentEvaluatedAtMillis
+        if (lastContentEvaluatedPackage == packageName &&
+            elapsedMillis in 0 until CONTENT_EVENT_EVALUATION_THROTTLE_MILLIS
+        ) {
+            return true
+        }
+
+        lastContentEvaluatedPackage = packageName
+        lastContentEvaluatedAtMillis = nowMillis
+        return false
+    }
+
     private fun getBlockingReasonForPackage(packageName: String): UrgencyPolicyReason? {
         return UrgencyNotificationPolicy.getBlockingReasonForPackage(this, packageName)
     }
 
-    private fun triggerIntervention(packageName: String, reason: UrgencyPolicyReason, isWarningOnly: Boolean = false, customMessage: String? = null) {
+    private fun getAdaptiveDecisionForPackage(packageName: String): PackageAdaptiveDecision? {
+        val urgencyReason = getBlockingReasonForPackage(packageName) ?: return null
+        val adaptiveDecision = AdaptiveInterventionPolicy.evaluate(this, packageName, urgencyReason)
+        AdaptiveInterventionPolicy.saveDebugInfo(this, packageName, adaptiveDecision)
+        return PackageAdaptiveDecision(urgencyReason, adaptiveDecision)
+    }
+
+    private fun handleAdaptiveDecision(
+        packageName: String,
+        reason: UrgencyPolicyReason,
+        decision: AdaptiveInterventionDecision
+    ) {
+        when (decision.level) {
+            AdaptiveInterventionLevel.ALLOW -> {
+                Log.d(TAG, "Adaptive policy allowed package=$packageName reason=${decision.reason}")
+            }
+            AdaptiveInterventionLevel.SOFT_WARNING,
+            AdaptiveInterventionLevel.STRONG_WARNING -> {
+                triggerAdaptiveWarning(packageName, reason, decision)
+            }
+            AdaptiveInterventionLevel.TEMPORARY_BLOCK,
+            AdaptiveInterventionLevel.HARD_BLOCK -> {
+                triggerHardBlock(packageName, reason, decision)
+            }
+        }
+    }
+
+    private fun triggerAdaptiveWarning(
+        packageName: String,
+        reason: UrgencyPolicyReason,
+        decision: AdaptiveInterventionDecision
+    ) {
+        lastTriggeredPackage = packageName
+        lastTriggeredAtMillis = System.currentTimeMillis()
+
+        Log.d(
+            TAG,
+            "Showing adaptive warning for package=$packageName level=${decision.level.storageValue} " +
+                "task=${reason.taskTitle} message=${decision.message}"
+        )
+
+        AdaptiveInterventionPolicy.recordWarning(this, packageName)
+        overlayManager?.showWarning(packageName, reason.taskTitle, decision.message, decision.level)
+    }
+
+    private fun triggerHardBlock(
+        packageName: String,
+        reason: UrgencyPolicyReason,
+        decision: AdaptiveInterventionDecision? = null
+    ) {
         lastTriggeredPackage = packageName
         lastTriggeredAtMillis = System.currentTimeMillis()
 
@@ -224,7 +283,12 @@ class AppBlockerAccessibilityService : AccessibilityService() {
         val prefs = getSharedPreferences(FLUTTER_PREFS, Context.MODE_PRIVATE)
         val customQuote = prefs.getString(KEY_CUSTOM_QUOTE, null)
         
-        overlayManager?.show(packageName, reason.taskTitle, customQuote, isWarningOnly, customMessage)
+        overlayManager?.show(
+            blockedPackage = packageName,
+            taskTitle = reason.taskTitle,
+            customQuote = customQuote,
+            messageOverride = decision?.message
+        )
 
         if (!isWarningOnly) {
             // Send blocked app to home in the background if it's a hard block

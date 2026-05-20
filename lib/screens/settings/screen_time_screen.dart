@@ -4,11 +4,14 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_screenutil/flutter_screenutil.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
-import '../../core/ui/app_size_tokens.dart';
+import '../../models/adaptive_intervention_runtime_event.dart';
+import '../../models/adaptive_limit_summary.dart';
 import '../../models/app_usage_stat.dart';
 import '../../models/installed_focus_app.dart';
+import '../../models/todo_model.dart';
+import '../../core/ui/app_size_tokens.dart';
+import '../../services/adaptive_intervention_event_service.dart';
 import '../../services/app_blocker_service.dart';
 import '../../services/app_logger.dart';
 import '../../services/permission_service.dart';
@@ -26,14 +29,24 @@ class ScreenTimeScreen extends StatefulWidget {
 class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     with WidgetsBindingObserver {
   static const String _tag = 'ScreenTimeScreen';
+  static const Duration _runtimeDecisionFreshness = Duration(minutes: 2);
 
   final UsageStatsService _usageStatsService = const UsageStatsService();
+  final AdaptiveInterventionEventService _adaptiveEventService =
+      const AdaptiveInterventionEventService();
+  final ValueNotifier<int> _runtimeDecisionVersion = ValueNotifier<int>(0);
   StreamSubscription<Map<String, int>>? _sessionSubscription;
+  StreamSubscription<AdaptiveInterventionRuntimeEvent>?
+  _adaptiveEventSubscription;
 
   List<InstalledFocusApp> _trackedApps = [];
   List<AppUsageStat> _todayStats = [];
   Map<String, List<AppUsageStat>> _usageHistory = {};
   Map<String, int> _currentSessions = {};
+  Map<String, AdaptiveLimitSummary> _adaptiveLimitSummaries = {};
+  final Map<String, _RuntimeAdaptiveStatus> _runtimeAdaptiveStatuses = {};
+  Set<String> _blockedPackages = {};
+  InterventionDebugInfo? _debugInfo;
   _ScreenTimeView _selectedView = _ScreenTimeView.today;
   bool _isLoading = true;
   bool _usagePermissionGranted = false;
@@ -42,13 +55,16 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
   void initState() {
     super.initState();
     WidgetsBinding.instance.addObserver(this);
+    _watchAdaptiveInterventionEvents();
     _loadData();
   }
 
   @override
   void dispose() {
     WidgetsBinding.instance.removeObserver(this);
+    _adaptiveEventSubscription?.cancel();
     _sessionSubscription?.cancel();
+    _runtimeDecisionVersion.dispose();
     super.dispose();
   }
 
@@ -80,8 +96,12 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
           _todayStats = [];
           _usageHistory = {};
           _currentSessions = {};
+          _adaptiveLimitSummaries = {};
+          _blockedPackages = {};
+          _debugInfo = null;
           _isLoading = false;
         });
+        _runtimeDecisionVersion.value++;
         return;
       }
 
@@ -94,6 +114,14 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
       final usageHistory = await _usageStatsService.getUsageHistory(
         packageNames: packageNames,
       );
+      final debugInfo = await AppBlockerService.getInterventionDebugInfo();
+      final blockedPackages = debugInfo.blockedPackages
+          .where(packageNames.contains)
+          .toSet();
+      final adaptiveLimitSummaries = await _loadAdaptiveLimitSummaries(
+        blockedPackages: blockedPackages,
+        priority: debugInfo.nextTaskPriority,
+      );
 
       if (!mounted) return;
 
@@ -102,8 +130,12 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
         _trackedApps = trackedApps;
         _todayStats = todayStats;
         _usageHistory = usageHistory;
+        _blockedPackages = blockedPackages;
+        _adaptiveLimitSummaries = adaptiveLimitSummaries;
+        _debugInfo = debugInfo;
         _isLoading = false;
       });
+      _runtimeDecisionVersion.value++;
 
       _watchCurrentSessions(packageNames);
     } catch (e, stackTrace) {
@@ -125,15 +157,21 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
   Future<List<InstalledFocusApp>> _resolveTrackedApps(
     List<InstalledFocusApp> installedApps,
   ) async {
-    final prefs = await SharedPreferences.getInstance();
-    final blockedApps = installedApps.where((app) {
-      return prefs.getBool(
-            '${AppBlockerService.blockKeyPrefix}${app.packageName}',
-          ) ??
-          false;
-    }).toList();
+    return installedApps;
+  }
 
-    return blockedApps.isNotEmpty ? blockedApps : installedApps;
+  Future<Map<String, AdaptiveLimitSummary>> _loadAdaptiveLimitSummaries({
+    required Set<String> blockedPackages,
+    required TodoPriority? priority,
+  }) async {
+    if (blockedPackages.isEmpty || priority == null) {
+      return {};
+    }
+
+    return PermissionService.getAdaptiveLimitSummaries(
+      packageNames: blockedPackages.toList(),
+      priority: _priorityValue(priority),
+    );
   }
 
   void _watchCurrentSessions(List<String> packageNames) {
@@ -146,6 +184,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
             setState(() {
               _currentSessions = sessions;
             });
+            unawaited(_refreshLiveUsageState(packageNames));
           },
           onError: (Object error, StackTrace stackTrace) {
             AppLogger.error(
@@ -158,8 +197,667 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
         );
   }
 
+  Future<void> _refreshLiveUsageState(List<String> packageNames) async {
+    if (packageNames.isEmpty) {
+      return;
+    }
+
+    try {
+      final todayStats = await _usageStatsService.getTodayUsageForApps(
+        packageNames,
+      );
+      final priority = _debugInfo?.nextTaskPriority;
+      final adaptiveLimitSummaries = await _loadAdaptiveLimitSummaries(
+        blockedPackages: _blockedPackages,
+        priority: priority,
+      );
+
+      if (!mounted) return;
+
+      setState(() {
+        _todayStats = todayStats;
+        _adaptiveLimitSummaries = adaptiveLimitSummaries;
+      });
+      _runtimeDecisionVersion.value++;
+    } catch (e, stackTrace) {
+      AppLogger.error(
+        _tag,
+        'Failed to refresh live usage state.',
+        error: e,
+        stackTrace: stackTrace,
+      );
+    }
+  }
+
+  void _watchAdaptiveInterventionEvents() {
+    _adaptiveEventSubscription?.cancel();
+    _adaptiveEventSubscription = _adaptiveEventService
+        .watchRuntimeEvents()
+        .listen(
+          _handleAdaptiveInterventionEvent,
+          onError: (Object error, StackTrace stackTrace) {
+            AppLogger.error(
+              _tag,
+              'Failed to receive adaptive intervention event.',
+              error: error,
+              stackTrace: stackTrace,
+            );
+          },
+        );
+  }
+
+  void _handleAdaptiveInterventionEvent(
+    AdaptiveInterventionRuntimeEvent event,
+  ) {
+    if (!mounted) return;
+
+    setState(() {
+      _runtimeAdaptiveStatuses[event.packageName] = _RuntimeAdaptiveStatus(
+        level: event.interventionLevel,
+        isBlocking: event.isBlockingNow,
+        recordedAt: event.recordedAt,
+      );
+    });
+    _runtimeDecisionVersion.value++;
+  }
+
   Future<void> _openUsageSettings() async {
     await PermissionService.openUsageStatsSettings();
+  }
+
+  _UsageLimitInfo? _usageLimitInfoForRow(_AppUsageRow row) {
+    if (!_blockedPackages.contains(row.app.packageName)) {
+      return null;
+    }
+
+    final priority = _debugInfo?.nextTaskPriority;
+    if (priority == null) {
+      return null;
+    }
+
+    final summary = _adaptiveLimitSummaries[row.app.packageName];
+    if (summary == null) {
+      return null;
+    }
+
+    final runtimeStatus = _runtimeStatusForPackage(row.app.packageName);
+    final interventionLevel = runtimeStatus?.level ?? summary.interventionLevel;
+    final isBlockingNow = runtimeStatus?.isBlocking ?? summary.isBlockingNow;
+    final remainingBeforeBlockMs = isBlockingNow
+        ? 0
+        : summary.remainingBeforeBlockMs > 0
+        ? summary.remainingBeforeBlockMs
+        : min(summary.remainingSessionMs, summary.remainingDailyMs);
+
+    return _UsageLimitInfo(
+      priority: priority,
+      usageRisk: summary.usageRisk,
+      interventionLevel: interventionLevel,
+      isBlockingNow: isBlockingNow,
+      temporaryBlockMs: summary.temporaryBlockMs,
+      remainingBeforeBlockMs: remainingBeforeBlockMs,
+    );
+  }
+
+  _RuntimeAdaptiveStatus? _runtimeStatusForPackage(String packageName) {
+    final runtimeStatus = _runtimeAdaptiveStatuses[packageName];
+    if (runtimeStatus != null) {
+      final elapsed = DateTime.now().difference(runtimeStatus.recordedAt);
+      if (elapsed <= _runtimeDecisionFreshness) {
+        return runtimeStatus;
+      }
+
+      _runtimeAdaptiveStatuses.remove(packageName);
+    }
+
+    final debugInfo = _debugInfo;
+    final level = debugInfo?.lastAdaptiveLevel;
+    final recordedAt = debugInfo?.lastAdaptiveAt;
+    if (debugInfo == null ||
+        level == null ||
+        recordedAt == null ||
+        debugInfo.lastAdaptivePackage != packageName) {
+      return null;
+    }
+
+    final elapsed = DateTime.now().difference(recordedAt);
+    if (elapsed > _runtimeDecisionFreshness) {
+      return null;
+    }
+
+    return _RuntimeAdaptiveStatus(
+      level: level,
+      isBlocking: _isBlockingAdaptiveLevel(level),
+      recordedAt: recordedAt,
+    );
+  }
+
+  bool _isBlockingAdaptiveLevel(String level) {
+    return level == 'temporary_block' || level == 'hard_block';
+  }
+
+  String _priorityValue(TodoPriority priority) {
+    switch (priority) {
+      case TodoPriority.low:
+        return 'low';
+      case TodoPriority.medium:
+        return 'medium';
+      case TodoPriority.high:
+        return 'high';
+    }
+  }
+
+  String _priorityLabel(TodoPriority priority) {
+    switch (priority) {
+      case TodoPriority.low:
+        return 'Rendah';
+      case TodoPriority.medium:
+        return 'Sedang';
+      case TodoPriority.high:
+        return 'Tinggi';
+    }
+  }
+
+  String _riskLabel(String riskLevel) {
+    switch (riskLevel.toLowerCase()) {
+      case 'light':
+        return 'Ringan';
+      case 'moderate':
+        return 'Cukup tinggi';
+      case 'heavy':
+        return 'Tinggi';
+      case 'abusive':
+        return 'Sangat tinggi';
+    }
+
+    return 'Ringan';
+  }
+
+  String _riskExplanation(String riskLevel, String appName) {
+    switch (riskLevel.toLowerCase()) {
+      case 'light':
+        return 'Pola pemakaian $appName masih ringan, jadi batasnya tidak banyak diperketat.';
+      case 'moderate':
+        return '$appName mulai sering dipakai, jadi batasnya dibuat sedikit lebih ketat saat ada tugas mendesak.';
+      case 'heavy':
+        return '$appName sering dipakai dalam beberapa hari terakhir, jadi batasnya dibuat lebih ketat saat ada tugas mendesak.';
+      case 'abusive':
+        return '$appName sangat sering dipakai, jadi batasnya dibuat paling ketat saat ada tugas mendesak.';
+    }
+
+    return 'Batas ini disesuaikan dari pola pemakaian beberapa hari terakhir.';
+  }
+
+  Color _riskColor(String riskLevel) {
+    switch (riskLevel.toLowerCase()) {
+      case 'light':
+        return const Color(0xFF2E8B57);
+      case 'moderate':
+        return const Color(0xFF4A6FA5);
+      case 'heavy':
+        return Colors.orange[700]!;
+      case 'abusive':
+        return const Color(0xFFE53935);
+    }
+
+    return const Color(0xFF2E8B57);
+  }
+
+  String _formatDeadlineLabel(int remainingMinutes) {
+    if (remainingMinutes <= 0) {
+      return 'Deadline sudah lewat';
+    }
+
+    if (remainingMinutes < Duration.minutesPerHour) {
+      return 'Deadline dalam $remainingMinutes menit';
+    }
+
+    final hours = remainingMinutes ~/ Duration.minutesPerHour;
+    final minutes = remainingMinutes.remainder(Duration.minutesPerHour);
+    if (minutes == 0) {
+      return 'Deadline dalam ${hours}j';
+    }
+
+    return 'Deadline dalam ${hours}j ${minutes}m';
+  }
+
+  Color _remainingColor(_UsageLimitInfo info) {
+    if (info.isBlockingNow || info.remainingBeforeBlockMs <= 0) {
+      return const Color(0xFFE53935);
+    }
+
+    final warningThresholdMs = max(1, info.temporaryBlockMs ~/ 4);
+    return info.remainingBeforeBlockMs <= warningThresholdMs
+        ? const Color(0xFFE53935)
+        : Colors.orange[700]!;
+  }
+
+  String _accessStatusLabel(_UsageLimitInfo info) {
+    switch (info.interventionLevel) {
+      case 'temporary_block':
+        return 'Diblokir sementara';
+      case 'hard_block':
+        return 'Diblokir penuh';
+      case 'strong_warning':
+        return 'Peringatan kuat';
+      case 'soft_warning':
+        return 'Peringatan ringan';
+      default:
+        return 'Masih bisa dibuka';
+    }
+  }
+
+  Color _accessStatusColor(_UsageLimitInfo info) {
+    if (info.isBlockingNow) {
+      return const Color(0xFFE53935);
+    }
+
+    switch (info.interventionLevel) {
+      case 'strong_warning':
+        return Colors.orange[700]!;
+      case 'soft_warning':
+        return const Color(0xFF4A6FA5);
+      default:
+        return const Color(0xFF2E8B57);
+    }
+  }
+
+  String _formatFriendlyDuration(int durationMs) {
+    final duration = Duration(milliseconds: max(0, durationMs));
+    final hours = duration.inHours;
+    final minutes = duration.inMinutes.remainder(Duration.minutesPerHour);
+
+    if (hours > 0 && minutes > 0) {
+      return '$hours jam $minutes menit';
+    }
+
+    if (hours > 0) {
+      return '$hours jam';
+    }
+
+    if (duration.inMinutes > 0) {
+      return '${duration.inMinutes} menit';
+    }
+
+    return 'Kurang dari 1 menit';
+  }
+
+  void _showAppDetailSheet(BuildContext context, _AppUsageRow row) {
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) {
+        return ValueListenableBuilder<int>(
+          valueListenable: _runtimeDecisionVersion,
+          builder: (context, ignoredVersion, ignoredChild) {
+            final liveRow = _liveRowForPackage(row);
+            final limitInfo = _usageLimitInfoForRow(liveRow);
+            final remainingColor = limitInfo == null
+                ? Colors.grey[600]!
+                : _remainingColor(limitInfo);
+
+            return SafeArea(
+              child: Container(
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.vertical(
+                    top: Radius.circular(AppSizeTokens.radius16),
+                  ),
+                ),
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    AppSizeTokens.pagePadding,
+                    AppSizeTokens.space16,
+                    AppSizeTokens.pagePadding,
+                    AppSizeTokens.space24,
+                  ),
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Center(
+                        child: Container(
+                          width: 40.w,
+                          height: 4.h,
+                          decoration: BoxDecoration(
+                            color: Colors.grey[300],
+                            borderRadius: BorderRadius.circular(2.r),
+                          ),
+                        ),
+                      ),
+                      SizedBox(height: AppSizeTokens.space16),
+                      Row(
+                        children: [
+                          _buildAppIcon(
+                            liveRow.app,
+                            _getCategoryAccentColor(liveRow.app.category),
+                          ),
+                          SizedBox(width: AppSizeTokens.space12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  liveRow.app.appName,
+                                  maxLines: 2,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                    fontSize: AppSizeTokens.text18,
+                                    fontWeight: FontWeight.w700,
+                                    color: Colors.black87,
+                                  ),
+                                ),
+                                SizedBox(height: AppSizeTokens.space6),
+                                _buildBlockedChip(),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                      SizedBox(height: AppSizeTokens.space20),
+                      if (limitInfo != null) ...[
+                        _buildRemainingTimeCard(
+                          limitInfo: limitInfo,
+                          color: remainingColor,
+                        ),
+                        SizedBox(height: AppSizeTokens.space16),
+                        _buildDetailStat(
+                          icon: Icons.bar_chart_outlined,
+                          label: 'Dipakai hari ini',
+                          value: _formatFriendlyDuration(liveRow.usageMs),
+                          color: const Color(0xFF4A6FA5),
+                        ),
+                        SizedBox(height: AppSizeTokens.space12),
+                        _buildDetailStat(
+                          icon: Icons.history_outlined,
+                          label: 'Pola pemakaian',
+                          value: _riskLabel(limitInfo.usageRisk),
+                          color: _riskColor(limitInfo.usageRisk),
+                        ),
+                        SizedBox(height: AppSizeTokens.space12),
+                        _buildDetailStat(
+                          icon: Icons.shield_outlined,
+                          label: 'Status akses',
+                          value: _accessStatusLabel(limitInfo),
+                          color: _accessStatusColor(limitInfo),
+                        ),
+                        SizedBox(height: AppSizeTokens.space16),
+                        _buildUsageReasonCard(liveRow.app.appName, limitInfo),
+                        SizedBox(height: AppSizeTokens.space16),
+                        Divider(color: Colors.grey[200]),
+                        SizedBox(height: AppSizeTokens.space12),
+                        _buildTriggerTaskCard(limitInfo),
+                      ] else ...[
+                        _buildDetailStat(
+                          icon: Icons.bar_chart_outlined,
+                          label: 'Dipakai hari ini',
+                          value: _formatFriendlyDuration(liveRow.usageMs),
+                          color: const Color(0xFF4A6FA5),
+                        ),
+                        SizedBox(height: AppSizeTokens.space16),
+                        Container(
+                          width: double.infinity,
+                          padding: EdgeInsets.all(AppSizeTokens.space12),
+                          decoration: BoxDecoration(
+                            color: Colors.grey[50],
+                            borderRadius: BorderRadius.circular(
+                              AppSizeTokens.radius12,
+                            ),
+                            border: Border.all(color: Colors.grey[200]!),
+                          ),
+                          child: Text(
+                            'Belum ada tugas mendesak aktif. Hard block tidak akan terpicu sekarang.',
+                            style: TextStyle(
+                              fontSize: AppSizeTokens.text13,
+                              color: Colors.grey[600],
+                              height: 1.35,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  _AppUsageRow _liveRowForPackage(_AppUsageRow fallback) {
+    final packageName = fallback.app.packageName;
+    var app = fallback.app;
+    for (final trackedApp in _trackedApps) {
+      if (trackedApp.packageName == packageName) {
+        app = trackedApp;
+        break;
+      }
+    }
+
+    var usageMs = fallback.usageMs;
+    for (final stat in _todayStats) {
+      if (stat.packageName == packageName) {
+        usageMs = stat.totalTimeMs;
+        break;
+      }
+    }
+
+    return _AppUsageRow(
+      app: app,
+      usageMs: usageMs,
+      currentSessionMs:
+          _currentSessions[packageName] ?? fallback.currentSessionMs,
+    );
+  }
+
+  Widget _buildRemainingTimeCard({
+    required _UsageLimitInfo limitInfo,
+    required Color color,
+  }) {
+    final isBlockedNow = limitInfo.isBlockingNow;
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(AppSizeTokens.space16),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(AppSizeTokens.radius12),
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42.w,
+            height: 42.w,
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.82),
+              borderRadius: BorderRadius.circular(AppSizeTokens.radius12),
+            ),
+            child: Icon(
+              isBlockedNow
+                  ? Icons.block_outlined
+                  : Icons.hourglass_bottom_outlined,
+              color: color,
+              size: AppSizeTokens.icon22,
+            ),
+          ),
+          SizedBox(width: AppSizeTokens.space12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  isBlockedNow
+                      ? 'Akses sedang diblokir'
+                      : 'Sisa sebelum dibatasi',
+                  style: TextStyle(
+                    fontSize: AppSizeTokens.text13,
+                    color: Colors.grey[700],
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                SizedBox(height: AppSizeTokens.space4),
+                Text(
+                  isBlockedNow
+                      ? _accessStatusLabel(limitInfo)
+                      : _formatFriendlyDuration(
+                          limitInfo.remainingBeforeBlockMs,
+                        ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    fontSize: 22.sp,
+                    color: color,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDetailStat({
+    required IconData icon,
+    required String label,
+    required String value,
+    required Color color,
+  }) {
+    return Row(
+      children: [
+        Container(
+          width: 36.w,
+          height: 36.w,
+          decoration: BoxDecoration(
+            color: color.withValues(alpha: 0.10),
+            borderRadius: BorderRadius.circular(AppSizeTokens.radius8),
+          ),
+          child: Icon(icon, size: AppSizeTokens.icon18, color: color),
+        ),
+        SizedBox(width: AppSizeTokens.space12),
+        Expanded(
+          child: Text(
+            label,
+            style: TextStyle(
+              fontSize: AppSizeTokens.text13,
+              color: Colors.grey[600],
+            ),
+          ),
+        ),
+        SizedBox(width: AppSizeTokens.space8),
+        Flexible(
+          child: Text(
+            value,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+            textAlign: TextAlign.end,
+            style: TextStyle(
+              fontSize: AppSizeTokens.text14,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildUsageReasonCard(String appName, _UsageLimitInfo limitInfo) {
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(AppSizeTokens.space12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(AppSizeTokens.radius12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(
+            Icons.info_outline,
+            size: AppSizeTokens.icon18,
+            color: Colors.grey[600],
+          ),
+          SizedBox(width: AppSizeTokens.space8),
+          Expanded(
+            child: Text(
+              _riskExplanation(limitInfo.usageRisk, appName),
+              style: TextStyle(
+                fontSize: AppSizeTokens.text12,
+                color: Colors.grey[700],
+                height: 1.35,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTriggerTaskCard(_UsageLimitInfo limitInfo) {
+    final remainingMinutes = _debugInfo?.nextTaskRemainingMinutes;
+
+    return Container(
+      width: double.infinity,
+      padding: EdgeInsets.all(AppSizeTokens.space12),
+      decoration: BoxDecoration(
+        color: Colors.grey[50],
+        borderRadius: BorderRadius.circular(AppSizeTokens.radius12),
+        border: Border.all(color: Colors.grey[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.task_alt_outlined,
+                size: AppSizeTokens.icon16,
+                color: Colors.grey[600],
+              ),
+              SizedBox(width: AppSizeTokens.space8),
+              Text(
+                'Tugas pemicu',
+                style: TextStyle(
+                  fontSize: AppSizeTokens.text13,
+                  fontWeight: FontWeight.w700,
+                  color: Colors.black87,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: AppSizeTokens.space8),
+          Text(
+            _debugInfo?.nextTaskTitle ?? 'Tugas mendesak',
+            style: TextStyle(
+              fontSize: AppSizeTokens.text14,
+              fontWeight: FontWeight.w600,
+              color: Colors.black87,
+            ),
+          ),
+          SizedBox(height: AppSizeTokens.space4),
+          Text(
+            [
+              'Prioritas ${_priorityLabel(limitInfo.priority)}',
+              if (remainingMinutes != null)
+                _formatDeadlineLabel(remainingMinutes),
+            ].join(' • '),
+            style: TextStyle(
+              fontSize: AppSizeTokens.text12,
+              color: remainingMinutes != null && remainingMinutes <= 60
+                  ? const Color(0xFFE53935)
+                  : Colors.grey[600],
+              height: 1.35,
+            ),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -583,8 +1281,14 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     final accentColor = _getCategoryAccentColor(row.app.category);
     final progress = maxUsageMs == 0 ? 0.0 : row.usageMs / maxUsageMs;
     final isActive = row.currentSessionMs > 0;
+    final isBlocked = _blockedPackages.contains(row.app.packageName);
+    final showDailyAllowance = _selectedView == _ScreenTimeView.today;
+    final limitInfo = showDailyAllowance ? _usageLimitInfoForRow(row) : null;
+    final remainingColor = limitInfo == null
+        ? Colors.grey[600]!
+        : _remainingColor(limitInfo);
 
-    return Container(
+    final tile = Container(
       padding: EdgeInsets.all(AppSizeTokens.itemPadding),
       decoration: _cardDecoration(),
       child: Row(
@@ -598,15 +1302,25 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                 Row(
                   children: [
                     Expanded(
-                      child: Text(
-                        row.app.appName,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: TextStyle(
-                          fontSize: AppSizeTokens.text15,
-                          fontWeight: FontWeight.w600,
-                          color: Colors.black87,
-                        ),
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              row.app.appName,
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: AppSizeTokens.text15,
+                                fontWeight: FontWeight.w600,
+                                color: Colors.black87,
+                              ),
+                            ),
+                          ),
+                          if (isBlocked) ...[
+                            SizedBox(width: AppSizeTokens.space6),
+                            _buildBlockedChip(),
+                          ],
+                        ],
                       ),
                     ),
                     Text(
@@ -631,6 +1345,35 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                     valueColor: AlwaysStoppedAnimation<Color>(accentColor),
                   ),
                 ),
+                if (limitInfo != null) ...[
+                  SizedBox(height: AppSizeTokens.space6),
+                  Row(
+                    children: [
+                      Icon(
+                        limitInfo.isBlockingNow
+                            ? Icons.block_outlined
+                            : Icons.hourglass_bottom_outlined,
+                        size: 14.sp,
+                        color: remainingColor,
+                      ),
+                      SizedBox(width: AppSizeTokens.space6),
+                      Expanded(
+                        child: Text(
+                          limitInfo.isBlockingNow
+                              ? 'Akses sedang diblokir'
+                              : 'Sisa sebelum dibatasi ${_formatFriendlyDuration(limitInfo.remainingBeforeBlockMs)}',
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: TextStyle(
+                            fontSize: AppSizeTokens.text12,
+                            color: remainingColor,
+                            fontWeight: FontWeight.w700,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
                 if (isActive) ...[
                   SizedBox(height: AppSizeTokens.space6),
                   Row(
@@ -660,6 +1403,51 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                   ),
                 ],
               ],
+            ),
+          ),
+        ],
+      ),
+    );
+
+    if (!isBlocked || !showDailyAllowance) {
+      return tile;
+    }
+
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: () => _showAppDetailSheet(context, row),
+        borderRadius: BorderRadius.circular(AppSizeTokens.radius16),
+        child: tile,
+      ),
+    );
+  }
+
+  Widget _buildBlockedChip() {
+    return Container(
+      padding: EdgeInsets.symmetric(horizontal: 6.w, vertical: 2.h),
+      decoration: BoxDecoration(
+        color: const Color(0xFFE53935).withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(6.r),
+        border: Border.all(
+          color: const Color(0xFFE53935).withValues(alpha: 0.4),
+        ),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(
+            Icons.block_outlined,
+            size: 10.sp,
+            color: const Color(0xFFE53935),
+          ),
+          SizedBox(width: 3.w),
+          Text(
+            'Diblokir',
+            style: TextStyle(
+              fontSize: 10.sp,
+              fontWeight: FontWeight.w600,
+              color: const Color(0xFFE53935),
             ),
           ),
         ],
@@ -851,4 +1639,34 @@ class _AppUsageRow {
   final InstalledFocusApp app;
   final int usageMs;
   final int currentSessionMs;
+}
+
+class _UsageLimitInfo {
+  const _UsageLimitInfo({
+    required this.priority,
+    required this.usageRisk,
+    required this.interventionLevel,
+    required this.isBlockingNow,
+    required this.temporaryBlockMs,
+    required this.remainingBeforeBlockMs,
+  });
+
+  final TodoPriority priority;
+  final String usageRisk;
+  final String interventionLevel;
+  final bool isBlockingNow;
+  final int temporaryBlockMs;
+  final int remainingBeforeBlockMs;
+}
+
+class _RuntimeAdaptiveStatus {
+  const _RuntimeAdaptiveStatus({
+    required this.level,
+    required this.isBlocking,
+    required this.recordedAt,
+  });
+
+  final String level;
+  final bool isBlocking;
+  final DateTime recordedAt;
 }
