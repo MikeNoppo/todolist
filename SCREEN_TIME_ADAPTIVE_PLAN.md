@@ -1,16 +1,18 @@
 # Dokumentasi Implementasi Screen Time dan Rencana Algoritma Adaptif
 
-Tanggal: 8 Mei 2026
+Tanggal awal: 8 Mei 2026
+
+Terakhir diperbarui: 24 Mei 2026
 
 ## Tujuan
 
 Dokumen ini merangkum pekerjaan yang sudah dilakukan untuk mengambil data penggunaan aplikasi dari Android, serta rencana lanjutan untuk membangun algoritma blokir adaptif pada fitur intervensi distraksi digital.
 
-Fokus implementasi saat ini adalah fondasi data penggunaan aplikasi. Integrasi ke algoritma adaptif `AppBlockerService` belum diterapkan dan direncanakan sebagai tahap berikutnya.
+Status terbaru: fondasi data penggunaan aplikasi, policy adaptif native, overlay warning-only, debug health, dan fallback konservatif sudah diterapkan. Bagian yang masih tersisa terutama pengaturan threshold dari UI, riwayat intervensi jangka panjang, dan evaluasi kuantitatif.
 
 ## Ringkasan Implementasi yang Sudah Dilakukan
 
-Pipeline screen time sudah dibuat dari Android native sampai Flutter UI. Data penggunaan aplikasi diambil dari `UsageStatsManager`, bukan dari tracking manual di background.
+Pipeline screen time sudah dibuat dari Android native sampai Flutter UI. Data penggunaan aplikasi diambil dari `UsageStatsManager`, dengan perhitungan utama berdasarkan `UsageEvents` agar lebih dekat ke screen time nyata dan tidak terlalu bergantung pada agregat `totalTimeInForeground`.
 
 Implementasi mencakup:
 
@@ -20,22 +22,39 @@ Implementasi mencakup:
 4. Bridge native ke Flutter melalui `MethodChannel` yang sudah ada.
 5. Service Dart untuk membaca data screen time dan membuat polling sesi aktif setiap 10 detik.
 6. Layar baru di menu Pengaturan untuk melihat data penggunaan aplikasi.
+7. Policy adaptif native untuk menentukan `allow`, `soft_warning`, `strong_warning`, `temporary_block`, dan `hard_block`.
+8. Overlay warning-only yang tidak langsung menutup aplikasi.
+9. Debug health untuk Usage Access, Accessibility Service, dan keputusan adaptif terakhir.
 
 ## File yang Ditambahkan atau Diubah
 
 ### Android Native
 
 - `android/app/src/main/kotlin/com/example/todolist/UsageStatsHelper.kt`
-  - File baru untuk membaca data dari `UsageStatsManager`.
+  - Helper native untuk membaca data dari `UsageStatsManager`.
   - Menyediakan query usage rentang waktu, riwayat harian, dan sesi aktif saat ini.
+  - Perhitungan usage rentang waktu sekarang direkonstruksi dari `UsageEvents` foreground/background dan screen interactive/non-interactive.
+  - `queryUsageStats(...).totalTimeInForeground` hanya dipakai sebagai fallback jika query event gagal.
 
 - `android/app/src/main/kotlin/com/example/todolist/MainActivity.kt`
-  - Menambahkan 3 method channel baru:
+  - Menambahkan beberapa method channel:
     - `getAppUsageStats`
     - `getAppUsageHistory`
     - `getAppCurrentSession`
+    - `getAppCurrentSessions`
+    - `getAdaptiveLimitSummaries`
   - Setiap query dijalankan di `Dispatchers.IO` agar tidak memblokir UI thread.
   - Tetap melakukan pengecekan izin Usage Access sebelum query data.
+  - Menambahkan `EventChannel` `app_blocker/adaptive_intervention_events` untuk update runtime keputusan adaptif.
+
+- `android/app/src/main/kotlin/com/example/todolist/AdaptiveInterventionPolicy.kt`
+  - Menentukan level intervensi adaptif native.
+  - Menggabungkan prioritas tugas, sesi aktif, usage hari ini, histori 7 hari, risk profile, dan warning count.
+  - Menyimpan debug decision dan menerbitkan event runtime adaptif.
+
+- `android/app/src/main/kotlin/com/example/todolist/InterventionOverlayManager.kt`
+  - Menambahkan mode warning-only melalui `showWarning`.
+  - Warning-only overlay menyediakan tombol `Kembali ke Tugas` dan `Lanjut 5 menit`.
 
 - `android/app/build.gradle.kts`
   - Menambahkan dependency `kotlinx-coroutines-android` untuk menjalankan query native secara asynchronous.
@@ -52,6 +71,8 @@ Implementasi mencakup:
     - `getAppUsageStats`
     - `getAppUsageHistory`
     - `getAppCurrentSession`
+    - `getAppCurrentSessions`
+    - `getAdaptiveLimitSummaries`
   - Menangani kondisi `PERMISSION_DENIED` secara aman.
 
 - `lib/services/usage_stats_service.dart`
@@ -71,8 +92,12 @@ Implementasi mencakup:
     - sesi aktif saat ini
     - daftar usage per aplikasi
     - riwayat 7 hari terakhir
+    - status batas adaptif, risk profile, sisa waktu sebelum dibatasi, dan status runtime adaptif
   - Mendukung pull-to-refresh.
   - Menampilkan prompt jika izin Usage Access belum diberikan.
+
+- `lib/screens/settings/debug_settings_screen.dart`
+  - Menampilkan keputusan adaptif terakhir dan health service native.
 
 - `lib/screens/settings/settings_screen.dart`
   - Menambahkan menu `Penggunaan Aplikasi` di halaman Pengaturan.
@@ -129,8 +154,10 @@ Map<String, int>
 Format output:
 
 ```text
-packageName -> totalTimeInForeground dalam milidetik
+packageName -> durasi penggunaan foreground dalam milidetik
 ```
+
+Catatan: durasi utama dihitung dari `UsageEvents` foreground/background dan screen interactive/non-interactive. Agregat `totalTimeInForeground` dipakai sebagai fallback jika event query gagal.
 
 ### `getAppUsageHistory`
 
@@ -152,8 +179,10 @@ Map<String, Map<String, int>>
 Format output:
 
 ```text
-tanggal yyyy-MM-dd -> packageName -> totalTimeInForeground ms
+tanggal yyyy-MM-dd -> packageName -> durasi penggunaan foreground ms
 ```
+
+Catatan: sama seperti `getAppUsageStats`, riwayat harian memakai hasil rekonstruksi event, bukan langsung mempercayai agregat `totalTimeInForeground`.
 
 ### `getAppCurrentSession`
 
@@ -177,6 +206,54 @@ Format output:
 durasi sesi aktif saat ini dalam milidetik
 ```
 
+### `getAppCurrentSessions`
+
+Mengambil durasi sesi aktif saat ini untuk beberapa package sekaligus.
+
+Input:
+
+```text
+packageNames: List<String>
+```
+
+Output:
+
+```text
+Map<String, int>
+```
+
+Format output:
+
+```text
+packageName -> durasi sesi aktif saat ini dalam milidetik
+```
+
+### `getAdaptiveLimitSummaries`
+
+Mengambil ringkasan batas adaptif untuk daftar aplikasi yang sedang masuk block list dan prioritas tugas aktif.
+
+Input:
+
+```text
+packageNames: List<String>
+priority: String
+```
+
+Output:
+
+```text
+List<Map<String, Object>>
+```
+
+Field utama:
+
+```text
+packageName, priority, usageRisk, currentSessionMs, todayUsageMs,
+averageDailyUsageMs, activeDays, maxDailyUsageMs, interventionLevel,
+isBlockingNow, temporaryBlockMs, sessionHardMs, dailyHardMs,
+remainingBeforeBlockMs, remainingSessionMs, remainingDailyMs
+```
+
 ## Permission Handling
 
 Izin yang digunakan:
@@ -194,7 +271,7 @@ Karena izin ini adalah protected permission, aplikasi tidak bisa meminta izin me
 
 ## Verifikasi yang Sudah Dilakukan
 
-Perintah yang sudah dijalankan:
+Perintah yang pernah dijalankan pada tahap awal:
 
 ```bash
 flutter analyze
@@ -224,13 +301,35 @@ Hasil: sukses, APK debug berhasil dibuat di:
 build/app/outputs/flutter-apk/app-debug.apk
 ```
 
+Verifikasi terbaru setelah perubahan UsageEvents dan status adaptif:
+
+```bash
+flutter analyze
+```
+
+Hasil: sukses, tidak ada issue.
+
+```bash
+flutter test
+```
+
+Hasil: sukses, 131 test passed.
+
+```bash
+$env:JAVA_HOME = 'D:\Android Studio\jbr'; ./gradlew.bat :app:compileDebugKotlin --stacktrace --no-daemon
+```
+
+Hasil: sukses, Kotlin compile berhasil. Ada warning deprecated untuk konstanta Android lama `MOVE_TO_FOREGROUND` dan `MOVE_TO_BACKGROUND`, tetapi build tetap sukses.
+
 ## Batasan Implementasi Saat Ini
 
-1. Data real-time masih berbasis polling setiap 10 detik, bukan `EventChannel` native.
-2. Algoritma adaptif belum dihubungkan ke `AppBlockerService`.
-3. Overlay peringatan tanpa menutup aplikasi belum dibuat.
-4. Threshold adaptif seperti 10 menit peringatan dan 1 jam blokir belum diterapkan.
-5. Data saat ini dipakai untuk visualisasi dan fondasi logika, belum untuk pengambilan keputusan blokir.
+1. Data sesi aktif di UI masih berbasis polling setiap 10 detik.
+2. `EventChannel` sudah ada untuk event keputusan adaptif runtime, tetapi belum menjadi stream native khusus screen time.
+3. Adaptive blocking utama sudah berjalan di native Accessibility Service, sedangkan `AppBlockerService.evaluateInterventionForApp` di Dart masih bersifat pendukung/legacy dan belum menjadi sumber enforcement utama.
+4. Threshold adaptif masih rule-based dan hardcoded di native, belum bisa diatur dari UI.
+5. Belum ada riwayat intervensi jangka panjang; debug saat ini menyimpan keputusan terakhir dan event runtime terbaru.
+6. Belum ada evaluasi kuantitatif sebelum/sesudah adaptive blocking.
+7. Belum ada pembedaan threshold berdasarkan kategori aplikasi sosial vs game.
 
 ## Rencana Algoritma Blokir Adaptif
 
@@ -492,49 +591,59 @@ Rekomendasi: gunakan kombinasi AccessibilityService untuk deteksi foreground dan
 
 ### Tahap 1: Warning-only Overlay
 
-- Tambahkan tipe overlay `warningOnly`.
-- Overlay tidak memanggil tombol home/back otomatis.
-- User bisa lanjut menggunakan app.
-- Simpan timestamp warning terakhir.
+- Status: selesai.
+- Tipe overlay warning-only sudah dibuat di `InterventionOverlayManager.showWarning`.
+- Overlay warning tidak langsung memanggil Home.
+- User bisa memilih `Lanjut 5 menit` atau `Kembali ke Tugas`.
+- Timestamp warning terakhir dan warning count disimpan per package.
 
 ### Tahap 2: Policy Adaptif Statis
 
-- Tambahkan threshold hardcoded untuk high/medium/low.
-- Pakai `currentSessionMs` dan `todayUsageMs`.
-- Output keputusan: allow, warning, block.
+- Status: selesai untuk rule-based native awal.
+- Threshold hardcoded high/medium/low sudah ada.
+- Policy memakai `currentSessionMs`, `todayUsageMs`, rata-rata histori, risk profile, dan warning count.
+- Output keputusan sudah bertingkat: `allow`, `soft_warning`, `strong_warning`, `temporary_block`, `hard_block`.
 
 ### Tahap 3: Integrasi ke AppBlockerService
 
+- Status: sebagian selesai.
 - `AppBlockerService.shouldBlockApp` tetap ada untuk kompatibilitas.
-- Tambahkan method baru seperti `evaluateInterventionForApp`.
-- Method baru mengembalikan level intervensi, bukan boolean saja.
+- `evaluateInterventionForApp` sudah ada di Dart, tetapi enforcement utama sekarang berada di native `AppBlockerAccessibilityService`.
+- Keputusan adaptif native dibaca dari `AdaptiveInterventionPolicy.evaluate` dan langsung diarahkan ke warning/block overlay.
 
 ### Tahap 4: Sinkronisasi Native
 
-- Simpan keputusan adaptif ke SharedPreferences agar native service bisa membaca cepat.
-- Atau tambahkan method channel khusus sinkronisasi policy dari Flutter ke native.
+- Status: sebagian selesai.
+- Keputusan adaptif terakhir disimpan ke SharedPreferences untuk debug Flutter.
+- Native menerbitkan event runtime melalui `app_blocker/adaptive_intervention_events`.
+- Sinkronisasi konfigurasi threshold dari Flutter ke native belum ada.
 
 ### Tahap 5: Settings Threshold
 
-- Tambahkan UI untuk mengatur batas warning dan hard-block.
-- Default tetap konservatif agar user tidak langsung terblokir.
+- Status: belum selesai.
+- UI untuk mengatur batas warning dan hard-block belum ada.
+- Default masih hardcoded dan konservatif di native.
 
 ### Tahap 6: Evaluasi dan Logging
 
-- Tambahkan debug info:
+- Status: sebagian selesai.
+- Debug info keputusan terakhir sudah ada:
   - package name
-  - priority
   - session duration
   - today usage
+  - average daily usage
+  - warning count
   - decision level
   - reason
-- Tampilkan di halaman debug agar mudah diuji untuk kebutuhan tugas akhir.
+  - Usage Access availability
+- Health native Accessibility Service juga sudah tampil di halaman Debug.
+- Riwayat banyak event dan ekspor data evaluasi belum ada.
 
 ## Kesimpulan
 
-Fondasi data screen time sudah siap. Aplikasi sekarang bisa membaca data penggunaan aplikasi dari Android secara native, mengirimkannya ke Flutter, menampilkannya di layar Penggunaan Aplikasi, dan melakukan polling sesi aktif.
+Fondasi data screen time sudah siap dan sudah diperkuat. Aplikasi sekarang bisa membaca data penggunaan aplikasi dari Android secara native, menghitung usage dari `UsageEvents`, mengirimkannya ke Flutter, menampilkannya di layar Penggunaan Aplikasi, dan melakukan polling sesi aktif.
 
-Tahap berikutnya adalah mengubah keputusan blokir dari boolean sederhana menjadi keputusan bertingkat. Dengan begitu, aplikasi bisa memberikan ruang relaksasi singkat kepada user, tetapi tetap melakukan hard-block ketika penggunaan aplikasi distraksi melewati batas yang tidak sehat saat ada tugas berurgensi tinggi.
+Keputusan blokir juga sudah berubah dari boolean sederhana menjadi keputusan bertingkat di native. Dengan begitu, aplikasi bisa memberikan ruang relaksasi singkat kepada user melalui warning-only overlay, tetapi tetap melakukan hard-block ketika penggunaan aplikasi distraksi melewati batas saat ada tugas berurgensi tinggi.
 
 ## Update Implementasi Algoritma Adaptif
 
@@ -712,6 +821,7 @@ Pendekatan ini cocok untuk tahap awal tugas akhir karena:
 4. Bedakan threshold berdasarkan kategori aplikasi sosial dan game.
 5. Tambahkan mekanisme recovery positif, misalnya warning count turun setelah user menyelesaikan tugas.
 6. Tambahkan evaluasi kuantitatif, misalnya membandingkan total penggunaan aplikasi distraksi sebelum dan sesudah adaptive blocking aktif.
+7. Tambahkan banner health di Home/Settings jika Usage Access atau Accessibility Service belum aktif.
 
 ## Update Mekanisme Health dan Fallback
 
@@ -794,3 +904,53 @@ Dengan tambahan ini, pengujian di perangkat nyata bisa menjawab pertanyaan berik
 ### Catatan Lanjutan
 
 Tahap berikutnya yang masih bisa ditambahkan adalah recovery UX yang lebih eksplisit di halaman Home atau Settings, misalnya banner `Intervensi belum aktif` jika Accessibility Service mati atau heartbeat terlalu lama. Saat ini status tersebut sudah tersedia di Debug dan izin utama sudah tetap bisa dikelola dari halaman `Izin Aplikasi`.
+
+## Update Status Terkini
+
+Tanggal: 24 Mei 2026
+
+Dokumen ini diperbarui untuk mencerminkan implementasi yang sudah masuk setelah tahap awal adaptive blocking dan perbaikan akurasi screen time.
+
+### Sudah Dilakukan
+
+1. Screen time Android native sampai Flutter UI.
+2. Query usage hari ini dan riwayat 7 hari.
+3. Query sesi aktif per app dan batch beberapa app.
+4. Perhitungan usage rentang waktu berbasis `UsageEvents`.
+5. Filter screen interactive/non-interactive untuk mengurangi risiko screen-off ikut terhitung.
+6. Fallback ke `queryUsageStats.totalTimeInForeground` jika event query gagal.
+7. Handling rollover tengah malam dengan event `CONTINUE_PREVIOUS_DAY` dan `END_OF_DAY`.
+8. Policy adaptif native di `AdaptiveInterventionPolicy.kt`.
+9. Level intervensi `allow`, `soft_warning`, `strong_warning`, `temporary_block`, dan `hard_block`.
+10. Threshold high/medium/low yang diskalakan berdasarkan risk profile historis.
+11. Warning cooldown 5 menit dan reset warning setelah 2 jam.
+12. Fallback konservatif saat Usage Access tidak tersedia.
+13. Integrasi adaptive decision ke `AppBlockerAccessibilityService`.
+14. Warning-only overlay tanpa langsung menutup aplikasi.
+15. Hard-block overlay tetap mengarahkan user keluar dari aplikasi distraksi.
+16. Watchdog singkat setelah overlay block ditutup untuk mencegah re-entry langsung.
+17. Debug keputusan adaptif terakhir di halaman Debug.
+18. Debug health Accessibility Service dan Usage Access availability.
+19. Runtime adaptive event channel `app_blocker/adaptive_intervention_events`.
+20. Ringkasan limit adaptif di layar Penggunaan Aplikasi.
+
+### Belum Dilakukan
+
+1. UI setting untuk menyalakan/mematikan mode adaptif secara eksplisit.
+2. UI setting untuk mengatur threshold warning, temporary block, dan hard block.
+3. Sinkronisasi threshold custom dari Flutter ke native.
+4. Riwayat intervensi multi-event yang bisa diekspor atau dianalisis.
+5. Evaluasi kuantitatif sebelum/sesudah adaptive blocking.
+6. Pembedaan threshold berdasarkan kategori app sosial vs game.
+7. Mekanisme recovery positif, misalnya warning count turun setelah user menyelesaikan tugas.
+8. Banner health eksplisit di Home/Settings saat Accessibility Service atau Usage Access bermasalah.
+9. Native stream khusus screen time real-time; UI sesi aktif masih polling 10 detik.
+10. Pengujian perangkat nyata untuk kasus edge OEM spesifik seperti game yang dilaporkan aktif sejak tengah malam.
+
+### Prioritas Berikutnya
+
+1. Tambahkan UI toggle mode adaptif dan pastikan key `adaptive_intervention_enabled` bisa dikelola user.
+2. Tambahkan settings threshold sederhana dengan default konservatif.
+3. Tambahkan log riwayat intervensi minimal: package, level, timestamp, task priority, sessionMs, todayMs, dan action user.
+4. Tambahkan banner health jika Usage Access atau Accessibility Service tidak aktif.
+5. Uji di perangkat Android nyata untuk app game dan sosial yang sering dipakai.
