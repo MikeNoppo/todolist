@@ -45,7 +45,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
   Map<String, int> _currentSessions = {};
   Map<String, AdaptiveLimitSummary> _adaptiveLimitSummaries = {};
   final Map<String, _RuntimeAdaptiveStatus> _runtimeAdaptiveStatuses = {};
-  Set<String> _blockedPackages = {};
+  Set<String> _monitoredPackages = {};
   InterventionDebugInfo? _debugInfo;
   _ScreenTimeView _selectedView = _ScreenTimeView.today;
   bool _isLoading = true;
@@ -97,7 +97,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
           _usageHistory = {};
           _currentSessions = {};
           _adaptiveLimitSummaries = {};
-          _blockedPackages = {};
+          _monitoredPackages = {};
           _debugInfo = null;
           _isLoading = false;
         });
@@ -115,11 +115,16 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
         packageNames: packageNames,
       );
       final debugInfo = await AppBlockerService.getInterventionDebugInfo();
-      final blockedPackages = debugInfo.blockedPackages
-          .where(packageNames.contains)
-          .toSet();
+      final alwaysAllowedPackages = debugInfo.alwaysAllowedPackages.toSet();
+      final monitoredPackages = debugInfo.nextTaskPriority == null
+          ? <String>{}
+          : packageNames
+                .where(
+                  (packageName) => !alwaysAllowedPackages.contains(packageName),
+                )
+                .toSet();
       final adaptiveLimitSummaries = await _loadAdaptiveLimitSummaries(
-        blockedPackages: blockedPackages,
+        monitoredPackages: monitoredPackages,
         priority: debugInfo.nextTaskPriority,
       );
 
@@ -130,7 +135,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
         _trackedApps = trackedApps;
         _todayStats = todayStats;
         _usageHistory = usageHistory;
-        _blockedPackages = blockedPackages;
+        _monitoredPackages = monitoredPackages;
         _adaptiveLimitSummaries = adaptiveLimitSummaries;
         _debugInfo = debugInfo;
         _isLoading = false;
@@ -161,15 +166,15 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
   }
 
   Future<Map<String, AdaptiveLimitSummary>> _loadAdaptiveLimitSummaries({
-    required Set<String> blockedPackages,
+    required Set<String> monitoredPackages,
     required TodoPriority? priority,
   }) async {
-    if (blockedPackages.isEmpty || priority == null) {
+    if (monitoredPackages.isEmpty || priority == null) {
       return {};
     }
 
     return PermissionService.getAdaptiveLimitSummaries(
-      packageNames: blockedPackages.toList(),
+      packageNames: monitoredPackages.toList(),
       priority: _priorityValue(priority),
     );
   }
@@ -207,8 +212,17 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
         packageNames,
       );
       final priority = _debugInfo?.nextTaskPriority;
+      final alwaysAllowedPackages =
+          _debugInfo?.alwaysAllowedPackages.toSet() ?? {};
+      final monitoredPackages = priority == null
+          ? <String>{}
+          : packageNames
+                .where(
+                  (packageName) => !alwaysAllowedPackages.contains(packageName),
+                )
+                .toSet();
       final adaptiveLimitSummaries = await _loadAdaptiveLimitSummaries(
-        blockedPackages: _blockedPackages,
+        monitoredPackages: monitoredPackages,
         priority: priority,
       );
 
@@ -216,6 +230,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
 
       setState(() {
         _todayStats = todayStats;
+        _monitoredPackages = monitoredPackages;
         _adaptiveLimitSummaries = adaptiveLimitSummaries;
       });
       _runtimeDecisionVersion.value++;
@@ -266,7 +281,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
   }
 
   _UsageLimitInfo? _usageLimitInfoForRow(_AppUsageRow row) {
-    if (!_blockedPackages.contains(row.app.packageName)) {
+    if (!_monitoredPackages.contains(row.app.packageName)) {
       return null;
     }
 
@@ -1335,7 +1350,7 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
   }) {
     final accentColor = _getCategoryAccentColor(row.app.category);
     final isActive = row.currentSessionMs > 0;
-    final isBlocked = _blockedPackages.contains(row.app.packageName);
+    final isBlocked = _monitoredPackages.contains(row.app.packageName);
     final showDailyAllowance = _selectedView == _ScreenTimeView.today;
     final limitInfo = showDailyAllowance ? _usageLimitInfoForRow(row) : null;
     final statusColor = historySummaryText == null
