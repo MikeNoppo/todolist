@@ -153,10 +153,6 @@ class AppBlockerService {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      final isBlockedByUser = _isAppBlockedByUserSettings(
-        prefs: prefs,
-        packageName: packageName,
-      );
       final isWhitelisted =
           prefs.getBool('$allowKeyPrefix$packageName') ?? false;
 
@@ -179,7 +175,6 @@ class AppBlockerService {
       return policy.evaluateAdaptiveBlock(
         packageName: packageName,
         isWhitelisted: isWhitelisted,
-        isBlockedByUser: isBlockedByUser,
         hasActiveTask: hasActiveTask,
         activeTaskPriority: activeTaskPriority,
         currentSessionMs: currentSessionMs,
@@ -205,12 +200,7 @@ class AppBlockerService {
     try {
       final prefs = await SharedPreferences.getInstance();
 
-      final shouldBlockThisApp = _isAppBlockedByUserSettings(
-        prefs: prefs,
-        packageName: packageName,
-      );
-
-      if (!shouldBlockThisApp) {
+      if (_isAppWhitelisted(prefs: prefs, packageName: packageName)) {
         return false;
       }
 
@@ -402,25 +392,11 @@ class AppBlockerService {
     }
   }
 
-  static bool _isAppBlockedByUserSettings({
+  static bool _isAppWhitelisted({
     required SharedPreferences prefs,
     required String packageName,
   }) {
-    final isAlwaysAllowed =
-        prefs.getBool('$allowKeyPrefix$packageName') ?? false;
-    if (isAlwaysAllowed) {
-      return false;
-    }
-
-    final hasAnyUserConfig = prefs.getKeys().any(
-      (key) => key.startsWith(blockKeyPrefix),
-    );
-
-    if (hasAnyUserConfig) {
-      return prefs.getBool('$blockKeyPrefix$packageName') ?? false;
-    }
-
-    return false;
+    return prefs.getBool('$allowKeyPrefix$packageName') ?? false;
   }
 
   static Future<bool> _hasUrgentTaskWithinWindow(

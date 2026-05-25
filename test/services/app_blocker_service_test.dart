@@ -36,7 +36,22 @@ void main() {
       expect(debugInfo.alwaysAllowedPackages, isEmpty);
     });
 
-    test('does not block apps by default on fresh install', () async {
+    test('does not block apps when there is no urgent task', () async {
+      final laterTodo = createTodo(
+        deadline: DateTime.now().add(const Duration(days: 2)),
+      );
+      SharedPreferences.setMockInitialValues({
+        'todos': jsonEncode([laterTodo.toJson()]),
+      });
+
+      final shouldBlock = await AppBlockerService.shouldBlockApp(
+        'com.instagram.android',
+      );
+
+      expect(shouldBlock, isFalse);
+    });
+
+    test('monitors apps automatically when urgent task exists', () async {
       final urgentTodo = createTodo(
         deadline: DateTime.now().add(const Duration(minutes: 30)),
       );
@@ -48,10 +63,10 @@ void main() {
         'com.instagram.android',
       );
 
-      expect(shouldBlock, isFalse);
+      expect(shouldBlock, isTrue);
     });
 
-    test('blocks explicitly enabled app when urgent task exists', () async {
+    test('continues to support legacy explicit block prefs', () async {
       final urgentTodo = createTodo(
         deadline: DateTime.now().add(const Duration(minutes: 30)),
       );
@@ -67,13 +82,12 @@ void main() {
       expect(shouldBlock, isTrue);
     });
 
-    test('whitelist overrides explicit block', () async {
+    test('whitelist overrides automatic monitoring', () async {
       final urgentTodo = createTodo(
         deadline: DateTime.now().add(const Duration(minutes: 30)),
       );
       SharedPreferences.setMockInitialValues({
         'todos': jsonEncode([urgentTodo.toJson()]),
-        'block_com.instagram.android': true,
         'allow_com.instagram.android': true,
       });
 

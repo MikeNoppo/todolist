@@ -25,7 +25,6 @@ class AdaptiveInterventionPolicy {
   AdaptiveInterventionDecision evaluateAdaptiveBlock({
     required String packageName,
     required bool isWhitelisted,
-    required bool isBlockedByUser,
     required bool hasActiveTask,
     TodoPriority? activeTaskPriority,
     required int currentSessionMs,
@@ -35,14 +34,6 @@ class AdaptiveInterventionPolicy {
       return const AdaptiveInterventionDecision(
         level: InterventionLevel.allow,
         reason: 'App is whitelisted',
-        message: '',
-      );
-    }
-
-    if (!isBlockedByUser) {
-      return const AdaptiveInterventionDecision(
-        level: InterventionLevel.allow,
-        reason: 'App is not in user block list',
         message: '',
       );
     }
