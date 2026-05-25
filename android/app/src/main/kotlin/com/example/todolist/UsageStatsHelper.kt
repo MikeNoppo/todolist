@@ -18,9 +18,10 @@ object UsageStatsHelper {
     private const val DEFAULT_HISTORY_DAYS = 7
     private const val MAX_HISTORY_DAYS = 31
     private const val MILLIS_PER_SECOND = 1000L
-    private const val RANGED_USAGE_QUERY_CHUNK_MS = 60L * 60L * MILLIS_PER_SECOND
-    private const val MIN_RANGED_USAGE_QUERY_CHUNK_MS = 60L * MILLIS_PER_SECOND
-    private const val INITIAL_STATE_LOOKBACK_MS = 24L * 60L * 60L * MILLIS_PER_SECOND
+    // Android emits these rollover event types, but they are not public constants on every SDK.
+    private const val EVENT_TYPE_END_OF_DAY = 3
+    private const val EVENT_TYPE_CONTINUE_PREVIOUS_DAY = 4
+    private const val SCREEN_STATE_LOOKBACK_MS = 24L * 60L * 60L * MILLIS_PER_SECOND
     private const val CURRENT_SESSION_QUERY_CHUNK_MS = 15L * 60L * MILLIS_PER_SECOND
     private const val MIN_CURRENT_SESSION_QUERY_CHUNK_MS = 60L * MILLIS_PER_SECOND
 
@@ -29,10 +30,9 @@ object UsageStatsHelper {
         val timestampMs: Long
     )
 
-    private data class PackageSessionBoundaryEvent(
-        val packageName: String,
-        val eventType: Int,
-        val timestampMs: Long
+    private data class ScreenInteractiveState(
+        val isInteractive: Boolean,
+        val isKnown: Boolean
     )
 
     fun todayStartMs(): Long {
@@ -100,181 +100,215 @@ object UsageStatsHelper {
             Context.USAGE_STATS_SERVICE
         ) as? UsageStatsManager ?: return emptyMap()
 
-        val totals = linkedMapOf<String, Long>()
-        val activeSinceByPackage = mutableMapOf<String, Long>()
-
-        val initialStateStartMs = max(0L, startMs - INITIAL_STATE_LOOKBACK_MS)
-        val latestInitialEvents = queryLatestSessionEvents(
-            usageStatsManager = usageStatsManager,
-            targetPackages = targetPackages,
-            startMs = initialStateStartMs,
-            endMs = startMs
-        )
-
-        for ((packageName, event) in latestInitialEvents) {
-            if (isForegroundEvent(event.eventType)) {
-                activeSinceByPackage[packageName] = startMs
-            }
-        }
-
-        queryRangedSessionEvents(
-            usageStatsManager = usageStatsManager,
-            targetPackages = targetPackages,
-            startMs = startMs,
-            endMs = endMs
-        ).forEach { event ->
-            applySessionBoundaryEvent(
-                event = event,
-                rangeEndMs = endMs,
-                totals = totals,
-                activeSinceByPackage = activeSinceByPackage
-            )
-        }
-
-        for ((packageName, activeSinceMs) in activeSinceByPackage) {
-            addUsageDuration(
-                packageName = packageName,
-                startMs = activeSinceMs,
-                endMs = endMs,
-                totals = totals
-            )
-        }
-
-        return totals.filterValues { it > 0L }
-    }
-
-    private fun queryRangedSessionEvents(
-        usageStatsManager: UsageStatsManager,
-        targetPackages: Set<String>,
-        startMs: Long,
-        endMs: Long
-    ): List<PackageSessionBoundaryEvent> {
-        if (targetPackages.isEmpty() || startMs >= endMs) {
-            return emptyList()
-        }
-
-        val result = mutableListOf<PackageSessionBoundaryEvent>()
-        var chunkStartMs = startMs
-
-        while (chunkStartMs < endMs) {
-            val chunkEndMs = min(endMs, chunkStartMs + RANGED_USAGE_QUERY_CHUNK_MS)
-            result.addAll(
-                querySessionEventsChunk(
-                    usageStatsManager = usageStatsManager,
-                    targetPackages = targetPackages,
-                    startMs = chunkStartMs,
-                    endMs = chunkEndMs
-                )
-            )
-            chunkStartMs = chunkEndMs
-        }
-
-        return result
-    }
-
-    private fun querySessionEventsChunk(
-        usageStatsManager: UsageStatsManager,
-        targetPackages: Set<String>,
-        startMs: Long,
-        endMs: Long
-    ): List<PackageSessionBoundaryEvent> {
-        if (targetPackages.isEmpty() || startMs >= endMs) {
-            return emptyList()
-        }
-
         return try {
-            readSessionEvents(
+            // Reconstruct usage from events to avoid stale foreground aggregates counting screen-off time.
+            queryRangedUsageFromEvents(
                 usageStatsManager = usageStatsManager,
                 targetPackages = targetPackages,
                 startMs = startMs,
                 endMs = endMs
             )
         } catch (error: Throwable) {
-            val durationMs = endMs - startMs
-            if (durationMs <= MIN_RANGED_USAGE_QUERY_CHUNK_MS) {
-                Log.w(TAG, "Skipping ranged usage events chunk after Binder failure.", error)
-                emptyList()
-            } else {
-                val midpointMs = startMs + durationMs / 2L
-                querySessionEventsChunk(
-                    usageStatsManager = usageStatsManager,
-                    targetPackages = targetPackages,
-                    startMs = startMs,
-                    endMs = midpointMs
-                ) + querySessionEventsChunk(
-                    usageStatsManager = usageStatsManager,
-                    targetPackages = targetPackages,
-                    startMs = midpointMs,
-                    endMs = endMs
-                )
-            }
+            Log.w(TAG, "Falling back to aggregated usage stats after event query failure.", error)
+            queryRangedUsageFromStats(
+                usageStatsManager = usageStatsManager,
+                targetPackages = targetPackages,
+                startMs = startMs,
+                endMs = endMs
+            )
         }
     }
 
-    private fun readSessionEvents(
+    private fun queryRangedUsageFromStats(
         usageStatsManager: UsageStatsManager,
         targetPackages: Set<String>,
         startMs: Long,
         endMs: Long
-    ): List<PackageSessionBoundaryEvent> {
-        val events = usageStatsManager.queryEvents(startMs, endMs) ?: return emptyList()
-        val result = mutableListOf<PackageSessionBoundaryEvent>()
+    ): Map<String, Long> {
+        if (targetPackages.isEmpty() || startMs >= endMs) {
+            return emptyMap()
+        }
+
+        val usageStats = usageStatsManager.queryUsageStats(
+            UsageStatsManager.INTERVAL_BEST,
+            startMs,
+            endMs
+        ) ?: return emptyMap()
+
+        val totals = linkedMapOf<String, Long>()
+        for (stat in usageStats) {
+            val packageName = stat.packageName ?: continue
+            if (!targetPackages.contains(packageName)) {
+                continue
+            }
+
+            val foregroundMs = stat.totalTimeInForeground
+            if (foregroundMs <= 0L) {
+                continue
+            }
+
+            totals[packageName] = (totals[packageName] ?: 0L) + foregroundMs
+        }
+
+        return totals
+    }
+
+    private fun queryRangedUsageFromEvents(
+        usageStatsManager: UsageStatsManager,
+        targetPackages: Set<String>,
+        startMs: Long,
+        endMs: Long
+    ): Map<String, Long> {
+        if (targetPackages.isEmpty() || startMs >= endMs) {
+            return emptyMap()
+        }
+
+        val totals = linkedMapOf<String, Long>()
+        val foregroundStarts = mutableMapOf<String, Long>()
+        val screenStateAtStart = queryScreenInteractiveAtStart(usageStatsManager, startMs)
+        var isScreenInteractive = screenStateAtStart.isInteractive
+        val events = usageStatsManager.queryEvents(startMs, endMs)
+            ?: error("Usage events unavailable.")
         val event = UsageEvents.Event()
 
         while (events.hasNextEvent()) {
             events.getNextEvent(event)
+            val eventTimeMs = event.timeStamp.coerceIn(startMs, endMs)
+            val eventType = event.eventType
 
-            val eventPackageName = event.packageName ?: continue
-            if (!targetPackages.contains(eventPackageName) ||
-                !isSessionBoundaryEvent(event.eventType)
-            ) {
-                continue
+            when {
+                isScreenInteractiveEvent(eventType) -> {
+                    if (!isScreenInteractive) {
+                        isScreenInteractive = true
+                        resetForegroundStarts(foregroundStarts, eventTimeMs)
+                    }
+                }
+                isScreenNonInteractiveEvent(eventType) -> {
+                    if (isScreenInteractive) {
+                        addForegroundElapsed(totals, foregroundStarts, eventTimeMs)
+                        isScreenInteractive = false
+                    }
+                }
+                isContinuationEvent(eventType) -> {
+                    val eventPackageName = event.packageName ?: continue
+                    val canTrustContinuation = Build.VERSION.SDK_INT < Build.VERSION_CODES.Q ||
+                        screenStateAtStart.isKnown
+                    if (canTrustContinuation &&
+                        targetPackages.contains(eventPackageName) &&
+                        !foregroundStarts.containsKey(eventPackageName)
+                    ) {
+                        foregroundStarts[eventPackageName] = eventTimeMs
+                    }
+                }
+                isEndOfDayEvent(eventType) -> {
+                    val eventPackageName = event.packageName ?: continue
+                    if (!targetPackages.contains(eventPackageName)) {
+                        continue
+                    }
+
+                    if (isScreenInteractive) {
+                        addForegroundElapsed(
+                            totals,
+                            foregroundStarts,
+                            eventPackageName,
+                            eventTimeMs
+                        )
+                    }
+                    foregroundStarts.remove(eventPackageName)
+                }
+                isSessionBoundaryEvent(eventType) -> {
+                    val eventPackageName = event.packageName ?: continue
+                    if (!targetPackages.contains(eventPackageName)) {
+                        continue
+                    }
+
+                    if (isForegroundEvent(eventType)) {
+                        if (!foregroundStarts.containsKey(eventPackageName)) {
+                            foregroundStarts[eventPackageName] = eventTimeMs
+                        }
+                    } else if (isBackgroundEvent(eventType)) {
+                        if (isScreenInteractive) {
+                            addForegroundElapsed(
+                                totals,
+                                foregroundStarts,
+                                eventPackageName,
+                                eventTimeMs
+                            )
+                        }
+                        foregroundStarts.remove(eventPackageName)
+                    }
+                }
             }
-
-            result.add(
-                PackageSessionBoundaryEvent(
-                    packageName = eventPackageName,
-                    eventType = event.eventType,
-                    timestampMs = event.timeStamp
-                )
-            )
         }
 
-        return result
+        if (isScreenInteractive) {
+            addForegroundElapsed(totals, foregroundStarts, endMs)
+        }
+
+        return totals.filterValues { usageMs -> usageMs > 0L }
     }
 
-    private fun applySessionBoundaryEvent(
-        event: PackageSessionBoundaryEvent,
-        rangeEndMs: Long,
+    private fun queryScreenInteractiveAtStart(
+        usageStatsManager: UsageStatsManager,
+        startMs: Long
+    ): ScreenInteractiveState {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            return ScreenInteractiveState(isInteractive = true, isKnown = false)
+        }
+
+        val lookbackStartMs = max(0L, startMs - SCREEN_STATE_LOOKBACK_MS)
+        if (lookbackStartMs >= startMs) {
+            return ScreenInteractiveState(isInteractive = true, isKnown = false)
+        }
+
+        val events = usageStatsManager.queryEvents(lookbackStartMs, startMs)
+            ?: return ScreenInteractiveState(isInteractive = true, isKnown = false)
+        val event = UsageEvents.Event()
+        var isScreenInteractive: Boolean? = null
+
+        while (events.hasNextEvent()) {
+            events.getNextEvent(event)
+            when {
+                isScreenInteractiveEvent(event.eventType) -> isScreenInteractive = true
+                isScreenNonInteractiveEvent(event.eventType) -> isScreenInteractive = false
+            }
+        }
+
+        return isScreenInteractive?.let {
+            ScreenInteractiveState(isInteractive = it, isKnown = true)
+        } ?: ScreenInteractiveState(isInteractive = true, isKnown = false)
+    }
+
+    private fun addForegroundElapsed(
         totals: MutableMap<String, Long>,
-        activeSinceByPackage: MutableMap<String, Long>
+        foregroundStarts: Map<String, Long>,
+        endMs: Long
     ) {
-        if (isForegroundEvent(event.eventType)) {
-            activeSinceByPackage.putIfAbsent(event.packageName, event.timestampMs)
-            return
+        for (packageName in foregroundStarts.keys) {
+            addForegroundElapsed(totals, foregroundStarts, packageName, endMs)
         }
-
-        val activeSinceMs = activeSinceByPackage.remove(event.packageName) ?: return
-        addUsageDuration(
-            packageName = event.packageName,
-            startMs = activeSinceMs,
-            endMs = min(event.timestampMs, rangeEndMs),
-            totals = totals
-        )
     }
 
-    private fun addUsageDuration(
+    private fun addForegroundElapsed(
+        totals: MutableMap<String, Long>,
+        foregroundStarts: Map<String, Long>,
         packageName: String,
-        startMs: Long,
-        endMs: Long,
-        totals: MutableMap<String, Long>
+        endMs: Long
     ) {
-        val durationMs = (endMs - startMs).coerceAtLeast(0L)
-        if (durationMs <= 0L) {
-            return
+        val startMs = foregroundStarts[packageName] ?: return
+        val elapsedMs = endMs - startMs
+        if (elapsedMs > 0L) {
+            totals[packageName] = (totals[packageName] ?: 0L) + elapsedMs
         }
+    }
 
-        totals[packageName] = (totals[packageName] ?: 0L) + durationMs
+    private fun resetForegroundStarts(
+        foregroundStarts: MutableMap<String, Long>,
+        startMs: Long
+    ) {
+        for (packageName in foregroundStarts.keys.toList()) {
+            foregroundStarts[packageName] = startMs
+        }
     }
 
     fun queryUsageHistory(
@@ -436,6 +470,14 @@ object UsageStatsHelper {
         return isForegroundEvent(eventType) || isBackgroundEvent(eventType)
     }
 
+    private fun isContinuationEvent(eventType: Int): Boolean {
+        return eventType == EVENT_TYPE_CONTINUE_PREVIOUS_DAY
+    }
+
+    private fun isEndOfDayEvent(eventType: Int): Boolean {
+        return eventType == EVENT_TYPE_END_OF_DAY
+    }
+
     private fun isForegroundEvent(eventType: Int): Boolean {
         return eventType == UsageEvents.Event.MOVE_TO_FOREGROUND ||
             (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
@@ -445,7 +487,18 @@ object UsageStatsHelper {
     private fun isBackgroundEvent(eventType: Int): Boolean {
         return eventType == UsageEvents.Event.MOVE_TO_BACKGROUND ||
             (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
-                eventType == UsageEvents.Event.ACTIVITY_PAUSED)
+                (eventType == UsageEvents.Event.ACTIVITY_PAUSED ||
+                    eventType == UsageEvents.Event.ACTIVITY_STOPPED))
+    }
+
+    private fun isScreenInteractiveEvent(eventType: Int): Boolean {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            eventType == UsageEvents.Event.SCREEN_INTERACTIVE
+    }
+
+    private fun isScreenNonInteractiveEvent(eventType: Int): Boolean {
+        return Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q &&
+            eventType == UsageEvents.Event.SCREEN_NON_INTERACTIVE
     }
 
     private fun startOfDay(calendar: Calendar): Calendar {
