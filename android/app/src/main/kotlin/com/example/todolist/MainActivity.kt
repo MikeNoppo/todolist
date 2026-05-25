@@ -36,50 +36,6 @@ class MainActivity : FlutterActivity() {
     private val CHANNEL = "app_blocker/permissions"
     private val ADAPTIVE_EVENTS_CHANNEL = "app_blocker/adaptive_intervention_events"
     private val mainScope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
-    private val socialKeywords = listOf(
-        "facebook",
-        "instagram",
-        "twitter",
-        "threads",
-        "snapchat",
-        "tiktok",
-        "whatsapp",
-        "telegram",
-        "discord",
-        "line",
-        "wechat",
-        "messenger",
-        "reddit",
-        "pinterest",
-        "linkedin",
-        "youtube",
-        "brave",
-        "viber",
-        "signal",
-        "zalo",
-        "skype"
-    )
-    private val gameKeywords = listOf(
-        "game",
-        "games",
-        "roblox",
-        "mlbb",
-        "mobilelegends",
-        "pubg",
-        "freefire",
-        "genshin",
-        "honkai",
-        "clashofclans",
-        "clashroyale",
-        "pokemon",
-        "subwaysurf",
-        "candycrush"
-    )
-
-    private enum class FocusCategory(val value: String) {
-        SOCIAL("social"),
-        GAME("game")
-    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -401,7 +357,7 @@ class MainActivity : FlutterActivity() {
                 continue
             }
 
-            val focusCategory = detectFocusCategory(appInfo, packageId, appLabel) ?: continue
+            val focusCategory = FocusAppClassifier.detect(appInfo, packageId, appLabel) ?: continue
             val iconBytes = drawableToPngBytes(resolveInfo.loadIcon(packageManager))
 
             apps.add(
@@ -420,42 +376,6 @@ class MainActivity : FlutterActivity() {
                 { (it["appName"] as String).lowercase(Locale.US) }
             )
         )
-    }
-
-    private fun detectFocusCategory(
-        appInfo: ApplicationInfo,
-        packageId: String,
-        appLabel: String
-    ): FocusCategory? {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            when (appInfo.category) {
-                ApplicationInfo.CATEGORY_GAME -> return FocusCategory.GAME
-                ApplicationInfo.CATEGORY_SOCIAL -> return FocusCategory.SOCIAL
-            }
-        }
-
-        val packageLower = packageId.lowercase(Locale.US)
-        val labelLower = appLabel.lowercase(Locale.US)
-
-        if (containsKeyword(packageLower, labelLower, socialKeywords)) {
-            return FocusCategory.SOCIAL
-        }
-
-        if (containsKeyword(packageLower, labelLower, gameKeywords)) {
-            return FocusCategory.GAME
-        }
-
-        return null
-    }
-
-    private fun containsKeyword(
-        packageName: String,
-        appLabel: String,
-        keywords: List<String>
-    ): Boolean {
-        return keywords.any { keyword ->
-            packageName.contains(keyword) || appLabel.contains(keyword)
-        }
     }
 
     private fun isSystemApp(appInfo: ApplicationInfo): Boolean {
