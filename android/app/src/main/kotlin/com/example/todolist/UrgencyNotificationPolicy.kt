@@ -74,8 +74,8 @@ object UrgencyNotificationPolicy {
 
     fun getBlockingReasonForPackage(context: Context, packageName: String): UrgencyPolicyReason? {
         val prefs = prefs(context)
-        if (!isPackageBlockedByUserPolicy(prefs, packageName)) {
-            Log.d(TAG, "Package is not blocked by user policy: package=$packageName")
+        if (!isPackageEligibleForAdaptiveIntervention(context, prefs, packageName)) {
+            Log.d(TAG, "Package is not eligible for adaptive intervention: package=$packageName")
             return null
         }
 
@@ -102,7 +102,8 @@ object UrgencyNotificationPolicy {
         prefs(context).edit().putBoolean(KEY_NATIVE_APP_MANAGED_DND_ACTIVE, isActive).apply()
     }
 
-    fun isPackageBlockedByUserPolicy(
+    fun isPackageEligibleForAdaptiveIntervention(
+        context: Context,
         prefs: SharedPreferences,
         packageName: String
     ): Boolean {
@@ -112,21 +113,15 @@ object UrgencyNotificationPolicy {
             return false
         }
 
-        val hasAnyUserBlockConfig = prefs.all.keys.any { key ->
-            key.startsWith(KEY_BLOCK_PREFIX)
-        }
-
-        val isBlocked = if (hasAnyUserBlockConfig) {
-            prefs.getBoolean("$KEY_BLOCK_PREFIX$packageName", false)
-        } else {
-            false
-        }
+        val isLegacyExplicitBlock = prefs.getBoolean("$KEY_BLOCK_PREFIX$packageName", false)
+        val isAutoMonitored = FocusAppClassifier.isFocusApp(context, packageName)
 
         Log.d(
             TAG,
-            "User policy evaluation: package=$packageName hasUserConfig=$hasAnyUserBlockConfig blocked=$isBlocked"
+            "Adaptive eligibility: package=$packageName " +
+                "legacyBlock=$isLegacyExplicitBlock autoMonitored=$isAutoMonitored"
         )
-        return isBlocked
+        return isLegacyExplicitBlock || isAutoMonitored
     }
 
     private fun findBlockingReason(prefs: SharedPreferences): UrgencyPolicyReason? {
