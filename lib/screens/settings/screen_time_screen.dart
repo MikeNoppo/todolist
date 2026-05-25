@@ -482,6 +482,67 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
     return 'Kurang dari 1 menit';
   }
 
+  bool _isAlmostLimited(_UsageLimitInfo info) {
+    if (info.isBlockingNow || info.remainingBeforeBlockMs <= 0) {
+      return true;
+    }
+
+    final warningThresholdMs = max(1, info.temporaryBlockMs ~/ 4);
+    return info.remainingBeforeBlockMs <= warningThresholdMs;
+  }
+
+  Color _usageTileStatusColor({required _UsageLimitInfo? limitInfo}) {
+    if (limitInfo == null) {
+      return Colors.grey[600]!;
+    }
+
+    if (_isAlmostLimited(limitInfo)) {
+      return const Color(0xFFE53935);
+    }
+
+    return _accessStatusColor(limitInfo);
+  }
+
+  String _usageTileStatusText({required _UsageLimitInfo? limitInfo}) {
+    if (limitInfo == null) {
+      return 'Tidak dibatasi';
+    }
+
+    if (limitInfo.isBlockingNow || limitInfo.remainingBeforeBlockMs <= 0) {
+      return 'Akses sedang diblokir';
+    }
+
+    return 'Sisa ${_formatFriendlyDuration(limitInfo.remainingBeforeBlockMs)}';
+  }
+
+  String _sevenDayAppSummaryText(String packageName) {
+    final dayCount = max(1, _usageHistory.length);
+    final dailyUsageMs = _usageHistory.values.map((stats) {
+      for (final stat in stats) {
+        if (stat.packageName == packageName) {
+          return stat.totalTimeMs;
+        }
+      }
+
+      return 0;
+    }).toList();
+
+    final totalUsageMs = dailyUsageMs.fold<int>(0, (total, usageMs) {
+      return total + usageMs;
+    });
+    if (totalUsageMs <= 0) {
+      return 'Belum ada penggunaan 7 hari';
+    }
+
+    final averageUsageMs = totalUsageMs ~/ dayCount;
+    final activeDays = dailyUsageMs.where((usageMs) => usageMs > 0).length;
+    final averageText = AppUsageStat.formatDuration(
+      Duration(milliseconds: averageUsageMs),
+    );
+
+    return 'Rata-rata $averageText/hari • Aktif $activeDays hari';
+  }
+
   void _showAppDetailSheet(BuildContext context, _AppUsageRow row) {
     showModalBottomSheet<void>(
       context: context,
@@ -1124,16 +1185,12 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
 
   Widget _buildTodayView() {
     final rows = _buildTodayRows();
-    final maxUsageMs = rows.fold<int>(
-      0,
-      (value, row) => max(value, row.usageMs),
-    );
 
     return Column(
       children: rows.map((row) {
         return Padding(
           padding: EdgeInsets.only(bottom: AppSizeTokens.space10),
-          child: _buildAppUsageTile(row: row, maxUsageMs: maxUsageMs),
+          child: _buildAppUsageTile(row: row),
         );
       }).toList(),
     );
@@ -1258,17 +1315,15 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
       );
     }).toList()..sort((left, right) => right.usageMs.compareTo(left.usageMs));
 
-    final maxUsageMs = rows.fold<int>(
-      0,
-      (value, row) => max(value, row.usageMs),
-    );
-
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: rows.map((row) {
         return Padding(
           padding: EdgeInsets.only(bottom: AppSizeTokens.space10),
-          child: _buildAppUsageTile(row: row, maxUsageMs: maxUsageMs),
+          child: _buildAppUsageTile(
+            row: row,
+            historySummaryText: _sevenDayAppSummaryText(row.app.packageName),
+          ),
         );
       }).toList(),
     );
@@ -1276,17 +1331,16 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
 
   Widget _buildAppUsageTile({
     required _AppUsageRow row,
-    required int maxUsageMs,
+    String? historySummaryText,
   }) {
     final accentColor = _getCategoryAccentColor(row.app.category);
-    final progress = maxUsageMs == 0 ? 0.0 : row.usageMs / maxUsageMs;
     final isActive = row.currentSessionMs > 0;
     final isBlocked = _blockedPackages.contains(row.app.packageName);
     final showDailyAllowance = _selectedView == _ScreenTimeView.today;
     final limitInfo = showDailyAllowance ? _usageLimitInfoForRow(row) : null;
-    final remainingColor = limitInfo == null
-        ? Colors.grey[600]!
-        : _remainingColor(limitInfo);
+    final statusColor = historySummaryText == null
+        ? _usageTileStatusColor(limitInfo: limitInfo)
+        : Colors.grey[600]!;
 
     final tile = Container(
       padding: EdgeInsets.all(AppSizeTokens.itemPadding),
@@ -1302,25 +1356,15 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                 Row(
                   children: [
                     Expanded(
-                      child: Row(
-                        children: [
-                          Flexible(
-                            child: Text(
-                              row.app.appName,
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontSize: AppSizeTokens.text15,
-                                fontWeight: FontWeight.w600,
-                                color: Colors.black87,
-                              ),
-                            ),
-                          ),
-                          if (isBlocked) ...[
-                            SizedBox(width: AppSizeTokens.space6),
-                            _buildBlockedChip(),
-                          ],
-                        ],
+                      child: Text(
+                        row.app.appName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(
+                          fontSize: AppSizeTokens.text15,
+                          fontWeight: FontWeight.w600,
+                          color: Colors.black87,
+                        ),
                       ),
                     ),
                     Text(
@@ -1336,44 +1380,11 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
                   ],
                 ),
                 SizedBox(height: AppSizeTokens.space6),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(AppSizeTokens.radius8),
-                  child: LinearProgressIndicator(
-                    value: progress.clamp(0.0, 1.0),
-                    minHeight: 7.h,
-                    backgroundColor: Colors.grey[100],
-                    valueColor: AlwaysStoppedAnimation<Color>(accentColor),
-                  ),
+                _buildUsageTileStatusRow(
+                  limitInfo: limitInfo,
+                  color: statusColor,
+                  historySummaryText: historySummaryText,
                 ),
-                if (limitInfo != null) ...[
-                  SizedBox(height: AppSizeTokens.space6),
-                  Row(
-                    children: [
-                      Icon(
-                        limitInfo.isBlockingNow
-                            ? Icons.block_outlined
-                            : Icons.hourglass_bottom_outlined,
-                        size: 14.sp,
-                        color: remainingColor,
-                      ),
-                      SizedBox(width: AppSizeTokens.space6),
-                      Expanded(
-                        child: Text(
-                          limitInfo.isBlockingNow
-                              ? 'Akses sedang diblokir'
-                              : 'Sisa sebelum dibatasi ${_formatFriendlyDuration(limitInfo.remainingBeforeBlockMs)}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(
-                            fontSize: AppSizeTokens.text12,
-                            color: remainingColor,
-                            fontWeight: FontWeight.w700,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
                 if (isActive) ...[
                   SizedBox(height: AppSizeTokens.space6),
                   Row(
@@ -1419,6 +1430,23 @@ class _ScreenTimeScreenState extends State<ScreenTimeScreen>
         onTap: () => _showAppDetailSheet(context, row),
         borderRadius: BorderRadius.circular(AppSizeTokens.radius16),
         child: tile,
+      ),
+    );
+  }
+
+  Widget _buildUsageTileStatusRow({
+    required _UsageLimitInfo? limitInfo,
+    required Color color,
+    String? historySummaryText,
+  }) {
+    return Text(
+      historySummaryText ?? _usageTileStatusText(limitInfo: limitInfo),
+      maxLines: 1,
+      overflow: TextOverflow.ellipsis,
+      style: TextStyle(
+        fontSize: AppSizeTokens.text12,
+        color: color,
+        fontWeight: FontWeight.w700,
       ),
     );
   }
