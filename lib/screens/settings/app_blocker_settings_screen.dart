@@ -79,6 +79,26 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
   }
 
   Future<void> _toggleAlwaysAllow(String packageName, bool value) async {
+    if (value) {
+      final currentAllowed = _alwaysAllowedApps.values
+          .where((isAllowed) => isAllowed)
+          .length;
+      if (currentAllowed >= AppBlockerService.maxWhitelistedApps) {
+        HapticFeedback.mediumImpact();
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(
+              'Maksimal ${AppBlockerService.maxWhitelistedApps} aplikasi boleh '
+              'di-whitelist. Keluarkan salah satu dulu untuk menambah yang lain.',
+            ),
+            backgroundColor: Colors.red,
+            duration: const Duration(seconds: 3),
+          ),
+        );
+        return;
+      }
+    }
+
     try {
       final prefs = await SharedPreferences.getInstance();
       await prefs.setBool(
@@ -410,7 +430,7 @@ class _AppBlockerSettingsScreenState extends State<AppBlockerSettingsScreen> {
         children: [
           SizedBox(height: 8.h),
           Text(
-            '$monitoredCount diblokir • $allowCount whitelist • ${_installedApps.length} terdeteksi',
+            '$monitoredCount diblokir • $allowCount/${AppBlockerService.maxWhitelistedApps} whitelist • ${_installedApps.length} terdeteksi',
             style: TextStyle(
               fontSize: 14.sp,
               fontWeight: FontWeight.w600,

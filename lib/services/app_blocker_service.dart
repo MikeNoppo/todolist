@@ -86,6 +86,7 @@ class AppBlockerService {
 
   static const String blockKeyPrefix = 'block_';
   static const String allowKeyPrefix = 'allow_';
+  static const int maxWhitelistedApps = 2;
   static const String interventionEnabledKey = 'intervention_enabled';
   static const String customQuoteKey = 'intervention_custom_quote';
   static const String lowWindowHoursKey = 'intervention_window_low_hours';
@@ -239,6 +240,25 @@ class AppBlockerService {
     }
   }
 
+  static List<String> _whitelistedPackagesFrom(SharedPreferences prefs) {
+    return prefs
+        .getKeys()
+        .where((key) => key.startsWith(allowKeyPrefix))
+        .where((key) => prefs.getBool(key) ?? false)
+        .map((key) => key.replaceFirst(allowKeyPrefix, ''))
+        .toList()
+      ..sort();
+  }
+
+  static Future<List<String>> getWhitelistedPackages() async {
+    final prefs = await SharedPreferences.getInstance();
+    return _whitelistedPackagesFrom(prefs);
+  }
+
+  static Future<bool> canAddToWhitelist() async {
+    return (await getWhitelistedPackages()).length < maxWhitelistedApps;
+  }
+
   static Future<InterventionDebugInfo> getInterventionDebugInfo() async {
     final prefs = await SharedPreferences.getInstance();
     final todos = await TodoRepository().getTodos();
@@ -253,14 +273,7 @@ class AppBlockerService {
 
     blockedPackages.sort();
 
-    final alwaysAllowedPackages =
-        prefs
-            .getKeys()
-            .where((key) => key.startsWith(allowKeyPrefix))
-            .where((key) => prefs.getBool(key) ?? false)
-            .map((key) => key.replaceFirst(allowKeyPrefix, ''))
-            .toList()
-          ..sort();
+    final alwaysAllowedPackages = _whitelistedPackagesFrom(prefs);
 
     blockedPackages = blockedPackages
         .where((packageName) => !alwaysAllowedPackages.contains(packageName))

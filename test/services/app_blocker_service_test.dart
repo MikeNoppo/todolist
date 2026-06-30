@@ -97,5 +97,29 @@ void main() {
 
       expect(shouldBlock, isFalse);
     });
+
+    test('getWhitelistedPackages only counts allowed entries', () async {
+      SharedPreferences.setMockInitialValues({
+        'allow_com.a': true,
+        'allow_com.b': false,
+      });
+
+      expect(await AppBlockerService.getWhitelistedPackages(), ['com.a']);
+    });
+
+    test('canAddToWhitelist is true below the cap', () async {
+      SharedPreferences.setMockInitialValues({'allow_com.a': true});
+
+      expect(await AppBlockerService.canAddToWhitelist(), isTrue);
+    });
+
+    test('canAddToWhitelist is false at the cap', () async {
+      SharedPreferences.setMockInitialValues({
+        'allow_com.a': true,
+        'allow_com.b': true,
+      });
+
+      expect(await AppBlockerService.canAddToWhitelist(), isFalse);
+    });
   });
 }
